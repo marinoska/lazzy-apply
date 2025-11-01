@@ -1,5 +1,5 @@
 import React from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { CssVarsProvider, extendTheme } from "@mui/joy/styles";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
@@ -9,29 +9,32 @@ import IconButton from "@mui/joy/IconButton";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Divider from "@mui/joy/Divider";
 import Box from "@mui/joy/Box";
-import type { StoredSession } from "../lib/supabase";
+import type { StoredSession } from "../lib/supabase.js";
 
-type SidebarState = {
+// Constants
+const HOST_ID = "dynojob-auth-sidebar-host";
+const ROOT_ID = "dynojob-auth-sidebar-root";
+
+// Types
+interface SidebarState {
   visible: boolean;
   loading: boolean;
   status: string | null;
   session: StoredSession | null;
-};
+}
 
-type SidebarDeps = {
+interface SidebarDeps {
   fetchSession: () => Promise<StoredSession | null>;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
-};
+}
 
-type SidebarModule = {
+export interface SidebarModule {
   show: () => Promise<void>;
   hide: () => void;
   updateSession: (session: StoredSession | null) => void;
   showError: (message: string) => void;
-};
-
-const HOST_ID = "dynojob-auth-sidebar-host";
+}
 
 export function createSidebar(deps: SidebarDeps): SidebarModule {
   const state: SidebarState = {
@@ -41,75 +44,16 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
     session: null
   };
 
-  const host = ensureHost();
-  const shadow = host.attachShadow({ mode: "open" });
-  const style = document.createElement("style");
-  style.textContent = `
-    :host {
-      all: initial;
-    }
-    :host *,
-    :host *::before,
-    :host *::after {
-      box-sizing: border-box;
-    }
-    .overlay {
-      position: fixed;
-      top: 0;
-      right: 0;
-      height: 100vh;
-      width: min(320px, calc(100vw - 16px));
-      max-width: 360px;
-      padding: 24px 24px 24px 16px;
-      display: flex;
-      align-items: flex-start;
-      justify-content: stretch;
-      z-index: 2147483647;
-      opacity: 0;
-      visibility: hidden;
-      transform: translateX(12px);
-      transition: opacity 0.18s ease, transform 0.18s ease;
-      pointer-events: none;
-      background: linear-gradient(90deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.02));
-      backdrop-filter: blur(2px);
-      box-shadow: -1px 0 0 rgba(148, 163, 184, 0.25);
-    }
-    .overlay.visible {
-      opacity: 1;
-      visibility: visible;
-      transform: translateX(0);
-      pointer-events: auto;
-    }
-    .panel {
-      width: 100%;
-      background-color: rgba(255, 255, 255, 0.98);
-      border-radius: 18px;
-      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
-      max-height: calc(100vh - 48px);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-  `;
+  // Setup shadow DOM
+  const { root, theme } = setupShadowDOM();
 
-  const container = document.createElement("div");
-  container.setAttribute("id", "dynojob-auth-sidebar-root");
-  shadow.append(style, container);
-
-  const root = createRoot(container);
-  const theme = extendTheme({
-    fontFamily: {
-      body: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      display: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    }
-  });
-
-  const update = (partial: Partial<SidebarState>) => {
+  // State management
+  const update = (partial: Partial<SidebarState>): void => {
     Object.assign(state, partial);
     render();
   };
 
-  const render = () => {
+  const render = (): void => {
     root.render(
       <CssVarsProvider theme={theme} defaultMode="system">
         <SidebarView
@@ -122,7 +66,8 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
     );
   };
 
-  const show = async () => {
+  // Public API
+  const show = async (): Promise<void> => {
     update({ visible: true, loading: true, status: null });
     try {
       const session = await deps.fetchSession();
@@ -130,16 +75,17 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
     } catch (error) {
       update({
         loading: false,
-        status: `Failed: ${error instanceof Error ? error.message : "Unable to fetch session"}`
+        status: formatError("Failed to fetch session", error)
       });
     }
   };
 
-  const hide = () => {
+  const hide = (): void => {
     update({ visible: false });
   };
 
-  const handleSignIn = async () => {
+  // Event handlers
+  const handleSignIn = async (): Promise<void> => {
     update({ loading: true, status: "Starting OAuth…" });
     try {
       await deps.signIn();
@@ -149,12 +95,12 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
     } catch (error) {
       update({
         loading: false,
-        status: `Failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        status: formatError("Sign-in failed", error)
       });
     }
   };
 
-  const handleSignOut = async () => {
+  const handleSignOut = async (): Promise<void> => {
     update({ loading: true, status: "Signing out…" });
     try {
       await deps.signOut();
@@ -162,12 +108,12 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
     } catch (error) {
       update({
         loading: false,
-        status: `Failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        status: formatError("Sign-out failed", error)
       });
     }
   };
 
-  const updateSession = (session: StoredSession | null) => {
+  const updateSession = (session: StoredSession | null): void => {
     update({
       session,
       loading: false,
@@ -175,17 +121,19 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
     });
   };
 
-  const showError = (message: string) => {
-    update({ loading: false, status: message });
+  const showError = (message: string): void => {
+    update({ loading: false, status: `Error: ${message}` });
   };
 
-  const onKeyDown = (event: KeyboardEvent) => {
+  // Keyboard handler
+  const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === "Escape" && state.visible) {
       event.stopPropagation();
       hide();
     }
   };
 
+  // Setup and initial render
   window.addEventListener("keydown", onKeyDown, true);
   render();
 
@@ -295,13 +243,106 @@ function SidebarView({ state, onClose, onSignIn, onSignOut }: SidebarViewProps) 
   );
 }
 
-function ensureHost() {
+/**
+ * Setup shadow DOM with styles and React root
+ */
+function setupShadowDOM(): { root: Root; theme: ReturnType<typeof extendTheme> } {
+  const host = ensureHost();
+  const shadow = host.attachShadow({ mode: "open" });
+
+  // Add styles
+  const style = document.createElement("style");
+  style.textContent = getSidebarStyles();
+  shadow.appendChild(style);
+
+  // Create React root
+  const container = document.createElement("div");
+  container.id = ROOT_ID;
+  shadow.appendChild(container);
+
+  const root = createRoot(container);
+  const theme = extendTheme({
+    fontFamily: {
+      body: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      display: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    }
+  });
+
+  return { root, theme };
+}
+
+/**
+ * Get or create the host element
+ */
+function ensureHost(): HTMLDivElement {
   const existing = document.getElementById(HOST_ID);
   if (existing) return existing as HTMLDivElement;
+
   const host = document.createElement("div");
   host.id = HOST_ID;
   document.documentElement.appendChild(host);
   return host;
+}
+
+/**
+ * Get sidebar CSS styles
+ */
+function getSidebarStyles(): string {
+  return `
+    :host {
+      all: initial;
+    }
+    :host *,
+    :host *::before,
+    :host *::after {
+      box-sizing: border-box;
+    }
+    .overlay {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100vh;
+      width: min(320px, calc(100vw - 16px));
+      max-width: 360px;
+      padding: 24px 24px 24px 16px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: stretch;
+      z-index: 2147483647;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(12px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      pointer-events: none;
+      background: linear-gradient(90deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.02));
+      backdrop-filter: blur(2px);
+      box-shadow: -1px 0 0 rgba(148, 163, 184, 0.25);
+    }
+    .overlay.visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+    .panel {
+      width: 100%;
+      background-color: rgba(255, 255, 255, 0.98);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+      max-height: calc(100vh - 48px);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+  `;
+}
+
+/**
+ * Format error message consistently
+ */
+function formatError(prefix: string, error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return `${prefix}: ${message}`;
 }
 
 export default createSidebar;

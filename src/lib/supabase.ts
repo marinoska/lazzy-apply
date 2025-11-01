@@ -1,44 +1,59 @@
-import { createClient } from "@supabase/supabase-js";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Environment variables
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-console.log(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Cached client instance
 let cachedClient: SupabaseClient | null = null;
 
-function ensureConfig(): { url: string; anonKey: string } {
-  if (!SUPABASE_URL) {
-    throw new Error("Missing VITE_SUPABASE_URL. Populate it in your .env before building the extension.");
+/**
+ * Session data stored in Chrome storage
+ */
+export interface StoredSession {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number | null;
+  user: User | null;
+}
+
+/**
+ * Validate required environment variables
+ */
+function validateConfig(): { url: string; anonKey: string } {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error(
+      "Missing Supabase configuration. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file."
+    );
   }
-  if (!SUPABASE_ANON_KEY) {
-    throw new Error("Missing VITE_SUPABASE_ANON_KEY. Populate it in your .env before building the extension.");
-  }
+
   return { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY };
 }
 
+/**
+ * Create a new Supabase client instance
+ */
 function createSupabaseClient(): SupabaseClient {
-  const { url, anonKey } = ensureConfig();
+  const { url, anonKey } = validateConfig();
+
   return createClient(url, anonKey, {
     auth: {
+      // Don't persist session in browser - we handle it manually in Chrome storage
       persistSession: false,
+      // Don't auto-refresh - we manage tokens ourselves
       autoRefreshToken: false,
+      // Don't detect session in URL - we use implicit flow with hash fragments
       detectSessionInUrl: false
-      // Using implicit flow (tokens in hash) - simpler for extensions
     }
   });
 }
 
+/**
+ * Get or create the Supabase client singleton
+ */
 export function getSupabase(): SupabaseClient {
   if (!cachedClient) {
     cachedClient = createSupabaseClient();
   }
   return cachedClient;
 }
-
-export type StoredSession = {
-  access_token: string;
-  refresh_token: string;
-  expires_at?: number | null;
-  user?: any | null;
-};

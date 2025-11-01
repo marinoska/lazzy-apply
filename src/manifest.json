@@ -3,20 +3,20 @@
   "name": "Supabase Google Login",
   "version": "0.0.1",
   "action": { "default_title": "Supabase Google Login" },
-  "background": { 
-    "service_worker": "background/index.js",
+  "background": {
+    "service_worker": "src/background/index.ts",
     "type": "module"
   },
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "js": ["content/index.js"],
+      "js": ["src/content/index.ts"],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["content/*.js", "assets/*"],
+      "resources": ["src/content/*.js", "src/assets/*"],
       "matches": ["<all_urls>"]
     }
   ],

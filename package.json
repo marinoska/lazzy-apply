@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "vite dev --open /popup/index.html",
-    "build": "vite build && BUILD_TARGET=content vite build && cp manifest.json dist/manifest.json"
+    "dev:watch": "vite build --mode development --watch",
+    "zip": "vite build && cd dist && zip -r ../extension.zip .",
+    "build": "vite build"
   },
   "keywords": [],
   "author": "",
@@ -19,10 +21,12 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@crxjs/vite-plugin": "^2.2.1",
     "@types/chrome": "^0.1.27",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.1.0",
+    "@biomejs/biome": "^1.9.4",
     "typescript": "^5.9.3",
     "vite": "^7.1.12"
   }

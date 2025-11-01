@@ -1,65 +1,176 @@
-import type { StoredSession } from "../lib/supabase";
-import createSidebar from "./sidebarApp";
+import type { StoredSession } from "../lib/supabase.js";
+import createSidebar from "./sidebarApp.js";
 
 type SidebarModule = ReturnType<typeof createSidebar>;
 
+type MessageType = "SHOW_MODAL" | "AUTH_CHANGED";
+
+interface BaseMessage {
+  type: MessageType;
+}
+
+interface ShowModalMessage extends BaseMessage {
+  type: "SHOW_MODAL";
+}
+
+interface AuthChangedMessage extends BaseMessage {
+  type: "AUTH_CHANGED";
+  session: StoredSession | null;
+}
+
+type ContentMessage = ShowModalMessage | AuthChangedMessage;
+
+interface MessageResponse {
+  ok: boolean;
+  error?: string;
+}
+
 let sidebar: SidebarModule | null = null;
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (!msg || typeof msg !== "object") return;
+/**
+ * Handle messages from the background script
+ */
+chrome.runtime.onMessage.addListener(
+  (msg: BaseMessage, _sender: chrome.runtime.MessageSender, sendResponse: (response: MessageResponse) => void) => {
+    if (!isValidMessage(msg)) return false;
 
-  if (msg.type === "SHOW_MODAL") {
-    ensureSidebar()
-      .then(async (sidebar) => {
-        await sidebar.show();
-        sendResponse?.({ ok: true });
-      })
-      .catch((error) => {
-        console.error("Failed to open sidebar:", error);
-        sendResponse?.({ ok: false, error: String(error) });
-      });
-    return true;
+    switch (msg.type) {
+      case "SHOW_MODAL":
+        handleShowModal(sendResponse);
+        return true; // Keep channel open for async response
+
+      case "AUTH_CHANGED":
+        handleAuthChanged(msg.session);
+        return false;
+
+      default:
+        return false;
+    }
   }
+);
 
-  if (msg.type === "AUTH_CHANGED") {
-    if (!sidebar) return;
-    sidebar.updateSession(msg.session ?? null);
+/**
+ * Type guard to validate incoming messages
+ */
+function isValidMessage(msg: unknown): msg is ContentMessage {
+  return (
+    typeof msg === "object" &&
+    msg !== null &&
+    "type" in msg &&
+    typeof (msg as BaseMessage).type === "string"
+  );
+}
+
+/**
+ * Handle SHOW_MODAL message
+ */
+async function handleShowModal(sendResponse: (response: MessageResponse) => void): Promise<void> {
+  try {
+    const sidebarInstance = ensureSidebar();
+    await sidebarInstance.show();
+    sendResponse({ ok: true });
+  } catch (error) {
+    console.error("[DynoJob] Failed to open sidebar:", error);
+    sendResponse({ ok: false, error: String(error) });
   }
-});
+}
 
-function ensureSidebar(): Promise<SidebarModule> {
+/**
+ * Handle AUTH_CHANGED message
+ */
+function handleAuthChanged(session: StoredSession | null): void {
+  if (sidebar) {
+    sidebar.updateSession(session);
+  }
+}
+
+/**
+ * Lazy-initialize the sidebar
+ */
+function ensureSidebar(): SidebarModule {
   if (!sidebar) {
-    sidebar = createSidebar({ fetchSession, signIn, signOut });
+    sidebar = createSidebar({
+      fetchSession,
+      signIn,
+      signOut
+    });
   }
-  return Promise.resolve(sidebar);
+  return sidebar;
 }
 
+// Message types sent to background script
+interface GetAuthMessage {
+  type: "GET_AUTH";
+}
+
+interface OAuthStartMessage {
+  type: "OAUTH_START";
+}
+
+interface LogoutMessage {
+  type: "LOGOUT";
+}
+
+type BackgroundMessage = GetAuthMessage | OAuthStartMessage | LogoutMessage;
+
+// Response types from background script
+interface BackgroundResponse {
+  ok: boolean;
+  session?: StoredSession | null;
+  error?: string;
+}
+
+/**
+ * Fetch the current session from the background script
+ */
 async function fetchSession(): Promise<StoredSession | null> {
-  const resp = await sendRuntimeMessage<{ ok: boolean; session: StoredSession | null; error?: string }>({
-    type: "GET_AUTH"
-  });
-  if (!resp?.ok) throw new Error(resp?.error ?? "Unable to fetch session");
-  return resp.session ?? null;
+  const message: GetAuthMessage = { type: "GET_AUTH" };
+  const response = await sendRuntimeMessage<BackgroundResponse>(message);
+  
+  if (!response?.ok) {
+    throw new Error(response?.error ?? "Unable to fetch session");
+  }
+  
+  return response.session ?? null;
 }
 
+/**
+ * Initiate OAuth sign-in flow
+ */
 async function signIn(): Promise<void> {
-  const resp = await sendRuntimeMessage<{ ok: boolean; error?: string }>({ type: "OAUTH_START" });
-  if (!resp?.ok) throw new Error(resp?.error ?? "Unknown error");
+  const message: OAuthStartMessage = { type: "OAUTH_START" };
+  const response = await sendRuntimeMessage<BackgroundResponse>(message);
+  
+  if (!response?.ok) {
+    throw new Error(response?.error ?? "Sign-in failed");
+  }
 }
 
+/**
+ * Sign out the current user
+ */
 async function signOut(): Promise<void> {
-  const resp = await sendRuntimeMessage<{ ok: boolean; error?: string }>({ type: "LOGOUT" });
-  if (!resp?.ok) throw new Error(resp?.error ?? "Unknown error");
+  const message: LogoutMessage = { type: "LOGOUT" };
+  const response = await sendRuntimeMessage<BackgroundResponse>(message);
+  
+  if (!response?.ok) {
+    throw new Error(response?.error ?? "Sign-out failed");
+  }
 }
 
-function sendRuntimeMessage<T>(message: unknown): Promise<T> {
+/**
+ * Send a message to the background script and wait for response
+ */
+function sendRuntimeMessage<T>(message: BackgroundMessage): Promise<T> {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(message, (response: T) => {
-      const err = chrome.runtime.lastError;
-      if (err) {
-        reject(new Error(err.message));
+      const error = chrome.runtime.lastError;
+      
+      if (error) {
+        reject(new Error(error.message));
         return;
       }
+      
       resolve(response);
     });
   });

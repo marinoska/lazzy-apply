@@ -1,6 +1,34 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { StoredSession } from "../lib/supabase";
+import type { StoredSession } from "../lib/supabase.js";
+
+// Message types sent to background script
+interface GetAuthMessage {
+  type: "GET_AUTH";
+}
+
+interface OAuthStartMessage {
+  type: "OAUTH_START";
+}
+
+interface LogoutMessage {
+  type: "LOGOUT";
+}
+
+type BackgroundMessage = GetAuthMessage | OAuthStartMessage | LogoutMessage;
+
+// Message types received from background script
+interface AuthChangedMessage {
+  type: "AUTH_CHANGED";
+  session: StoredSession | null;
+}
+
+// Response types
+interface MessageResponse {
+  ok: boolean;
+  session?: StoredSession | null;
+  error?: string;
+}
 
 function App() {
   const [session, setSession] = useState<StoredSession | null>(null);
@@ -8,20 +36,33 @@ function App() {
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    chrome.runtime.sendMessage({ type: "GET_AUTH" }, (resp) => {
+    const message: GetAuthMessage = { type: "GET_AUTH" };
+    chrome.runtime.sendMessage(message, (resp: MessageResponse) => {
       setSession(resp?.session ?? null);
       setLoading(false);
     });
-    const onMsg = (msg: any) => {
-      if (msg?.type === "AUTH_CHANGED") setSession(msg.session ?? null);
+    const onMsg = (msg: unknown) => {
+      if (isAuthChangedMessage(msg)) {
+        setSession(msg.session ?? null);
+      }
     };
     chrome.runtime.onMessage.addListener(onMsg);
     return () => chrome.runtime.onMessage.removeListener(onMsg);
   }, []);
 
+  function isAuthChangedMessage(msg: unknown): msg is AuthChangedMessage {
+    return (
+      typeof msg === "object" &&
+      msg !== null &&
+      "type" in msg &&
+      (msg as AuthChangedMessage).type === "AUTH_CHANGED"
+    );
+  }
+
   const signIn = () => {
     setStatus("Starting OAuth…");
-    chrome.runtime.sendMessage({ type: "OAUTH_START" }, (resp) => {
+    const message: OAuthStartMessage = { type: "OAUTH_START" };
+    chrome.runtime.sendMessage(message, (resp: MessageResponse) => {
       if (chrome.runtime.lastError) {
         console.error({error: chrome.runtime.lastError});
         setStatus(`Failed: ${chrome.runtime.lastError.message}`);
@@ -37,7 +78,8 @@ function App() {
   };
 
   const signOut = () => {
-    chrome.runtime.sendMessage({ type: "LOGOUT" }, (resp) => {
+    const message: LogoutMessage = { type: "LOGOUT" };
+    chrome.runtime.sendMessage(message, (resp: MessageResponse) => {
       if (chrome.runtime.lastError) {
         setStatus(`Failed: ${chrome.runtime.lastError.message}`);
         return;
