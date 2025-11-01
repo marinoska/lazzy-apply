@@ -1,6 +1,6 @@
-# DynoJob Chrome Extension
+# LazyApplyAgent Chrome Extension
 
-A Chrome extension that provides seamless Supabase authentication with Google OAuth for DynoJob sessions.
+A Chrome extension that provides seamless Supabase authentication with Google OAuth for LazyApplyAgent sessions.
 
 ## Features
 
@@ -100,7 +100,7 @@ The extension uses Chrome's message passing API:
 ## Project Structure
 
 ```
-DynoJob/
+LazyApplyAgent/
 ├── src/
 │   ├── background/
 │   │   └── index.ts          # Service worker

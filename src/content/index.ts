@@ -1,7 +1,5 @@
 import type { StoredSession } from "../lib/supabase.js";
-import createSidebar from "./sidebarApp.js";
-
-type SidebarModule = ReturnType<typeof createSidebar>;
+import createSidebar, { type SidebarModule } from "./sidebar/index.js";
 
 type MessageType = "SHOW_MODAL" | "AUTH_CHANGED";
 

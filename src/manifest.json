@@ -1,8 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Supabase Google Login",
+  "name": "LazyApplyAgent",
   "version": "0.0.1",
-  "action": { "default_title": "Supabase Google Login" },
   "background": {
     "service_worker": "src/background/index.ts",
     "type": "module"
@@ -14,6 +13,9 @@
       "run_at": "document_idle"
     }
   ],
+  "action": {
+    "default_title": "LazyApplyAgent"
+  },
   "web_accessible_resources": [
     {
       "resources": ["src/content/*.js", "src/assets/*"],
