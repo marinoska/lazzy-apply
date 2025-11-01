@@ -1,0 +1,26 @@
+{
+  "name": "dynojob",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite dev --open /popup/index.html",
+    "build": "vite build && cp manifest.json dist/manifest.json"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.78.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.27",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  }
+}

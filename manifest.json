@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Supabase Google Login",
+  "version": "0.0.1",
+  "action": { "default_title": "Supabase Google Login" },
+  "background": { "service_worker": "background/index.js" },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content/index.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["identity", "storage"],
+  "host_permissions": ["https://*.supabase.co/*"]
+}
