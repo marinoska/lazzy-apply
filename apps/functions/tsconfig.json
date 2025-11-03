@@ -1,0 +1,13 @@
+{
+  "extends": "@lazyapply/config/tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2020"],
+    "types": ["@supabase/supabase-js"],
+    "paths": {
+      "@lazyapply/types": ["../../packages/types/src"],
+      "@lazyapply/schemas": ["../../packages/schemas/src"],
+      "@lazyapply/utils": ["../../packages/utils/src"]
+    }
+  },
+  "include": ["functions/**/*"]
+}

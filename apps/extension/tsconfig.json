@@ -1,0 +1,14 @@
+{
+  "extends": "@lazyapply/config/tsconfig.json",
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "types": ["chrome", "vite/client"],
+    "paths": {
+      "@lazyapply/types": ["../../packages/types/src"],
+      "@lazyapply/utils": ["../../packages/utils/src"]
+    }
+  },
+  "include": ["src"]
+}

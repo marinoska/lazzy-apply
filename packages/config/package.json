@@ -1,0 +1,12 @@
+{
+  "name": "@lazyapply/config",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "tsconfig.json",
+    "biome.json"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist"
+  }
+}

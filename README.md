@@ -1,135 +1,149 @@
-# LazyApplyAgent Chrome Extension
+# LazyApply Monorepo
 
-A Chrome extension that provides seamless Supabase authentication with Google OAuth for LazyApplyAgent sessions.
+A Turborepo monorepo for the LazyApply platform, containing the browser extension and Supabase Edge Functions.
 
-## Features
+## Structure
 
-- **Google OAuth Integration**: Sign in with your Google account via Supabase
-- **Sidebar UI**: Clean, modern sidebar interface for authentication
-- **Session Management**: Automatic session persistence and restoration
-- **Shadow DOM**: Isolated styles that won't conflict with host pages
-- **Type-Safe**: Built with TypeScript for better developer experience
+```
+LazyApply/
+├── apps/
+│   ├── extension/          # LazyApplyAgent Chrome Extension
+│   └── functions/          # Supabase Edge Functions
+├── packages/
+│   ├── types/             # Shared TypeScript types
+│   ├── schemas/           # Shared Zod validation schemas
+│   ├── utils/             # Shared utility functions
+│   └── config/            # Shared configs (tsconfig, biome)
+├── package.json           # Root package.json with workspaces
+├── turbo.json            # Turborepo configuration
+└── pnpm-workspace.yaml   # PNPM workspace configuration
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js >= 18
+- pnpm >= 9.0.0
+
+### Installation
+
+```bash
+# Install dependencies for all workspaces
+pnpm install
+```
+
+### Development
+
+```bash
+# Run all apps in development mode
+pnpm dev
+
+# Run specific app
+pnpm --filter @lazyapply/extension dev
+pnpm --filter @lazyapply/functions dev
+
+# Build all apps
+pnpm build
+
+# Lint all packages
+pnpm lint
+
+# Format code
+pnpm format
+```
+
+## Apps
+
+### Extension (`apps/extension`)
+
+Chrome extension built with React, TypeScript, and Vite.
+
+**Features:**
+- React 19 with TypeScript
+- Vite for fast development
+- MUI Joy for UI components
+- Supabase integration
+- Chrome Extension Manifest V3
+
+**Commands:**
+```bash
+cd apps/extension
+pnpm dev          # Start development server
+pnpm build        # Build for production
+pnpm zip          # Create extension zip
+```
+
+### Functions (`apps/functions`)
+
+Supabase Edge Functions for backend logic.
+
+**Commands:**
+```bash
+cd apps/functions
+pnpm dev          # Start local Supabase
+pnpm deploy       # Deploy to Supabase
+```
+
+## Packages
+
+### `@lazyapply/types`
+Shared TypeScript type definitions used across the monorepo.
+
+### `@lazyapply/schemas`
+Zod validation schemas for runtime type checking.
+
+### `@lazyapply/utils`
+Common utility functions shared between apps.
+
+### `@lazyapply/config`
+Shared configuration files (TypeScript, Biome) for consistent tooling.
+
+## Turborepo
+
+This monorepo uses [Turborepo](https://turbo.build/repo) for:
+- Fast, incremental builds
+- Smart caching
+- Parallel task execution
+- Dependency graph management
+
+### Key Commands
+
+```bash
+pnpm build        # Build all apps and packages
+pnpm dev          # Run all apps in dev mode
+pnpm lint         # Lint all packages
+pnpm clean        # Clean all build artifacts
+```
+
+## Adding a New Package
+
+1. Create a new directory in `packages/`
+2. Add `package.json` with name `@lazyapply/<name>`
+3. Add to workspace in `pnpm-workspace.yaml` (already configured with `packages/*`)
+4. Reference in consuming apps using `"@lazyapply/<name>": "workspace:*"`
+
+## Adding a New App
+
+1. Create a new directory in `apps/`
+2. Add `package.json` with name `@lazyapply/<name>`
+3. Add to workspace in `pnpm-workspace.yaml` (already configured with `apps/*`)
+4. Configure build scripts in `turbo.json` if needed
 
 ## Environment Variables
 
-Create a `.env` file based on `.env.example`:
-
-```
-VITE_SUPABASE_URL=<your-supabase-url>
-VITE_SUPABASE_ANON_KEY=<your-anon-key>
-```
-
-> The keys are embedded in the extension bundle; keep your Supabase Row Level Security rules tight.
-
-## Development
+Create `.env` files in each app directory:
 
 ```bash
-npm install
-npm run dev
+# apps/extension/.env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_anon_key
+
+# apps/functions/.env
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
-
-- Vite serves the popup from `http://localhost:5173/popup`.
-- Background service worker rebuilds automatically; reload the extension when iterating.
-
-## Production Build
-
-```bash
-npm run build
-```
-
-Output lands in `dist/` with the required structure:
-
-```
-dist/
-  manifest.json
-  popup/index.html
-  background/index.js
-  assets/...
-```
-
-## Load in Chrome
-
-1. Run `npm run build`.
-2. Open `chrome://extensions`.
-3. Toggle **Developer mode**.
-4. Click **Load unpacked** and choose the `dist/` directory.
-
-## OAuth Flow Overview
-
-1. Popup sends `OAUTH_START` to the background.
-2. Background calls `supabase.auth.signInWithOAuth` and launches the Chrome WebAuth flow.
-3. After Supabase redirects back with a `code`, the background exchanges it for a session using `exchangeCodeForSession`.
-4. Session is stored under `supabaseSession` in `chrome.storage.local` and broadcast via `AUTH_CHANGED`.
-5. Popup reacts to auth changes, renders the user email, and signs out via `LOGOUT`.
-
-## Architecture
-
-### Components
-
-- **Background Script** (`src/background/index.ts`): Service worker handling OAuth flow and session management
-- **Content Script** (`src/content/index.ts`): Injected into web pages to handle sidebar display
-- **Sidebar App** (`src/content/sidebarApp.tsx`): React-based UI for authentication
-- **Supabase Client** (`src/lib/supabase.ts`): Configured Supabase client for auth operations
-
-### Build System
-
-The project uses a dual-build approach:
-
-1. **Background Script**: Built as ES module (supports `type: "module"` in manifest)
-2. **Content Script**: Built as IIFE (self-contained, no imports required)
-
-## OAuth Flow
-
-1. User clicks extension icon → sidebar opens
-2. User clicks "Sign in with Google"
-3. Background script initiates OAuth with Supabase
-4. Chrome's `identity.launchWebAuthFlow` handles the OAuth redirect
-5. Tokens are extracted from URL hash and stored
-6. Session is broadcast to all content scripts via `AUTH_CHANGED`
-
-## Message Passing
-
-The extension uses Chrome's message passing API:
-
-- `SHOW_MODAL`: Open the authentication sidebar
-- `AUTH_CHANGED`: Broadcast session updates
-- `GET_AUTH`: Fetch current session
-- `OAUTH_START`: Initiate OAuth flow
-- `LOGOUT`: Sign out user
-
-## Project Structure
-
-```
-LazyApplyAgent/
-├── src/
-│   ├── background/
-│   │   └── index.ts          # Service worker
-│   ├── content/
-│   │   ├── index.ts          # Content script
-│   │   └── sidebarApp.tsx    # React sidebar UI
-│   └── lib/
-│       └── supabase.ts       # Supabase client
-├── dist/                     # Build output
-├── manifest.json             # Extension manifest
-├── vite.config.ts           # Build configuration
-└── package.json             # Dependencies
-```
-
-## Technologies
-
-- **TypeScript**: Type-safe development
-- **React**: UI framework
-- **Material-UI Joy**: Component library
-- **Vite**: Build tool
-- **Supabase**: Authentication backend
-- **Chrome Extension APIs**: Browser integration
-
-## Troubleshooting
-
-- Ensure the Supabase redirect URI matches `https://${chrome.runtime.id}.chromiumapp.org/`
-- Check background service worker logs: `chrome://extensions` → Details → Inspect views
-- Chrome may recycle the service worker; it automatically restores sessions on startup
 
 ## License
 
-ISC
+MIT

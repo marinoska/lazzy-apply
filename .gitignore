@@ -9,3 +9,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Turborepo
+.turbo
+
+# Build outputs
+apps/*/dist
+apps/*/.next
+apps/*/.output
+packages/*/dist
+
+# Extension builds
+apps/extension/*.zip
