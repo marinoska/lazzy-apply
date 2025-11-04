@@ -1,0 +1,16 @@
+{
+	"extends": "@lazyapply/config/tsconfig.json",
+	"compilerOptions": {
+		"rootDir": "./src",
+		"outDir": "./dist",
+		"types": ["node"],
+		"paths": {
+			"@lazyapply/types": ["../../packages/types/src"],
+			"@lazyapply/utils": ["../../packages/utils/src"],
+			"@lazyapply/schemas": ["../../packages/schemas/src"],
+			"@/*": ["./src/*"]
+		}
+	},
+	"include": ["src"],
+	"exclude": ["src/**/*.test.ts", "src/**/*.spec.ts"]
+}

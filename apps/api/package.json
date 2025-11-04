@@ -1,0 +1,40 @@
+{
+	"name": "@lazyapply/api",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"dev": "tsx watch --clear-screen=false src/index.ts",
+		"build": "tsc --project tsconfig.json",
+		"start": "node ./dist/index.js",
+		"lint": "biome check .",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@hapi/boom": "^10.0.1",
+		"cors": "^2.8.5",
+		"dotenv": "^16.4.7",
+		"express": "^4.21.2",
+		"express-async-errors": "^3.1.1",
+		"helmet": "^7.1.0",
+		"mongoose": "^7.8.7",
+		"pino": "^9.5.0",
+		"pino-http": "^7.1.0",
+		"zod": "^3.24.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@lazyapply/config": "workspace:*",
+		"@types/cors": "^2.8.17",
+		"@types/express": "^4.17.21",
+		"@types/node": "^22.13.10",
+		"pino-pretty": "^11.3.0",
+		"tsx": "^4.19.3",
+		"typescript": "^5.9.3"
+	}
+}
