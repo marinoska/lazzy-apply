@@ -111,6 +111,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.78.0
         version: 2.78.0
+      qs:
+        specifier: ^6.11.0
+        version: 6.13.0
       react:
         specifier: ^19.2.0
         version: 19.2.0

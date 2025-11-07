@@ -1,10 +1,16 @@
 import type { NextFunction, Request, Response } from "express";
 import { type JWTPayload, createRemoteJWKSet, jwtVerify } from "jose";
 
-import { getEnv } from "@/app/env.js";
+import { env, getEnv } from "@/app/env.js";
 import { Unauthorized } from "@/app/errors.js";
 
-const jwks = createRemoteJWKSet(new URL(getEnv("SUPABASE_JWKS_URL")));
+const jwks = env.SUPABASE_JWKS_URL
+	? createRemoteJWKSet(new URL(env.SUPABASE_JWKS_URL))
+	: undefined;
+
+const jwtSecret = env.SUPABASE_JWT_SECRET
+	? new TextEncoder().encode(env.SUPABASE_JWT_SECRET)
+	: undefined;
 
 export interface AuthenticatedUser {
 	id: string;
@@ -62,7 +68,25 @@ export const authenticateUser = async (
 		req.header("authorization") ?? req.header("Authorization"),
 	);
 
-	const { payload } = await jwtVerify(token, jwks);
+	// Decode token header to see what algorithm is being used
+	const [headerB64] = token.split(".");
+	const header = JSON.parse(Buffer.from(headerB64, "base64url").toString());
+	console.log("[Auth] JWT Header:", header);
+
+	// Use JWT secret if available, otherwise use JWKS
+	let payload: JWTPayload;
+	if (jwtSecret) {
+		const result = await jwtVerify(token, jwtSecret, {
+			algorithms: ["HS256"],
+		});
+		payload = result.payload;
+	} else if (jwks) {
+		// For ES256, don't specify algorithms - let jose auto-detect from the JWKS
+		const result = await jwtVerify(token, jwks);
+		payload = result.payload;
+	} else {
+		throw new Error("Neither SUPABASE_JWT_SECRET nor SUPABASE_JWKS_URL is configured");
+	}
 	const id = typeof payload.sub === "string" ? payload.sub : undefined;
 console.log(payload);
 	if (!id) {

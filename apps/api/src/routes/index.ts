@@ -4,7 +4,14 @@ import { Router } from "express";
 import { env } from "@/app/env.js";
 import { authenticateUser } from "@/app/middleware/authenticateUser.js";
 import { validateRequest } from "@/app/middleware/validateRequest.js";
-import { uploadController, uploadRequestSchema } from "./uploads.js";
+import {
+	uploadLinkController,
+	uploadRequestSchema,
+} from "./uploads/getUploadLink.js";
+import {
+	setUploadStatusController,
+	setUploadStatusRequestSchema,
+} from "./uploads/setUploadStatus.js";
 
 export const registerRoutes = (app: Express) => {
 	const router = Router();
@@ -17,7 +24,13 @@ export const registerRoutes = (app: Express) => {
 		"/uploads/sign",
 		authenticateUser,
 		validateRequest({ body: uploadRequestSchema }),
-		uploadController,
+		uploadLinkController,
+	);
+	router.post(
+		"/uploads/status",
+		authenticateUser,
+		validateRequest({ body: setUploadStatusRequestSchema }),
+		setUploadStatusController,
 	);
 
 	app.use(env.API_PREFIX, router);

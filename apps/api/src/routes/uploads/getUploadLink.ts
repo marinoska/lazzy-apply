@@ -13,6 +13,13 @@ import { FileUploadModel } from "@/models/fileUpload.js";
 
 const SIGNED_URL_TTL_SECONDS = 60;
 const DEFAULT_CONTENT_TYPE = "application/octet-stream";
+const MAXIMUM_UPLOAD_SIZE_BYTES = 3145728; // 3MB
+
+// Map MIME types to file types for database storage
+const MIME_TO_FILE_TYPE: Record<string, "PDF" | "DOCX"> = {
+	"application/pdf": "PDF",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": "DOCX",
+};
 
 export const uploadRequestSchema = z.object({
 	filename: z
@@ -21,6 +28,11 @@ export const uploadRequestSchema = z.object({
 	contentType: z
 		.string({ required_error: "`contentType` is req" })
 		.min(3, "`contentType` is required"),
+	fileSize: z
+		.number({ required_error: "`fileSize` is required" })
+		.int()
+		.positive()
+		.max(MAXIMUM_UPLOAD_SIZE_BYTES, `File size must not exceed ${MAXIMUM_UPLOAD_SIZE_BYTES} bytes`),
 	directory: z
 		.string({ invalid_type_error: "`directory` must be a string" })
 		.optional(),
@@ -35,7 +47,7 @@ type UploadResponseBody = {
 	expiresIn: number;
 };
 
-export const uploadController = async (
+export const uploadLinkController = async (
 	req: Request<unknown, UploadResponseBody, UploadRequestBody>,
 	res: Response<UploadResponseBody>,
 ) => {
@@ -45,7 +57,7 @@ export const uploadController = async (
 		throw new Unauthorized("Missing authenticated user");
 	}
 
-	const { filename, contentType, directory } = req.body ?? {};
+	const { filename, contentType, fileSize, directory } = req.body ?? {};
 
 	const sanitizedDirectory =
 		directory?.replace(/\\/g, "/").replace(/(^\/+|\/+$)/g, "") ?? "";
@@ -61,29 +73,40 @@ export const uploadController = async (
 
 	const objectKey = objectKeyParts.join("/");
 	const normalizedContentType = contentType ?? DEFAULT_CONTENT_TYPE;
+	const fileType = MIME_TO_FILE_TYPE[normalizedContentType];
+	
+	if (!fileType) {
+		throw new Error(`Unsupported content type: ${normalizedContentType}`);
+	}
+	
 	const bucket = getEnv("CLOUDFLARE_BUCKET");
 
 	const command = new PutObjectCommand({
 		Bucket: bucket,
 		Key: objectKey,
 		ContentType: normalizedContentType,
+		ContentLength: fileSize,
 	});
+
+	const uploadUrl = await getSignedUrl(getCloudflareClient(), command, {
+		expiresIn: SIGNED_URL_TTL_SECONDS,
+		unhoistableHeaders: new Set(["x-amz-checksum-crc32", "content-length"]),
+	});
+	const uploadUrlExpiresAt = new Date(
+		Date.now() + SIGNED_URL_TTL_SECONDS * 1000,
+	);
 
 	await FileUploadModel.create({
 		fileId,
 		objectKey,
 		originalFilename: filename,
-		contentType: normalizedContentType,
+		contentType: fileType,
 		directory: sanitizedDirectory,
 		bucket,
 		userId: user.id,
 		userEmail: user.email,
-		metadata: user.metadata,
 		status: "pending",
-	});
-
-	const uploadUrl = await getSignedUrl(getCloudflareClient(), command, {
-		expiresIn: SIGNED_URL_TTL_SECONDS,
+		uploadUrlExpiresAt,
 	});
 
 	return res.json({

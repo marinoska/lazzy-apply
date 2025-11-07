@@ -1,15 +1,24 @@
 import type { StoredSession } from "../lib/supabase";
 
 // Message types received by background script
-export type IncomingMessageType = "OAUTH_START" | "GET_AUTH" | "LOGOUT";
+export type IncomingMessageType = "OAUTH_START" | "GET_AUTH" | "LOGOUT" | "API_REQUEST";
 
 export interface BackgroundMessage {
   type: IncomingMessageType;
 }
 
+export interface ApiRequestMessage extends BackgroundMessage {
+  type: "API_REQUEST";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  path: string;
+  body?: unknown;
+  headers?: Record<string, string>;
+}
+
 export interface MessageResponse {
   ok: boolean;
   session?: StoredSession | null;
+  data?: unknown;
   error?: string;
 }
 

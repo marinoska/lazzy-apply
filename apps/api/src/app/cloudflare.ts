@@ -20,6 +20,8 @@ export const getCloudflareClient = (): S3Client => {
 			secretAccessKey: getEnv("CLOUDFLARE_SECRET_ACCESS_KEY"),
 		},
 		forcePathStyle: true,
+		// Disable request checksums to avoid CORS preflight issues with browser uploads
+		requestChecksumCalculation: "WHEN_REQUIRED",
 	});
 
 	return cachedClient;

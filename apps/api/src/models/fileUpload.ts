@@ -22,7 +22,10 @@ const fileUploadSchema = new Schema(
 		},
 		contentType: {
 			type: String,
-			enum: ["PDF", "DOCX"],
+			enum: [
+				"PDF",
+				"DOCX",
+			],
 			required: true,
 			immutable: true
 		},
@@ -50,6 +53,11 @@ const fileUploadSchema = new Schema(
 			type: String,
 			enum: ["pending", "uploaded", "failed"],
 			default: "pending",
+		},
+		uploadUrlExpiresAt: {
+			type: Date,
+			required: true,
+			immutable: true,
 		},
 		size: {
 			type: Number,

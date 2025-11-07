@@ -15,7 +15,8 @@ const envSchema = z.object({
 		.default("info"),
 	ALLOWED_ORIGINS: z.string().optional(),
 	MONGO_CONNECTION: z.string(),
-	SUPABASE_JWKS_URL: z.string().url(),
+	SUPABASE_JWKS_URL: z.string().url().optional(),
+	SUPABASE_JWT_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
