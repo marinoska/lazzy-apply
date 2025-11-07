@@ -1,9 +1,12 @@
-/**
+  /**
  * Background script entry point
  * Initializes the extension and sets up event listeners
  */
-import { bootstrap } from "./auth.js";
+import { bootstrap, setupAuthListener } from "./auth.js";
 import { setupListeners } from "./listeners.js";
+
+// Setup auth state listener for token refresh
+setupAuthListener();
 
 // Initialize on startup
 bootstrap().catch((error) => {

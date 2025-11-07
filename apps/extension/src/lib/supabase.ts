@@ -40,8 +40,8 @@ function createSupabaseClient(): SupabaseClient {
     auth: {
       // Don't persist session in browser - we handle it manually in Chrome storage
       persistSession: false,
-      // Don't auto-refresh - we manage tokens ourselves
-      autoRefreshToken: false,
+      // Enable auto-refresh to keep users logged in
+      autoRefreshToken: true,
       // Don't detect session in URL - we use implicit flow with hash fragments
       detectSessionInUrl: false
     }
