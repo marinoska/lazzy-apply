@@ -3,7 +3,8 @@ import { Router } from "express";
 
 import { env } from "@/app/env.js";
 import { authenticateUser } from "@/app/middleware/authenticateUser.js";
-import { uploadController } from "./uploads.js";
+import { validateRequest } from "@/app/middleware/validateRequest.js";
+import { uploadController, uploadRequestSchema } from "./uploads.js";
 
 export const registerRoutes = (app: Express) => {
 	const router = Router();
@@ -12,7 +13,12 @@ export const registerRoutes = (app: Express) => {
 		res.json({ status: "ok" });
 	});
 
-	router.post("/uploads/sign", authenticateUser, uploadController);
+	router.post(
+		"/uploads/sign",
+		authenticateUser,
+		validateRequest({ body: uploadRequestSchema }),
+		uploadController,
+	);
 
 	app.use(env.API_PREFIX, router);
 };

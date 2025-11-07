@@ -4,19 +4,29 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { Request, Response } from "express";
 
+import { z } from "zod";
+
 import { getCloudflareClient } from "@/app/cloudflare.js";
 import { getEnv } from "@/app/env.js";
-import { Unauthorized, ValidationError } from "@/app/errors.js";
+import { Unauthorized } from "@/app/errors.js";
 import { FileUploadModel } from "@/models/fileUpload.js";
 
 const SIGNED_URL_TTL_SECONDS = 60;
 const DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
-type UploadRequestBody = {
-	filename?: string;
-	contentType?: string;
-	directory?: string;
-};
+export const uploadRequestSchema = z.object({
+	filename: z
+		.string({ required_error: "`filename` is required" })
+		.min(1, "`filename` is required"),
+	contentType: z
+		.string({ required_error: "`contentType` is req" })
+		.min(3, "`contentType` is required"),
+	directory: z
+		.string({ invalid_type_error: "`directory` must be a string" })
+		.optional(),
+});
+
+type UploadRequestBody = z.infer<typeof uploadRequestSchema>;
 
 type UploadResponseBody = {
 	uploadUrl: string;
@@ -36,18 +46,6 @@ export const uploadController = async (
 	}
 
 	const { filename, contentType, directory } = req.body ?? {};
-
-	if (!filename || typeof filename !== "string") {
-		throw new ValidationError("`filename` is required");
-	}
-
-	if (contentType && typeof contentType !== "string") {
-		throw new ValidationError("`contentType` must be a string");
-	}
-
-	if (directory && typeof directory !== "string") {
-		throw new ValidationError("`directory` must be a string");
-	}
 
 	const sanitizedDirectory =
 		directory?.replace(/\\/g, "/").replace(/(^\/+|\/+$)/g, "") ?? "";
