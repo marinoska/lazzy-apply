@@ -11,10 +11,11 @@ const envSchema = z.object({
 	HOST: z.string(),
 	API_PREFIX: z.string().default("/api"),
 	LOG_LEVEL: z
-	.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
-	.default("info"),
+		.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+		.default("info"),
 	ALLOWED_ORIGINS: z.string().optional(),
 	MONGO_CONNECTION: z.string(),
+	SUPABASE_JWKS_URL: z.string().url(),
 });
 
 const parsed = envSchema.safeParse(process.env);

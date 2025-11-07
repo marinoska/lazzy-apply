@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
@@ -8,9 +8,17 @@ import CircularProgress from "@mui/joy/CircularProgress";
 import Divider from "@mui/joy/Divider";
 import Box from "@mui/joy/Box";
 import type { SidebarViewProps } from "./types.js";
+import { DropzoneBox } from "../../components/DropzoneBox.js";
 
 export function SidebarView({ state, onClose, onSignIn, onSignOut }: SidebarViewProps) {
   const { visible, loading, status, session } = state;
+  const [showDropzone, setShowDropzone] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+
+  const handleUploadComplete = (fileId: string, objectKey: string) => {
+    console.log("File uploaded:", fileId, objectKey);
+    // You can add additional logic here, e.g., update state or notify parent
+  };
 
   return (
     <div className={`overlay${visible ? " visible" : ""}`} role="presentation" aria-hidden={visible ? "false" : "true"}>
@@ -90,7 +98,44 @@ export function SidebarView({ state, onClose, onSignIn, onSignOut }: SidebarView
             >
               {session ? "Sign out" : "Sign in with Google"}
             </Button>
+            {session ? <Button
+              fullWidth
+              variant="solid"
+              color="primary"
+              size="md"
+              onClick={() => {
+                setShowDropzone(true);
+              }}
+              disabled={loading}
+            >
+              Upload your CV
+            </Button> : null}
           </Stack>
+
+          {session && showDropzone ? (
+            <>
+              <Divider sx={{ my: 0.5 }} />
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                <DropzoneBox
+                  file={file}
+                  setFile={setFile}
+                  onUploadComplete={handleUploadComplete}
+                  directory="cv"
+                />
+                <Button
+                  variant="outlined"
+                  color="neutral"
+                  size="sm"
+                  onClick={() => {
+                    setShowDropzone(false);
+                    setFile(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </Box>
+            </>
+          ) : null}
         </Stack>
       </Sheet>
     </div>

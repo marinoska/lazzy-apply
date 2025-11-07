@@ -7,8 +7,10 @@
     "types": ["chrome", "vite/client"],
     "paths": {
       "@lazyapply/types": ["../../packages/types/src"],
-      "@lazyapply/utils": ["../../packages/utils/src"]
+      "@lazyapply/utils": ["../../packages/utils/src"],
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]
 }
+
