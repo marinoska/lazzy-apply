@@ -19,6 +19,7 @@ let isRunning = false;
  */
 const processPendingUploads = async () => {
 	if (isRunning) {
+		log.warn("Previous scan still running, skipping this cycle");
 		return;
 	}
 
@@ -27,6 +28,11 @@ const processPendingUploads = async () => {
 	try {
 		// Calculate cutoff time: uploads older than UPLOAD_TIMEOUT_SECONDS are considered abandoned
 		const cutoffTime = new Date(Date.now() - UPLOAD_TIMEOUT_SECONDS * 1000);
+
+		log.debug(
+			{ cutoffTime: cutoffTime.toISOString() },
+			"Scanning for stale pending uploads",
+		);
 
 		// Find pending uploads that have exceeded the timeout
 		// Bypass ownership enforcement for system-level background job
@@ -40,6 +46,8 @@ const processPendingUploads = async () => {
 				{ count: stalePendingUploads.length },
 				"Processing stale pending uploads",
 			);
+		} else {
+			log.debug("No stale pending uploads found");
 		}
 
 		for (const fileUpload of stalePendingUploads) {
@@ -82,7 +90,10 @@ const processPendingUploads = async () => {
 			}
 		}
 	} catch (error) {
-		log.error({ error }, "Error in processPendingUploads");
+		log.error(
+			{ error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined },
+			"Error in processPendingUploads",
+		);
 	} finally {
 		isRunning = false;
 	}
@@ -90,14 +101,23 @@ const processPendingUploads = async () => {
 
 export const startPendingUploadMonitor = () => {
 	if (intervalHandle) {
+		log.warn("Pending upload monitor already running, skipping start");
 		return;
 	}
+
+	log.info(
+		{ scanIntervalMs: SCAN_INTERVAL_MS, batchLimit: BATCH_LIMIT },
+		"Starting pending upload monitor",
+	);
 
 	void processPendingUploads();
 
 	intervalHandle = setInterval(() => {
+		log.debug("Running scheduled pending upload scan");
 		void processPendingUploads();
 	}, SCAN_INTERVAL_MS);
+
+	log.info("Pending upload monitor started successfully");
 };
 
 export const stopPendingUploadMonitor = () => {

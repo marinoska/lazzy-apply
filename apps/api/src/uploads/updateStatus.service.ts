@@ -1,17 +1,13 @@
-import { createHash } from "node:crypto";
+import { CopyObjectCommand } from "@aws-sdk/client-s3";
 
 import {
-	CopyObjectCommand,
-	DeleteObjectCommand,
-	GetObjectCommand,
-	HeadObjectCommand,
-	type HeadObjectCommandOutput,
-} from "@aws-sdk/client-s3";
-
-import { getCloudflareClient } from "@/app/cloudflare.js";
+	deleteRemoteObject,
+	fetchHeadObject,
+	getCloudflareClient,
+	hashRemoteObject,
+} from "@/app/cloudflare.js";
 import {
 	MAXIMUM_UPLOAD_SIZE_BYTES,
-	QUARANTINE_DIRECTORY,
 	UPLOAD_DIRECTORY,
 	type UploadStatus,
 } from "@/routes/uploads/constants.js";
@@ -30,55 +26,6 @@ type PromoteUploadResult = {
 	newObjectKey: string;
 	fileHash: string;
 	size: number;
-};
-
-const fetchHeadObject = async (
-	bucket: string,
-	objectKey: string,
-): Promise<HeadObjectCommandOutput | undefined> => {
-	try {
-		const headCommand = new HeadObjectCommand({
-			Bucket: bucket,
-			Key: objectKey,
-		});
-
-		return await getCloudflareClient().send(headCommand);
-	} catch {
-		return undefined;
-	}
-};
-
-const deleteRemoteObject = async (bucket: string, objectKey: string) => {
-	const deleteCommand = new DeleteObjectCommand({
-		Bucket: bucket,
-		Key: objectKey,
-	});
-
-	await getCloudflareClient().send(deleteCommand);
-};
-
-const hashRemoteObject = async (
-	bucket: string,
-	objectKey: string,
-): Promise<string | undefined> => {
-	const getCommand = new GetObjectCommand({
-		Bucket: bucket,
-		Key: objectKey,
-	});
-	const getResult = await getCloudflareClient().send(getCommand);
-
-	if (!getResult.Body) {
-		return undefined;
-	}
-
-	const hash = createHash("sha256");
-	const stream = getResult.Body as NodeJS.ReadableStream;
-
-	for await (const chunk of stream) {
-		hash.update(chunk);
-	}
-
-	return hash.digest("hex");
 };
 
 /**

@@ -71,7 +71,6 @@ export const authenticateUser = async (
 	// Decode token header to see what algorithm is being used
 	const [headerB64] = token.split(".");
 	const header = JSON.parse(Buffer.from(headerB64, "base64url").toString());
-	console.log("[Auth] JWT Header:", header);
 
 	// Use JWT secret if available, otherwise use JWKS
 	let payload: JWTPayload;

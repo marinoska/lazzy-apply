@@ -1,4 +1,12 @@
-import { S3Client } from "@aws-sdk/client-s3";
+import { createHash } from "node:crypto";
+
+import {
+	DeleteObjectCommand,
+	GetObjectCommand,
+	HeadObjectCommand,
+	type HeadObjectCommandOutput,
+	S3Client,
+} from "@aws-sdk/client-s3";
 
 import { getEnv } from "./env.js";
 
@@ -25,4 +33,56 @@ export const getCloudflareClient = (): S3Client => {
 	});
 
 	return cachedClient;
+};
+
+export const fetchHeadObject = async (
+	bucket: string,
+	objectKey: string,
+): Promise<HeadObjectCommandOutput | undefined> => {
+	try {
+		const headCommand = new HeadObjectCommand({
+			Bucket: bucket,
+			Key: objectKey,
+		});
+
+		return await getCloudflareClient().send(headCommand);
+	} catch {
+		return undefined;
+	}
+};
+
+export const deleteRemoteObject = async (
+	bucket: string,
+	objectKey: string,
+) => {
+	const deleteCommand = new DeleteObjectCommand({
+		Bucket: bucket,
+		Key: objectKey,
+	});
+
+	await getCloudflareClient().send(deleteCommand);
+};
+
+export const hashRemoteObject = async (
+	bucket: string,
+	objectKey: string,
+): Promise<string | undefined> => {
+	const getCommand = new GetObjectCommand({
+		Bucket: bucket,
+		Key: objectKey,
+	});
+	const getResult = await getCloudflareClient().send(getCommand);
+
+	if (!getResult.Body) {
+		return undefined;
+	}
+
+	const hash = createHash("sha256");
+	const stream = getResult.Body as NodeJS.ReadableStream;
+
+	for await (const chunk of stream) {
+		hash.update(chunk);
+	}
+
+	return hash.digest("hex");
 };
