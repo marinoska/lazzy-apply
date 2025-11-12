@@ -7,7 +7,7 @@ import { FileUploadModel } from "@/uploads/fileUpload.model.js";
 
 const log = createLogger("pending-upload-monitor");
 
-const SCAN_INTERVAL_MS = 60_000; // Check every minute
+const SCAN_INTERVAL_MS = 30_000; // Check every 30 seconds
 const BATCH_LIMIT = 20;
 
 let intervalHandle: NodeJS.Timeout | null = null;
@@ -30,14 +30,10 @@ const processPendingUploads = async () => {
 
 		// Find pending uploads that have exceeded the timeout
 		// Bypass ownership enforcement for system-level background job
-		const stalePendingUploads = await FileUploadModel.find({
-			status: "pending",
-			createdAt: { $lt: cutoffTime },
-		})
-			.setOptions({ skipOwnershipEnforcement: true })
-			.sort({ createdAt: 1 })
-			.limit(BATCH_LIMIT)
-			.exec();
+		const stalePendingUploads = await FileUploadModel.findStalePendingUploads(
+			cutoffTime,
+			BATCH_LIMIT,
+		);
 
 		if (stalePendingUploads.length > 0) {
 			log.info(
@@ -49,10 +45,9 @@ const processPendingUploads = async () => {
 		for (const fileUpload of stalePendingUploads) {
 			try {
 				// Mark as failed in database first
-				await FileUploadModel.findOneAndUpdate(
-					{ fileId: fileUpload.fileId },
-					{ $set: { status: "failed" } },
-				).setOptions({ userId: fileUpload.userId });
+				await fileUpload.markAsFailed({
+					skipOwnershipEnforcement: true,
+				});
 
 				// Then delete from quarantine if it exists
 				// File might not exist if upload never started or already failed
@@ -77,7 +72,11 @@ const processPendingUploads = async () => {
 				}
 			} catch (error) {
 				log.error(
-					{ error, fileId: fileUpload.fileId, userId: fileUpload.userId },
+					{
+						error: JSON.stringify(error),
+						fileId: fileUpload.fileId,
+						userId: fileUpload.userId,
+					},
 					"Failed to process stale pending upload",
 				);
 			}

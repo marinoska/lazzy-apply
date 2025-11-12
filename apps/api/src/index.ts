@@ -7,7 +7,7 @@ import { connectToMongo, stopMongoClient } from "./app/mongo.js";
 import {
 	startPendingUploadMonitor,
 	stopPendingUploadMonitor,
-} from "./jobs/pendingUploadsMonitor.js";
+} from "./workers/pendingUploadsMonitor.js";
 
 const log = createLogger("server");
 

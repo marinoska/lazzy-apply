@@ -1,0 +1,87 @@
+import type { Document, Model } from "mongoose";
+
+export type FileUploadStatus =
+	| "pending"
+	| "uploaded"
+	| "failed"
+	| "deduplicated";
+
+export type FileUploadContentType = "PDF" | "DOCX";
+
+export const FILE_UPLOAD_MODEL_NAME = "file_uploads" as const;
+
+export type OwnershipContext = {
+	userId?: string;
+	skipOwnershipEnforcement?: boolean;
+};
+
+export type TFileUpload = {
+	fileId: string;
+	objectKey: string;
+	originalFilename: string;
+	contentType: FileUploadContentType;
+	directory: string;
+	bucket: string;
+	userId: string;
+	userEmail?: string;
+	status: FileUploadStatus;
+	deduplicatedFrom?: string;
+	uploadUrlExpiresAt: Date;
+	size?: number;
+	fileHash?: string;
+	createdAt: Date;
+	updatedAt: Date;
+};
+
+export type CreatePendingUploadParams = Pick<
+	TFileUpload,
+	| "fileId"
+	| "objectKey"
+	| "originalFilename"
+	| "contentType"
+	| "directory"
+	| "bucket"
+	| "userId"
+	| "userEmail"
+	| "uploadUrlExpiresAt"
+>;
+
+export type FindExistingUploadByHashParams = {
+	fileHash: string;
+	excludeFileId: string;
+	userId: string;
+};
+
+export type MarkUploadDeduplicatedParams = {
+	deduplicatedFrom: string;
+	fileHash: string;
+	size: number;
+};
+
+export type MarkUploadCompletedParams = {
+	objectKey: string;
+	directory: string;
+	fileHash: string;
+	size: number;
+};
+
+export type FileUploadDocument = Document & TFileUpload & FileUploadMethods;
+
+export type FileUploadMethods = {
+	markAsFailed(
+		this: FileUploadDocument,
+		ownership?: OwnershipContext,
+	): Promise<FileUploadDocument | null>;
+	markAsDeduplicated(
+		this: FileUploadDocument,
+		params: MarkUploadDeduplicatedParams,
+		ownership?: OwnershipContext,
+	): Promise<FileUploadDocument | null>;
+	markAsUploaded(
+		this: FileUploadDocument,
+		params: MarkUploadCompletedParams,
+		ownership?: OwnershipContext,
+	): Promise<FileUploadDocument | null>;
+};
+
+export type FileUploadModelBase = Model<TFileUpload>;

@@ -1,27 +1,25 @@
 import { applyOwnershipEnforcement } from "@/app/middleware/mongoOwnershipEnforcement.middleware";
-import { type Document, type Model, Schema, model } from "mongoose";
+import { Schema, model } from "mongoose";
 
-type TFileUpload = {
-	fileId: string;
-	objectKey: string;
-	originalFilename: string;
-	contentType: "PDF" | "DOCX";
-	directory?: string;
-	bucket: string;
-	userId: string;
-	userEmail?: string;
-	status: "pending" | "uploaded" | "failed" | "deduplicated";
-	deduplicatedFrom?: string;
-	uploadUrlExpiresAt: Date;
-	size?: number;
-	fileHash?: string;
-	createdAt: Date;
-	updatedAt: Date;
-};
+import type {
+	FileUploadDocument,
+	FileUploadMethods,
+	TFileUpload,
+} from "./fileUpload.types.js";
+import { FILE_UPLOAD_MODEL_NAME } from "./fileUpload.types.js";
+import {
+	registerFileUploadStatics,
+	type FileUploadModelWithStatics,
+} from "./fileUpload.statics.js";
+import { registerFileUploadMethods } from "./fileUpload.methods.js";
 
-type FileUploadModel = Model<TFileUpload>;
+export type FileUploadModel = FileUploadModelWithStatics;
 
-const fileUploadSchema = new Schema<TFileUpload, FileUploadModel>(
+const fileUploadSchema = new Schema<
+	TFileUpload,
+	FileUploadModel,
+	FileUploadMethods
+>(
 	{
 		fileId: {
 			type: String,
@@ -49,7 +47,7 @@ const fileUploadSchema = new Schema<TFileUpload, FileUploadModel>(
 		},
 		directory: {
 			type: String,
-			default: "",
+			required: true,
 		},
 		bucket: {
 			type: String,
@@ -96,7 +94,6 @@ const MUTABLE_STATUS = "pending";
 
 // Prevent updates to records that are not in mutable state
 fileUploadSchema.pre("save", async function (this, next) {
-
 	// If this is an existing document (not new)
 	if (!this.isNew) {
 		if (this && this.status !== MUTABLE_STATUS) {
@@ -117,7 +114,9 @@ fileUploadSchema.pre(
 		const filter = this.getFilter();
 
 		// Check if any matching documents are not in mutable state
-		const docs = await this.model.find(filter);
+		const docs = await this.model
+			.find(filter)
+			.setOptions({ skipOwnershipEnforcement: true });
 
 		for (const doc of docs) {
 			if (doc.status !== MUTABLE_STATUS) {
@@ -131,11 +130,14 @@ fileUploadSchema.pre(
 	},
 );
 
-export type FileUploadDocument = Document & TFileUpload;
+registerFileUploadMethods(fileUploadSchema);
+registerFileUploadStatics(fileUploadSchema);
 
 applyOwnershipEnforcement(fileUploadSchema);
 
+export type { FileUploadDocument } from "./fileUpload.types.js";
+
 export const FileUploadModel = model<TFileUpload, FileUploadModel>(
-	"file_uploads",
+	FILE_UPLOAD_MODEL_NAME,
 	fileUploadSchema,
 );

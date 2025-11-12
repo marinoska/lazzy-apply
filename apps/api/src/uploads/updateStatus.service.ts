@@ -148,10 +148,7 @@ const validateAndPromoteUpload = async (
 	if (actualSize > MAXIMUM_UPLOAD_SIZE_BYTES) {
 		await deleteRemoteObject(fileUpload.bucket, fileUpload.objectKey);
 
-		await FileUploadModel.findOneAndUpdate(
-			{ fileId: fileUpload.fileId },
-			{ $set: { status: "failed" } },
-		).setOptions({ userId: fileUpload.userId });
+		await fileUpload.markAsFailed();
 
 		throw new Error(
 			`File size (${actualSize} bytes) exceeds maximum allowed size (${MAXIMUM_UPLOAD_SIZE_BYTES} bytes)`,
@@ -170,38 +167,33 @@ const validateAndPromoteUpload = async (
 
 	// Check for existing file with same hash for this user
 	// Include both "uploaded" and "deduplicated" statuses
-	let existingFile = await FileUploadModel.findOne({
-		fileHash,
-		status: { $in: ["uploaded", "deduplicated"] },
-		fileId: { $ne: fileUpload.fileId },
-	}).setOptions({ userId: fileUpload.userId });
+	let existingFile =
+		await FileUploadModel.findExistingCompletedUploadByHash({
+			fileHash,
+			excludeFileId: fileUpload.fileId,
+			userId: fileUpload.userId,
+		});
 
 	// If we found a deduplicated file, follow the chain to get the original
 	if (
 		existingFile?.status === "deduplicated" &&
 		existingFile.deduplicatedFrom
 	) {
-		existingFile = await FileUploadModel.findOne({
-			fileId: existingFile.deduplicatedFrom,
-			status: "uploaded",
-		}).setOptions({ userId: fileUpload.userId });
+		existingFile = await FileUploadModel.findUploadedByFileId(
+			existingFile.deduplicatedFrom,
+			{ userId: fileUpload.userId },
+		);
 	}
 
 	if (existingFile) {
 		// Deduplicate - delete from quarantine and reference existing file
 		await deleteRemoteObject(fileUpload.bucket, fileUpload.objectKey);
 
-		await FileUploadModel.findOneAndUpdate(
-			{ fileId: fileUpload.fileId },
-			{
-				$set: {
-					status: "deduplicated",
-					deduplicatedFrom: existingFile.fileId,
-					fileHash,
-					size: actualSize,
-				},
-			},
-		).setOptions({ userId: fileUpload.userId });
+		await fileUpload.markAsDeduplicated({
+			deduplicatedFrom: existingFile.fileId,
+			fileHash,
+			size: actualSize,
+		});
 
 		return {
 			fileId: existingFile.fileId,
@@ -224,19 +216,12 @@ const validateAndPromoteUpload = async (
 	const directory = newObjectKey.split("/")[0] || "";
 
 	// Update database with new location, directory, hash, and status
-	const updatedFileUpload = await FileUploadModel.findOneAndUpdate(
-		{ fileId: fileUpload.fileId },
-		{
-			$set: {
-				status: "uploaded",
-				objectKey: newObjectKey,
-				directory,
-				fileHash: verifiedHash,
-				size,
-			},
-		},
-		{ new: true },
-	).setOptions({ userId: fileUpload.userId });
+	const updatedFileUpload = await fileUpload.markAsUploaded({
+		objectKey: newObjectKey,
+		directory,
+		fileHash: verifiedHash,
+		size,
+	});
 
 	if (!updatedFileUpload) {
 		throw new Error(`Upload ${fileUpload.fileId} was not found for this user`);

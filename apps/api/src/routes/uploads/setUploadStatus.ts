@@ -33,10 +33,7 @@ export const completeUploadController = async (
 	const { fileId } = req.body;
 
 	// Find the file upload record in pending status
-	const fileUpload = await FileUploadModel.findOne({
-		fileId,
-		status: "pending",
-	}).setOptions({ userId: user.id });
+	const fileUpload = await FileUploadModel.findPendingUpload(fileId, user.id);
 
 	if (!fileUpload) {
 		throw new NotFound(`Pending upload ${fileId} was not found for this user`);

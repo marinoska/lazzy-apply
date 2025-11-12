@@ -92,15 +92,15 @@ export const uploadLinkController = async (
 		Date.now() + SIGNED_URL_TTL_SECONDS * 1000,
 	);
 
-	await FileUploadModel.create({
+	await FileUploadModel.createPendingUpload({
 		fileId,
 		objectKey,
 		originalFilename: filename,
 		contentType: fileType,
+		directory: QUARANTINE_DIRECTORY,
 		bucket,
 		userId: user.id,
 		userEmail: user.email,
-		status: "pending",
 		uploadUrlExpiresAt,
 	});
 
