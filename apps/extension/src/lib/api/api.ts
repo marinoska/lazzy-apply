@@ -8,9 +8,9 @@ export interface UploadSignedUrlResponse {
 	expiresIn: number;
 }
 
-export type UploadStatus = "uploaded" | "failed";
+export type UploadStatus = "uploaded" | "failed" | "deduplicated";
 
-export interface UploadStatusResponse {
+export interface CompleteUploadResponse {
 	fileId: string;
 	status: UploadStatus;
 }
@@ -22,30 +22,27 @@ export async function getUploadSignedUrl(
 	filename: string,
 	contentType: string,
 	fileSize: number,
-	directory?: string,
 ): Promise<UploadSignedUrlResponse> {
 	return sendApiRequest<UploadSignedUrlResponse>("POST", "/uploads/sign", {
 		filename,
 		contentType,
 		fileSize,
-		directory,
 	});
 }
 
 /**
- * Upload a file to a signed URL
+ * Upload a file to a signed URL using PUT request (Cloudflare R2 compatible)
  */
 export async function uploadFileToSignedUrl(
 	file: File,
-	signedUrl: string,
+	uploadDetails: UploadSignedUrlResponse,
 ): Promise<void> {
-	const response = await fetch(signedUrl, {
+	const response = await fetch(uploadDetails.uploadUrl, {
 		method: "PUT",
+		body: file,
 		headers: {
 			"Content-Type": file.type,
-			"Content-Length": file.size.toString(),
 		},
-		body: file,
 	});
 
 	if (!response.ok) {
@@ -54,16 +51,14 @@ export async function uploadFileToSignedUrl(
 }
 
 /**
- * Update the status of an upload
+ * Signal that upload is complete and trigger server-side validation
+ * Server will validate the file in quarantine and promote it to healthy directory
+ * Throws error if file is not ready - client should retry after a delay
  */
-export async function setUploadStatus(
+export async function completeUpload(
 	fileId: string,
-	status: UploadStatus,
-	size?: number,
-): Promise<UploadStatusResponse> {
-	return sendApiRequest<UploadStatusResponse>("POST", "/uploads/status", {
+): Promise<CompleteUploadResponse> {
+	return sendApiRequest<CompleteUploadResponse>("POST", "/uploads/complete", {
 		fileId,
-		status,
-		...(typeof size === "number" ? { size } : {}),
 	});
 }

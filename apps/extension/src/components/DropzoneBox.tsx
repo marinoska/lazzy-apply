@@ -1,7 +1,7 @@
 import {
 	type UploadSignedUrlResponse,
+	completeUpload,
 	getUploadSignedUrl,
-	setUploadStatus,
 	uploadFileToSignedUrl,
 } from "@/lib/api/api.js";
 import { MAXIMUM_UPLOAD_SIZE_BYTES } from "@/lib/consts.js";
@@ -10,6 +10,7 @@ import type { StateSetter } from "@/types.js";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CloseIcon from "@mui/icons-material/Close";
 import CloudUpload from "@mui/icons-material/CloudUpload";
+import ErrorIcon from "@mui/icons-material/Error";
 import { Alert } from "@mui/joy";
 import Button from "@mui/joy/Button";
 import CircularProgress from "@mui/joy/CircularProgress";
@@ -23,12 +24,10 @@ export const DropzoneBox = ({
 	file,
 	setFile,
 	onUploadComplete,
-	directory,
 }: {
 	file: File | null;
 	setFile: StateSetter<File | null>;
 	onUploadComplete?: (fileId: string, objectKey: string) => void;
-	directory?: string;
 }) => {
 	const [error, setError] = useState("");
 	const [uploading, setUploading] = useState(false);
@@ -58,31 +57,29 @@ export const DropzoneBox = ({
 		setError("");
 		setUploadSuccess(false);
 		let uploadDetails: UploadSignedUrlResponse | null = null;
-		let storageUploadComplete = false;
 
 		try {
 			// Get signed URL from API
-			uploadDetails = await getUploadSignedUrl(file.name, file.type, file.size, directory);
+			uploadDetails = await getUploadSignedUrl(file.name, file.type, file.size);
 
 			// Upload file to signed URL
-			await uploadFileToSignedUrl(file, uploadDetails.uploadUrl);
-			storageUploadComplete = true;
-			await setUploadStatus(uploadDetails.fileId, "uploaded", file.size);
+			await uploadFileToSignedUrl(file, uploadDetails);
+
+			// Signal completion - server validates and promotes from quarantine
+			const completeResponse = await completeUpload(uploadDetails.fileId);
 
 			setUploadSuccess(true);
-			onUploadComplete?.(uploadDetails.fileId, uploadDetails.objectKey);
-		} catch (err) {
-			if (uploadDetails?.fileId && !storageUploadComplete) {
-				try {
-					await setUploadStatus(uploadDetails.fileId, "failed", file.size);
-				} catch (statusErr) {
-					console.error("Failed to update upload status to failed", statusErr);
-				}
-			}
 
+			// Use the returned fileId (might be different if deduplicated)
+			const finalFileId = completeResponse.fileId;
+			const finalObjectKey = `cv/${finalFileId}`;
+
+			onUploadComplete?.(finalFileId, finalObjectKey);
+		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : "Upload failed";
 			setError(errorMessage);
 			setUploadSuccess(false);
+			// Note: Worker will clean up failed uploads from quarantine after timeout
 		} finally {
 			setUploading(false);
 		}
@@ -103,47 +100,46 @@ export const DropzoneBox = ({
 
 	return (
 		<>
-			<Stack
-				gap="4"
-				{...getRootProps()}
-				sx={{
-					p: 2,
-					width: 600,
-					minHeight: 200,
-					border: "2px dashed",
-					borderRadius: "md",
-					alignItems: "center",
-					justifyContent: "center",
-				}}
-			>
-				<Typography level="h2">
-					<CloudUpload />
-				</Typography>
-				{file ? (
-					<Stack gap={2} alignItems="center" width="100%">
-						<Alert
-							variant="soft"
-							color={uploadSuccess ? "success" : "neutral"}
-							startDecorator={uploadSuccess ? <CheckCircleIcon /> : undefined}
-							endDecorator={
-								<Button
-									size="sm"
-									variant="solid"
-									onClick={() => {
-										setFile(null);
-										setUploadSuccess(false);
-									}}
-									color="neutral"
-									disabled={uploading}
-								>
-									<CloseIcon />
-								</Button>
-							}
-							sx={{ width: "100%" }}
-						>
-							<Typography fontWeight="300">{file.name}</Typography>
-						</Alert>
-						{!uploadSuccess && (
+			{!uploadSuccess && (
+				<Stack
+					gap="4"
+					{...getRootProps()}
+					sx={{
+						p: 2,
+						width: 600,
+						minHeight: 200,
+						border: "2px dashed",
+						borderRadius: "md",
+						alignItems: "center",
+						justifyContent: "center",
+					}}
+				>
+					<Typography level="h2">
+						<CloudUpload />
+					</Typography>
+					{file ? (
+						<Stack gap={2} alignItems="center" width="100%">
+							<Alert
+								variant="soft"
+								color="neutral"
+								endDecorator={
+									<Button
+										size="sm"
+										variant="solid"
+										onClick={() => {
+											setFile(null);
+											setUploadSuccess(false);
+										}}
+										color="neutral"
+										disabled={uploading}
+									>
+										<CloseIcon />
+									</Button>
+								}
+								sx={{ width: "100%" }}
+							>
+								<Typography fontWeight="300">{file.name}</Typography>
+							</Alert>
 							<Button
 								size="lg"
 								color="primary"
@@ -155,26 +151,55 @@ export const DropzoneBox = ({
 							>
 								{uploading ? "Uploading..." : "Upload File"}
 							</Button>
-						)}
-						{uploadSuccess && (
-							<Typography level="body-sm" color="success">
-								File uploaded successfully!
+						</Stack>
+					) : (
+						<>
+							<Typography level="body-sm">Drag & drop a CV or</Typography>
+							<input {...getInputProps()} />
+							<Button size="lg" sx={{ m: 1 }} color="neutral" onClick={open}>
+								Browse Files
+							</Button>
+							<Typography level="body-xs">
+								Supported formats: PDF, DOCX (Max 3MB)
 							</Typography>
-						)}
-					</Stack>
-				) : (
-					<>
-						<Typography level="body-sm">Drag & drop a CV or</Typography>
-						<input {...getInputProps()} />
-						<Button size="lg" sx={{ m: 1 }} color="neutral" onClick={open}>
-							Browse Files
+						</>
+					)}
+				</Stack>
+			)}
+
+			{uploadSuccess && (
+				<Alert
+					variant="soft"
+					color="success"
+					startDecorator={<CheckCircleIcon />}
+					sx={{ width: 600 }}
+				>
+					<Typography level="body-sm" color="success">
+						File uploaded successfully!
+					</Typography>
+				</Alert>
+			)}
+
+			{error && (
+				<Alert
+					variant="soft"
+					color="danger"
+					startDecorator={<ErrorIcon />}
+					endDecorator={
+						<Button
+							size="sm"
+							variant="plain"
+							color="danger"
+							onClick={() => setError("")}
+						>
+							<CloseIcon />
 						</Button>
-						<Typography level="body-xs">
-							Supported formats: PDF, DOCX (Max 3MB)
-						</Typography>
-					</>
-				)}
-			</Stack>
+					}
+					sx={{ width: 600 }}
+				>
+					<Typography level="body-sm">{error}</Typography>
+				</Alert>
+			)}
 
 			<Snackbar msg={error} onClose={() => setError("")} />
 		</>

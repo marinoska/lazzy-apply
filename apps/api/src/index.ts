@@ -3,21 +3,44 @@ import { createServer } from "node:http";
 import { createApp } from "./app/createApp.js";
 import { env } from "./app/env.js";
 import { createLogger } from "./app/logger.js";
-import { stopMongoClient } from "./app/mongo.js";
+import { connectToMongo, stopMongoClient } from "./app/mongo.js";
+import {
+	startPendingUploadMonitor,
+	stopPendingUploadMonitor,
+} from "./jobs/pendingUploadsMonitor.js";
 
 const log = createLogger("server");
 
-const server = createServer(createApp());
+const startServer = async () => {
+	try {
+		// Connect to MongoDB first
+		await connectToMongo();
 
-server.listen(env.PORT, env.HOST, () => {
-	log.info(
-		`⚡️ Server listening on http://${env.HOST}:${env.PORT}`,
-	);
-});
+		// Start background jobs after DB is connected
+		startPendingUploadMonitor();
+
+		// Create and start the HTTP server
+		const server = createServer(createApp());
+
+		server.listen(env.PORT, env.HOST, () => {
+			log.info(
+				`⚡️ Server listening on http://${env.HOST}:${env.PORT}`,
+			);
+		});
+
+		return server;
+	} catch (error) {
+		log.fatal({ error }, "Failed to start server");
+		process.exit(1);
+	}
+};
+
+const server = await startServer();
 
 const shutdown = (signal: NodeJS.Signals) => {
 	log.info({ signal }, "Received shutdown signal");
-    void stopMongoClient();
+	stopPendingUploadMonitor();
+	void stopMongoClient();
 
 	server.close((err) => {
 		if (err) {
@@ -31,11 +54,10 @@ const shutdown = (signal: NodeJS.Signals) => {
 };
 
 const gracefulExit = () => {
-    log.info(
-        "Application is being terminated",
-    );
-    // If the Node process ends, close the Mongoose connection
-    void stopMongoClient();
+	log.info("Application is being terminated");
+	stopPendingUploadMonitor();
+	// If the Node process ends, close the Mongoose connection
+	void stopMongoClient();
 };
 
 process.on("SIGINT", gracefulExit);
@@ -50,4 +72,3 @@ process.on("unhandledRejection", (reason) => {
 	log.fatal({ reason }, "Unhandled promise rejection");
 	process.exit(1);
 });
-

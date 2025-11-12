@@ -1,6 +1,5 @@
 import cors from "cors";
 import "express-async-errors";
-import "./mongo.js";
 import type {
 	ErrorRequestHandler,
 	Express,

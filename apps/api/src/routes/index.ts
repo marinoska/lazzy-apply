@@ -9,8 +9,8 @@ import {
 	uploadRequestSchema,
 } from "./uploads/getUploadLink.js";
 import {
-	setUploadStatusController,
-	setUploadStatusRequestSchema,
+	completeUploadController,
+	completeUploadRequestSchema,
 } from "./uploads/setUploadStatus.js";
 
 export const registerRoutes = (app: Express) => {
@@ -27,10 +27,10 @@ export const registerRoutes = (app: Express) => {
 		uploadLinkController,
 	);
 	router.post(
-		"/uploads/status",
+		"/uploads/complete",
 		authenticateUser,
-		validateRequest({ body: setUploadStatusRequestSchema }),
-		setUploadStatusController,
+		validateRequest({ body: completeUploadRequestSchema }),
+		completeUploadController,
 	);
 
 	app.use(env.API_PREFIX, router);

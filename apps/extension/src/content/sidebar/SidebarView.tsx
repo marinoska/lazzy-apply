@@ -120,7 +120,6 @@ export function SidebarView({ state, onClose, onSignIn, onSignOut }: SidebarView
                   file={file}
                   setFile={setFile}
                   onUploadComplete={handleUploadComplete}
-                  directory="cv"
                 />
                 <Button
                   variant="outlined"

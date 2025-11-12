@@ -13,18 +13,12 @@ export const setupR2Cors = async () => {
 	const corsRules = {
 		CORSRules: [
 			{
-				// Browser extensions have dynamic IDs, so we use wildcards
-				// This is still safer than "*" as it restricts to extension protocols only
-				AllowedOrigins: [
-					"chrome-extension://*",
-					"moz-extension://*",
-					"safari-web-extension://*",
-				],
-				AllowedMethods: ["GET", "PUT", "HEAD"], // Only methods needed for upload
+				// Allow all origins for presigned URL uploads
+				// This is safe because presigned URLs are time-limited and cryptographically signed
+				AllowedOrigins: ["*"],
+				AllowedMethods: ["GET", "PUT", "POST", "HEAD"], // Methods for presigned uploads
 				AllowedHeaders: [
-					"Content-Type",
-					"Content-Length",
-					"x-amz-content-sha256",
+					"*", // Allow all headers for presigned URL signatures
 				],
 				ExposeHeaders: ["ETag", "Content-Length"],
 				MaxAgeSeconds: 3600,
