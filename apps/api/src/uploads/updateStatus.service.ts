@@ -6,6 +6,9 @@ import {
 	getCloudflareClient,
 	hashRemoteObject,
 } from "@/app/cloudflare.js";
+import { OutboxModel } from "@/outbox/outbox.model.js";
+import { OutboxEntryAlreadyProcessingError } from "@/outbox/outbox.errors.js";
+import { sendToParseQueue } from "@/workers/queue/index.js";
 import {
 	MAXIMUM_UPLOAD_SIZE_BYTES,
 	UPLOAD_DIRECTORY,
@@ -148,7 +151,6 @@ const validateAndPromoteUpload = async (
 
 	// Extract directory from the new object key (e.g., "cv/fileId" -> "cv")
 	const directory = newObjectKey.split("/")[0] || "";
-
 	// Update database with new location, directory, hash, and status
 	const updatedFileUpload = await fileUpload.markAsUploaded({
 		objectKey: newObjectKey,
@@ -156,6 +158,29 @@ const validateAndPromoteUpload = async (
 		fileHash: verifiedHash,
 		size,
 	});
+
+	// Immediately send to parse queue for faster processing
+	// The outbox worker will retry if this fails
+	try {
+		const outboxEntry = await OutboxModel.findByFileId(fileUpload.fileId);
+		if (outboxEntry && outboxEntry.status === "pending") {
+			await sendToParseQueue(
+				{
+					fileId: fileUpload.fileId,
+					logId: outboxEntry.logId,
+					userId: fileUpload.userId,
+				},
+				outboxEntry,
+			);
+		}
+	} catch (error) {
+		// Log but don't fail the upload
+		// If error is OutboxEntryAlreadyProcessingError, worker won the race - that's fine
+		// Otherwise, worker will retry
+		if (!(error instanceof OutboxEntryAlreadyProcessingError)) {
+			console.error("Failed to send to parse queue immediately:", error);
+		}
+	}
 
 	if (!updatedFileUpload) {
 		throw new Error(`Upload ${fileUpload.fileId} was not found for this user`);

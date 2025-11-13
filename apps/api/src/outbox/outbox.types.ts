@@ -1,5 +1,4 @@
 import type { Document, Model } from "mongoose";
-import type { OutboxMethods } from "./outbox.methods.js";
 
 export type OutboxStatus = "pending" | "processing" | "completed" | "failed";
 
@@ -12,6 +11,7 @@ export type TOutbox = {
 	type: OutboxType;
 	status: OutboxStatus;
 	fileId: string;
+	userId: string;
 	error?: string;
 	processedAt?: Date;
 	createdAt: Date;
@@ -23,6 +23,29 @@ export type CreateOutboxParams = Pick<
 	"logId" | "type" | "fileId"
 >;
 
+export type OutboxMethods = {
+	markAsProcessing(): Promise<OutboxDocument>;
+	markAsCompleted(): Promise<OutboxDocument>;
+	markAsFailed(error: string): Promise<OutboxDocument>;
+};
+
+export type OutboxStatics = {
+	createOutbox(
+		this: OutboxModelWithStatics,
+		payload: CreateOutboxParams,
+	): Promise<OutboxDocument>;
+	findPendingLogs(
+		this: OutboxModelWithStatics,
+		limit: number,
+	): Promise<OutboxDocument[]>;
+	findByFileId(
+		this: OutboxModelWithStatics,
+		fileId: string,
+	): Promise<OutboxDocument | null>;
+};
+
 export type OutboxDocument = Document & TOutbox & OutboxMethods;
 
 export type OutboxModelBase = Model<TOutbox>;
+
+export type OutboxModelWithStatics = OutboxModelBase & OutboxStatics;

@@ -1,72 +1,89 @@
+import { randomUUID } from "node:crypto";
+
 import type { Schema } from "mongoose";
+import mongoose from "mongoose";
 
 import type {
 	FileUploadDocument,
 	FileUploadMethods,
 	MarkUploadCompletedParams,
 	MarkUploadDeduplicatedParams,
-	OwnershipContext,
 	TFileUpload,
 } from "./fileUpload.types.js";
-import { FILE_UPLOAD_MODEL_NAME } from "./fileUpload.types.js";
 import type { FileUploadModelWithStatics } from "./fileUpload.statics.js";
-
-const resolveOwnership = (
-	doc: FileUploadDocument,
-	ownership?: OwnershipContext,
-): OwnershipContext => {
-	if (ownership) {
-		return ownership;
-	}
-
-	return { userId: doc.userId };
-};
-
-const getModelWithStatics = (
-	doc: FileUploadDocument,
-): FileUploadModelWithStatics => {
-	return doc.model<TFileUpload>(
-		FILE_UPLOAD_MODEL_NAME,
-	) as unknown as FileUploadModelWithStatics;
-};
+import { OutboxModel, type OutboxDocument } from "@/outbox/outbox.model.js";
 
 export const registerFileUploadMethods = (
 	schema: Schema<TFileUpload, FileUploadModelWithStatics, FileUploadMethods>,
 ) => {
 	schema.methods.markAsFailed = async function (
 		this: FileUploadDocument,
-		ownership?: OwnershipContext,
 	) {
-		const model = getModelWithStatics(this);
-		return await model.markUploadFailed(
-			this.fileId,
-			resolveOwnership(this, ownership),
-		);
+		this.status = "failed";
+
+		await this.save();
+
+		return this;
 	};
 
 	schema.methods.markAsDeduplicated = async function (
 		this: FileUploadDocument,
 		params: MarkUploadDeduplicatedParams,
-		ownership?: OwnershipContext,
 	) {
-		const model = getModelWithStatics(this);
-		return await model.markUploadDeduplicated(
-			this.fileId,
-			params,
-			resolveOwnership(this, ownership),
-		);
+		this.status = "deduplicated";
+		this.deduplicatedFrom = params.deduplicatedFrom;
+		this.size = params.size;
+
+		await this.save();
+
+		return this;
 	};
 
 	schema.methods.markAsUploaded = async function (
 		this: FileUploadDocument,
 		params: MarkUploadCompletedParams,
-		ownership?: OwnershipContext,
 	) {
-		const model = getModelWithStatics(this);
-		return await model.markUploadCompleted(
-			this.fileId,
-			params,
-			resolveOwnership(this, ownership),
-		);
+		// Start a session for transaction
+		const session = await mongoose.startSession();
+		session.startTransaction();
+
+		try {
+			// Update this document's status
+			this.status = "uploaded";
+			this.objectKey = params.objectKey;
+			this.directory = params.directory;
+			this.fileHash = params.fileHash;
+			this.size = params.size;
+
+			await this.save({ session });
+
+			// Create outbox entry for async queue processing
+			// The outbox processor worker will handle sending to Cloudflare parse-cv queue
+			const logId = randomUUID();
+			await OutboxModel.create(
+				[
+					{
+						logId,
+						type: "file_upload",
+						status: "pending",
+						fileId: this.fileId,
+						userId: this.userId,
+					},
+				],
+				{ session },
+			);
+
+			// Commit the transaction
+			await session.commitTransaction();
+
+			return this;
+		} catch (error) {
+			// Abort transaction on error
+			await session.abortTransaction();
+			throw error;
+		} finally {
+			// End the session
+			session.endSession();
+		}
 	};
 };

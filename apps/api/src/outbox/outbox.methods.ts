@@ -2,34 +2,31 @@ import type { Schema } from "mongoose";
 
 import type {
 	OutboxDocument,
+	OutboxMethods,
+	OutboxModelWithStatics,
 	TOutbox,
 } from "./outbox.types.js";
-import { OUTBOX_MODEL_NAME } from "./outbox.types.js";
-import type { OutboxModelWithStatics } from "./outbox.statics.js";
-
-export type OutboxMethods = {
-	markAsProcessing(this: OutboxDocument): Promise<OutboxDocument | null>;
-	markAsCompleted(this: OutboxDocument): Promise<OutboxDocument | null>;
-	markAsFailed(
-		this: OutboxDocument,
-		error: string,
-	): Promise<OutboxDocument | null>;
-};
-
-const getModelWithStatics = (
-	doc: OutboxDocument,
-): OutboxModelWithStatics => {
-	return doc.model<TOutbox>(
-		OUTBOX_MODEL_NAME,
-	) as unknown as OutboxModelWithStatics;
-};
+import { OutboxEntryAlreadyProcessingError } from "./outbox.errors.js";
 
 export const registerOutboxMethods = (
 	schema: Schema<TOutbox, OutboxModelWithStatics, OutboxMethods>,
 ) => {
 	schema.methods.markAsProcessing = async function (this: OutboxDocument) {
+		// Use atomic update to prevent race conditions
+		// Only update if status is still "pending"
+		const updated = await this.model("outbox").findOneAndUpdate(
+			{ _id: this._id, status: "pending" },
+			{ status: "processing" },
+			{ new: true },
+		);
+		
+		if (!updated) {
+			throw new OutboxEntryAlreadyProcessingError(this.logId);
+		}
+		
+		// Update local document to reflect the change
 		this.status = "processing";
-		return await this.save();
+		return this;
 	};
 
 	schema.methods.markAsCompleted = async function (this: OutboxDocument) {

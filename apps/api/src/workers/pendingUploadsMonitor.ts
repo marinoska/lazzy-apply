@@ -53,9 +53,7 @@ const processPendingUploads = async () => {
 		for (const fileUpload of stalePendingUploads) {
 			try {
 				// Mark as failed in database first
-				await fileUpload.markAsFailed({
-					skipOwnershipEnforcement: true,
-				});
+				await fileUpload.markAsFailed();
 
 				// Then delete from quarantine if it exists
 				// File might not exist if upload never started or already failed

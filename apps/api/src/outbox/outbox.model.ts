@@ -2,17 +2,13 @@ import { Schema, model } from "mongoose";
 
 import type {
 	OutboxDocument,
+	OutboxMethods,
+	OutboxModelWithStatics,
 	TOutbox,
 } from "./outbox.types.js";
 import { OUTBOX_MODEL_NAME } from "./outbox.types.js";
-import {
-	registerOutboxStatics,
-	type OutboxModelWithStatics,
-} from "./outbox.statics.js";
-import {
-	registerOutboxMethods,
-	type OutboxMethods,
-} from "./outbox.methods.js";
+import { registerOutboxStatics } from "./outbox.statics.js";
+import { registerOutboxMethods } from "./outbox.methods.js";
 
 export type OutboxModel = OutboxModelWithStatics;
 
@@ -45,6 +41,11 @@ const outboxSchema = new Schema<
 			type: String,
 			required: true,
 			index: true,
+			immutable: true,
+		},
+		userId: {
+			type: String,
+			required: true,
 			immutable: true,
 		},
 		error: {

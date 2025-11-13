@@ -69,18 +69,15 @@ export type FileUploadDocument = Document & TFileUpload & FileUploadMethods;
 export type FileUploadMethods = {
 	markAsFailed(
 		this: FileUploadDocument,
-		ownership?: OwnershipContext,
-	): Promise<FileUploadDocument | null>;
+	): Promise<FileUploadDocument>;
 	markAsDeduplicated(
 		this: FileUploadDocument,
 		params: MarkUploadDeduplicatedParams,
-		ownership?: OwnershipContext,
-	): Promise<FileUploadDocument | null>;
+	): Promise<FileUploadDocument>;
 	markAsUploaded(
 		this: FileUploadDocument,
 		params: MarkUploadCompletedParams,
-		ownership?: OwnershipContext,
-	): Promise<FileUploadDocument | null>;
+	): Promise<FileUploadDocument>;
 };
 
 export type FileUploadModelBase = Model<TFileUpload>;

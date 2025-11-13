@@ -3,27 +3,10 @@ import type { Schema } from "mongoose";
 import type {
 	CreateOutboxParams,
 	OutboxDocument,
-	OutboxModelBase,
+	OutboxMethods,
+	OutboxModelWithStatics,
 	TOutbox,
 } from "./outbox.types.js";
-import type { OutboxMethods } from "./outbox.methods.js";
-
-export type OutboxStatics = {
-	createOutbox(
-		this: OutboxModelWithStatics,
-		payload: CreateOutboxParams,
-	): Promise<OutboxDocument>;
-	findPendingLogs(
-		this: OutboxModelWithStatics,
-		limit: number,
-	): Promise<OutboxDocument[]>;
-	findByFileId(
-		this: OutboxModelWithStatics,
-		fileId: string,
-	): Promise<OutboxDocument | null>;
-};
-
-export type OutboxModelWithStatics = OutboxModelBase & OutboxStatics;
 
 export const registerOutboxStatics = (
 	schema: Schema<TOutbox, OutboxModelWithStatics, OutboxMethods>,
