@@ -113,24 +113,12 @@ const validateAndPromoteUpload = async (
 	}
 
 	// Check for existing file with same hash for this user
-	// Include both "uploaded" and "deduplicated" statuses
-	let existingFile =
+	const existingFile =
 		await FileUploadModel.findExistingCompletedUploadByHash({
 			fileHash,
 			excludeFileId: fileUpload.fileId,
 			userId: fileUpload.userId,
 		});
-
-	// If we found a deduplicated file, follow the chain to get the original
-	if (
-		existingFile?.status === "deduplicated" &&
-		existingFile.deduplicatedFrom
-	) {
-		existingFile = await FileUploadModel.findUploadedByFileId(
-			existingFile.deduplicatedFrom,
-			{ userId: fileUpload.userId },
-		);
-	}
 
 	if (existingFile) {
 		// Deduplicate - delete from quarantine and reference existing file
@@ -138,7 +126,6 @@ const validateAndPromoteUpload = async (
 
 		await fileUpload.markAsDeduplicated({
 			deduplicatedFrom: existingFile.fileId,
-			fileHash,
 			size: actualSize,
 		});
 

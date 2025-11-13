@@ -1,4 +1,7 @@
-import type { Query, Schema } from "mongoose";
+import { randomUUID } from "node:crypto";
+
+import type { Schema } from "mongoose";
+import mongoose from "mongoose";
 
 import type {
 	CreatePendingUploadParams,
@@ -11,31 +14,7 @@ import type {
 	OwnershipContext,
 	TFileUpload,
 } from "./fileUpload.types.js";
-
-const applyOwnershipOptions = <TResult>(
-	query: Query<TResult, any>,
-	ownership?: OwnershipContext,
-) => {
-	if (!ownership) {
-		return query;
-	}
-
-	const options: Record<string, unknown> = {};
-
-	if (ownership.userId) {
-		options.userId = ownership.userId;
-	}
-
-	if (ownership.skipOwnershipEnforcement) {
-		options.skipOwnershipEnforcement = true;
-	}
-
-	if (Object.keys(options).length > 0) {
-		query.setOptions(options);
-	}
-
-	return query;
-};
+import { OutboxModel } from "@/outbox/outbox.model.js";
 
 export type FileUploadStatics = {
 	createPendingUpload(
@@ -93,45 +72,37 @@ export const registerFileUploadStatics = (
 	};
 
 	schema.statics.findPendingUpload = async function (fileId, userId) {
-		const query = this.findOne({
+		return await this.findOne({
 			fileId,
 			status: "pending",
-		});
-
-		return await applyOwnershipOptions(query, { userId });
+		}).setOptions({ userId });
 	};
 
 	schema.statics.findExistingCompletedUploadByHash = async function (
 		params,
 	) {
-		const query = this.findOne({
+		return await this.findOne({
 			fileHash: params.fileHash,
 			status: { $in: ["uploaded", "deduplicated"] },
 			fileId: { $ne: params.excludeFileId },
-		});
-
-		return await applyOwnershipOptions(query, { userId: params.userId });
+		}).setOptions({ userId: params.userId });
 	};
 
 	schema.statics.findUploadedByFileId = async function (
 		fileId,
 		ownership,
 	) {
-		const query = this.findOne({
+		return await this.findOne({
 			fileId,
 			status: "uploaded",
-		});
-
-		return await applyOwnershipOptions(query, ownership);
+		}).setOptions(ownership);
 	};
 
 	schema.statics.markUploadFailed = async function (fileId, ownership) {
-		const query = this.findOneAndUpdate(
+		return await this.findOneAndUpdate(
 			{ fileId },
 			{ $set: { status: "failed" } },
-		);
-
-		return await applyOwnershipOptions(query, ownership);
+		).setOptions(ownership);
 	};
 
 	schema.statics.markUploadDeduplicated = async function (
@@ -139,19 +110,16 @@ export const registerFileUploadStatics = (
 		params,
 		ownership,
 	) {
-		const query = this.findOneAndUpdate(
+		return await this.findOneAndUpdate(
 			{ fileId },
 			{
 				$set: {
 					status: "deduplicated",
 					deduplicatedFrom: params.deduplicatedFrom,
-					fileHash: params.fileHash,
 					size: params.size,
 				},
 			},
-		);
-
-		return await applyOwnershipOptions(query, ownership);
+		).setOptions(ownership);
 	};
 
 	schema.statics.markUploadCompleted = async function (
@@ -159,21 +127,56 @@ export const registerFileUploadStatics = (
 		params,
 		ownership,
 	) {
-		const query = this.findOneAndUpdate(
-			{ fileId },
-			{
-				$set: {
-					status: "uploaded",
-					objectKey: params.objectKey,
-					directory: params.directory,
-					fileHash: params.fileHash,
-					size: params.size,
-				},
-			},
-			{ new: true },
-		);
+		// Start a session for transaction
+		const session = await mongoose.startSession();
+		session.startTransaction();
 
-		return await applyOwnershipOptions(query, ownership);
+		try {
+			// Update file upload status
+			const updatedUpload = await this.findOneAndUpdate(
+				{ fileId },
+				{
+					$set: {
+						status: "uploaded",
+						objectKey: params.objectKey,
+						directory: params.directory,
+						fileHash: params.fileHash,
+						size: params.size,
+					},
+				},
+				{ new: true, session },
+			).setOptions(ownership);
+
+			if (!updatedUpload) {
+				throw new Error(`File upload ${fileId} not found`);
+			}
+
+			// Create outbox entry for queue processing
+			const logId = randomUUID();
+			await OutboxModel.create(
+				[
+					{
+						logId,
+						type: "file_upload",
+						status: "pending",
+						fileId: updatedUpload.fileId,
+					},
+				],
+				{ session },
+			);
+
+			// Commit the transaction
+			await session.commitTransaction();
+
+			return updatedUpload;
+		} catch (error) {
+			// Abort transaction on error
+			await session.abortTransaction();
+			throw error;
+		} finally {
+			// End the session
+			session.endSession();
+		}
 	};
 
 	schema.statics.findStalePendingUploads = async function (cutoff, limit) {

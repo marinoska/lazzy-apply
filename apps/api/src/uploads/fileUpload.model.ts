@@ -84,7 +84,8 @@ const fileUploadSchema = new Schema<
 		},
 		fileHash: {
 			type: String,
-			index: true,
+			unique: true,
+			sparse: true,
 		},
 	},
 	{ timestamps: true },

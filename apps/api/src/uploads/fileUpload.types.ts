@@ -54,7 +54,6 @@ export type FindExistingUploadByHashParams = {
 
 export type MarkUploadDeduplicatedParams = {
 	deduplicatedFrom: string;
-	fileHash: string;
 	size: number;
 };
 
