@@ -18,10 +18,7 @@ export type TOutbox = {
 	updatedAt: Date;
 };
 
-export type CreateOutboxParams = Pick<
-	TOutbox,
-	"logId" | "type" | "fileId"
->;
+export type CreateOutboxParams = Pick<TOutbox, "logId" | "type" | "fileId">;
 
 export type OutboxMethods = {
 	markAsProcessing(): Promise<OutboxDocument>;
@@ -46,6 +43,10 @@ export type OutboxStatics = {
 
 export type OutboxDocument = Document & TOutbox & OutboxMethods;
 
-export type OutboxModelBase = Model<TOutbox>;
+export type OutboxModelBase = Model<
+	TOutbox,
+	Record<string, never>,
+	OutboxMethods
+>;
 
 export type OutboxModelWithStatics = OutboxModelBase & OutboxStatics;
