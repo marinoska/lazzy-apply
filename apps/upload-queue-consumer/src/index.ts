@@ -9,6 +9,9 @@ export type Env = {
 
 	// API base URL for callbacks
 	API_URL: string;
+
+	MONGO_CONNECTION: string;
+	ENVIRONMENT: "prod" | "dev";
 };
 
 /**
@@ -18,7 +21,7 @@ export type Env = {
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
 		const url = new URL(request.url);
-
+		console.log("ENVIRONMENT:", env.ENVIRONMENT);
 		// Local test endpoint
 		if (request.method === "POST" && url.pathname === "/") {
 			const payload = (await request.json()) as ParseCVQueueMessage;

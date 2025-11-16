@@ -1,0 +1,66 @@
+services:
+  # Production API
+  - type: web
+    name: dyno-job-api
+    env: node
+    region: oregon
+    plan: starter
+    branch: main
+    # manual deploy
+    autoDeploy: false
+    buildCommand: pnpm install && pnpm --filter @lazyapply/api build
+    startCommand: pnpm --filter @lazyapply/api start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: HOST
+        value: 0.0.0.0
+      - key: MONGO_CONNECTION
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ALLOWED_ORIGIN_LIST
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false
+    
+  # Dev/Staging API
+  - type: web
+    name: dyno-job-api-dev
+    env: node
+    region: oregon
+    plan: starter
+    branch: main
+    buildCommand: pnpm install && pnpm --filter @lazyapply/api build
+    startCommand: pnpm --filter @lazyapply/api start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: development
+      - key: PORT
+        value: 8080
+      - key: HOST
+        value: 0.0.0.0
+      - key: MONGO_CONNECTION
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ALLOWED_ORIGIN_LIST
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: dyno-job-uploads-dev
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false

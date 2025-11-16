@@ -242,29 +242,72 @@ curl -X POST "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/queues/p
 wrangler tail
 ```
 
-## Environments (Optional)
+## Environments
 
-You can deploy to multiple environments:
+The project supports multiple deployment environments:
 
-**wrangler.toml:**
+### Available Environments
+
+1. **Production** (default) - Deploys from `main` branch
+2. **Dev/Staging** - Deploys from `dev` or `develop` branch
+
+**wrangler.toml configuration:**
 ```toml
-name = "upload-queue-consumer"
+name = "upload-queue-consumer"  # Production
 
-[env.staging]
-name = "upload-queue-consumer-staging"
-
-[env.production]
-name = "upload-queue-consumer-production"
+[env.dev]
+name = "upload-queue-consumer-dev"
+# Separate queues: parse-cv-dev, parse-cv-dlq-dev
+# Separate R2 bucket: dyno-job-uploads-dev
 ```
 
-**Deploy to specific environment:**
+### Deploy to Specific Environment
+
+**Via GitHub Actions:**
+- Push to `main` → deploys to **both production and dev**
+
+**Manual deployment:**
 ```bash
-# Staging
-wrangler deploy --env staging
-
 # Production
-wrangler deploy --env production
+wrangler deploy
+
+# Dev
+wrangler deploy --env dev
 ```
+
+### Environment-Specific Secrets
+
+Each environment has its own secrets. Set them using:
+
+```bash
+# Production secrets
+wrangler secret put API_URL
+wrangler secret put MONGO_CONNECTION
+
+# Dev secrets
+wrangler secret put API_URL --env dev
+wrangler secret put MONGO_CONNECTION --env dev
+```
+
+### GitHub Secrets Required
+
+**For Production:**
+- `CLOUDFLARE_API_TOKEN`
+- `API_URL`
+- `MONGO_CONNECTION`
+- `R2_BUCKET_NAME`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_ENDPOINT`
+
+**For Dev:**
+- `CLOUDFLARE_API_TOKEN` (same token)
+- `DEV_API_URL`
+- `DEV_MONGO_CONNECTION`
+- `DEV_R2_BUCKET_NAME`
+- `DEV_R2_ACCESS_KEY_ID`
+- `DEV_R2_SECRET_ACCESS_KEY`
+- `DEV_R2_ENDPOINT`
 
 ## Rollback
 

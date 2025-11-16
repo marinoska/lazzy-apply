@@ -1,0 +1,49 @@
+name: Deploy Upload Queue Consumer (Dev)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/upload-queue-consumer/**'
+      - '.github/workflows/deploy-upload-consumer-dev.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Cloudflare Workers (Dev Environment)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy to Cloudflare Workers (Dev)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: 'apps/upload-queue-consumer'
+          command: deploy --env dev
+
+      - name: Set secrets for dev environment
+        working-directory: apps/upload-queue-consumer
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "${{ secrets.DEV_API_URL }}" | pnpm wrangler secret put API_URL --env dev
+          echo "${{ secrets.DEV_MONGO_CONNECTION }}" | pnpm wrangler secret put MONGO_CONNECTION --env dev
+          # R2 Configuration (standardized naming)
+          echo "${{ secrets.DEV_R2_BUCKET_NAME }}" | pnpm wrangler secret put R2_BUCKET_NAME --env dev
+          echo "${{ secrets.DEV_R2_ACCESS_KEY_ID }}" | pnpm wrangler secret put R2_ACCESS_KEY_ID --env dev
+          echo "${{ secrets.DEV_R2_SECRET_ACCESS_KEY }}" | pnpm wrangler secret put R2_SECRET_ACCESS_KEY --env dev
+          echo "${{ secrets.DEV_R2_ENDPOINT }}" | pnpm wrangler secret put R2_ENDPOINT --env dev

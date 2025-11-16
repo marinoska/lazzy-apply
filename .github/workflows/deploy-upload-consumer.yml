@@ -1,12 +1,6 @@
-name: Deploy Upload Queue Consumer
+name: Deploy Upload Queue Consumer (Production)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'apps/upload-queue-consumer/**'
-      - '.github/workflows/deploy-upload-consumer.yml'
   workflow_dispatch:
 
 jobs:
