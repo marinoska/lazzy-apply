@@ -31,14 +31,10 @@ remote = true
 # Non-secret vars (secrets still via `wrangler secret put`)
 [vars]
 ENVIRONMENT = "prod"
+API_URL = "https://api.yourapp.com"  # Update with your production API URL
 
 # Secrets (set via wrangler secret put, not here):
 # - MONGO_CONNECTION
-# - API_URL
-# - R2_BUCKET_NAME (optional if you want it in code)
-# - R2_ACCESS_KEY_ID
-# - R2_SECRET_ACCESS_KEY
-# - R2_ENDPOINT
 
 
 ##############
@@ -69,8 +65,7 @@ remote = true
 
 [env.dev.vars]
 ENVIRONMENT = "dev"
+API_URL = "http://localhost:5050"  # Dev API URL
 
 # Dev secrets: same names, but separate values
 # wrangler secret put MONGO_CONNECTION --env dev
-# wrangler secret put API_URL --env dev
-# ...
