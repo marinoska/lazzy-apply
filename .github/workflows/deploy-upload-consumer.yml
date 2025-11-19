@@ -15,7 +15,7 @@ jobs:
     name: Deploy to Cloudflare Workers (Dev Environment)
 
     # 🔑 Attach the job to the 'dev' environment
-    environment: prod
+    # environment: prod
 
     # Make token available to all run steps
     env:

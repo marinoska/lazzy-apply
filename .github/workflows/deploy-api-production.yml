@@ -1,13 +1,6 @@
 name: Deploy API (Production)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'apps/api/**'
-      - 'packages/**'
-      - '.github/workflows/deploy-api-production.yml'
   workflow_dispatch:
 
 jobs:

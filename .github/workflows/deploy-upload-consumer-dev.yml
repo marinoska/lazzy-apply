@@ -18,8 +18,8 @@ jobs:
     environment: dev
 
     # Make token available to all run steps
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    # env:
+    #   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
     # Optional: default working directory for run steps
     defaults:
@@ -36,6 +36,18 @@ jobs:
           node-version: "22"
           cache: "pnpm"
 
+      - name: Check length of CLOUDFLARE_API_TOKEN 2
+        env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "len=${#CF}"
+          if [ -z "$CF" ]; then
+            echo "❌ CF is empty at runtime"
+            exit 1
+          else
+            echo "✅ CF is non-empty (value is masked in logs)"
+          fi
+                    
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -43,9 +55,14 @@ jobs:
       - name: Debug Cloudflare env
         run: env | grep CLOUDFLARE || echo "no CLOUDFLARE vars"
 
+      # - name: Deploy to Cloudflare Workers (Dev)
+      #   run: pnpm exec wrangler deploy --env dev
       - name: Deploy to Cloudflare Workers (Dev)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: pnpm exec wrangler deploy --env dev
 
+        
       - name: Set secrets for dev environment
         env:
           # DEV_MONGO_CONNECTION is also an environment secret in 'dev'
