@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import type { Schema } from "mongoose";
 import mongoose from "mongoose";
 
+import { type OutboxDocument, OutboxModel } from "@/outbox/outbox.model.js";
+import type { FileUploadModelWithStatics } from "./fileUpload.statics.js";
 import type {
 	FileUploadDocument,
 	FileUploadMethods,
@@ -10,15 +12,16 @@ import type {
 	MarkUploadDeduplicatedParams,
 	TFileUpload,
 } from "./fileUpload.types.js";
-import type { FileUploadModelWithStatics } from "./fileUpload.statics.js";
-import { OutboxModel, type OutboxDocument } from "@/outbox/outbox.model.js";
 
 export const registerFileUploadMethods = (
 	schema: Schema<TFileUpload, FileUploadModelWithStatics, FileUploadMethods>,
 ) => {
-	schema.methods.markAsFailed = async function (
-		this: FileUploadDocument,
-	) {
+	schema.methods.markAsFailed = async function (this: FileUploadDocument) {
+		// Skip if already in a locked state (race condition protection)
+		if (this.status !== "pending") {
+			return this;
+		}
+
 		this.status = "failed";
 
 		await this.save();

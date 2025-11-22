@@ -3,7 +3,10 @@ import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getCloudflareClient } from "@/app/cloudflare.js";
 import { createLogger } from "@/app/logger.js";
 import { UPLOAD_TIMEOUT_SECONDS } from "@/routes/uploads/constants.js";
-import { FileUploadModel } from "@/uploads/fileUpload.model.js";
+import {
+	type FileUploadDocument,
+	FileUploadModel,
+} from "@/uploads/fileUpload.model.js";
 
 const log = createLogger("pending-upload-monitor");
 
@@ -52,8 +55,25 @@ const processPendingUploads = async () => {
 
 		for (const fileUpload of stalePendingUploads) {
 			try {
+				// Refresh document to get latest status (handles race conditions with deduplication/completion)
+				const freshDoc = (await FileUploadModel.findById(fileUpload._id)
+					.setOptions({ skipOwnershipEnforcement: true })
+					.exec()) as FileUploadDocument | null;
+
+				// Skip if document was deleted or status changed from pending
+				if (!freshDoc || freshDoc.status !== "pending") {
+					log.debug(
+						{
+							fileId: fileUpload.fileId,
+							status: freshDoc?.status ?? "deleted",
+						},
+						"Upload status changed before processing, skipped",
+					);
+					continue;
+				}
+
 				// Mark as failed in database first
-				await fileUpload.markAsFailed();
+				await freshDoc.markAsFailed();
 
 				// Then delete from quarantine if it exists
 				// File might not exist if upload never started or already failed
@@ -79,7 +99,8 @@ const processPendingUploads = async () => {
 			} catch (error) {
 				log.error(
 					{
-						error: JSON.stringify(error),
+						error: error instanceof Error ? error.message : String(error),
+						stack: error instanceof Error ? error.stack : undefined,
 						fileId: fileUpload.fileId,
 						userId: fileUpload.userId,
 					},
@@ -89,7 +110,10 @@ const processPendingUploads = async () => {
 		}
 	} catch (error) {
 		log.error(
-			{ error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined },
+			{
+				error: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : undefined,
+			},
 			"Error in processPendingUploads",
 		);
 	} finally {
