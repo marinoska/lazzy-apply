@@ -1,17 +1,17 @@
-import { applyOwnershipEnforcement } from "@/app/middleware/mongoOwnershipEnforcement.middleware";
+import { applyOwnershipEnforcement } from "@/app/middleware/mongoOwnershipEnforcement.middleware.js";
 import { Schema, model } from "mongoose";
 
+import { registerFileUploadMethods } from "./fileUpload.methods.js";
+import {
+	type FileUploadModelWithStatics,
+	registerFileUploadStatics,
+} from "./fileUpload.statics.js";
 import type {
 	FileUploadDocument,
 	FileUploadMethods,
 	TFileUpload,
 } from "./fileUpload.types.js";
 import { FILE_UPLOAD_MODEL_NAME } from "./fileUpload.types.js";
-import {
-	registerFileUploadStatics,
-	type FileUploadModelWithStatics,
-} from "./fileUpload.statics.js";
-import { registerFileUploadMethods } from "./fileUpload.methods.js";
 
 export type FileUploadModel = FileUploadModelWithStatics;
 

@@ -1,12 +1,12 @@
-# DynoJob Deployment Overview
+# LazyApply Deployment Overview
 
-Complete deployment setup for all DynoJob components with dev and production environments.
+Complete deployment setup for all LazyApply components with dev and production environments.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      DynoJob Platform                       │
+│                     LazyApply Platform                      │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌──────────────────┐                                       │
@@ -20,11 +20,11 @@ Complete deployment setup for all DynoJob components with dev and production env
 │           ▼                                                 │
 │  ┌──────────────────────────────────────────┐              │
 │  │   API (Node.js Express)                  │              │
-│  │   Platform: Render/Railway/Fly.io        │              │
+│  │   Platform: Render                       │              │
 │  │   - REST endpoints                       │              │
 │  │   - MongoDB connections                  │              │
-│  │   - Background workers                   │              │
-│  │   - R2 storage integration               │              │
+│  │   - User authentication (Supabase)       │              │
+│  │   - Worker authentication                │              │
 │  └────────┬─────────────────────────────────┘              │
 │           │                                                 │
 │           │ Queue messages                                  │
@@ -50,7 +50,7 @@ Complete deployment setup for all DynoJob components with dev and production env
 
 | Component | Platform | Production | Dev/Staging |
 |-----------|----------|------------|-------------|
-| **API** | Render/Railway/Fly.io | `main` branch → prod service | `main` branch → dev service |
+| **API** | Render | `main` branch → manual prod | `main` branch → auto dev |
 | **Queue Consumer** | Cloudflare Workers | `main` branch → prod env | `main` branch → dev env |
 | **Extension** | Chrome Web Store | Manual upload | Manual upload (unlisted) |
 | **Functions** | Supabase | `main` branch | `main` branch |
@@ -73,8 +73,8 @@ wrangler queues create parse-cv
 wrangler queues create parse-cv-dlq
 wrangler queues create parse-cv-dev
 wrangler queues create parse-cv-dlq-dev
-wrangler r2 bucket create dyno-job-uploads
-wrangler r2 bucket create dyno-job-uploads-dev
+wrangler r2 bucket create lazyapply-uploads
+wrangler r2 bucket create lazyapply-uploads-dev
 
 # Set GitHub secrets
 CLOUDFLARE_API_TOKEN
@@ -109,43 +109,30 @@ R2_ENDPOINT, DEV_R2_ENDPOINT
 1. Connect GitHub repo to Render
 2. Render will auto-detect `render.yaml`
 3. Set environment variables in Render dashboard
-4. Deploy automatically on push
+4. Dev deploys automatically on push to `main`
+5. Production deploys manually via dashboard or deploy hook
 
-**Option B: Railway.app**
-1. Install Railway CLI: `npm i -g @railway/cli`
-2. `railway login`
-3. `railway init`
-4. Set environment variables
-5. `railway up`
-
-**Option C: Fly.io**
-1. Install Fly CLI: `brew install flyctl`
-2. `fly auth login`
-3. `fly launch`
-4. Set secrets: `fly secrets set KEY=value`
-5. `fly deploy`
+**See `RENDER_SETUP.md` for detailed setup instructions**
 
 **Environment Variables:**
 ```bash
 # Production
 NODE_ENV=production
 MONGO_CONNECTION=mongodb+srv://...
-JWT_SECRET=...
-ALLOWED_ORIGIN_LIST=https://app.dynojob.com
-R2_BUCKET_NAME=dyno-job-uploads
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-R2_ENDPOINT=https://...
+ALLOWED_ORIGINS=https://app.lazyapply.com,https://lazyapply.com
+SUPABASE_JWT_SECRET=...
+SUPABASE_JWKS_URL=https://...
+WORKER_SECRET=...
 
 # Dev (same keys, different values)
 NODE_ENV=development
 MONGO_CONNECTION=mongodb+srv://...-dev
-R2_BUCKET_NAME=dyno-job-uploads-dev
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 ...
 ```
 
 **Deploy:**
-- Push to `main` → Both production and dev services
+- Push to `main` → Dev auto-deploys, Production manual
 
 **Health Check:** `/health` endpoint already exists
 
@@ -266,9 +253,10 @@ git add .
 git commit -m "feat: new feature"
 git push origin main
 
-# 3. Automatic deployments trigger (BOTH environments):
-# - API → Render/Railway/Fly.io (production AND dev services)
+# 3. Automatic deployments trigger:
+# - API Dev → Render (auto-deploy)
 # - Queue Consumer → Cloudflare Workers (production AND dev environments)
+# - API Production → Manual deploy required
 
 # 4. Manual deployments:
 # - Extension → Chrome Web Store (manual upload)
@@ -276,7 +264,7 @@ git push origin main
 ```
 
 **Note:** Both production and dev environments deploy from the same `main` branch. They are differentiated by:
-- **API**: Separate Render services (`dyno-job-api` vs `dyno-job-api-dev`)
+- **API**: Separate Render services (`lazyapply-api` vs `lazyapply-api-dev`)
 - **Queue Consumer**: Separate CF Workers environments (default vs `--env dev`)
 - **Configuration**: Different environment variables and resources (queues, buckets, databases)
 
@@ -287,13 +275,8 @@ git push origin main
 ### API
 ```bash
 # Render
-render logs -s dyno-job-api
-
-# Railway
-railway logs
-
-# Fly.io
-flyctl logs
+render logs -s lazyapply-api        # Production
+render logs -s lazyapply-api-dev    # Dev
 ```
 
 ### Queue Consumer
@@ -347,25 +330,23 @@ supabase functions logs <function-name>
 
 | Service | Free Tier | Paid (Small App) |
 |---------|-----------|------------------|
-| **Render** | 750 hrs/month | $7-25/month |
-| **Railway** | $5 credit | $10-20/month |
-| **Fly.io** | 3 VMs | $5-10/month |
+| **Render** | 750 hrs/month | $14/month (2 services) |
 | **Cloudflare Workers** | 100k req/day | $5/month |
 | **Supabase** | 500MB DB, 2GB storage | $25/month |
 | **Chrome Web Store** | $5 one-time | - |
 | **MongoDB Atlas** | 512MB | $9/month |
-| **Total** | ~$5-10/month | ~$50-100/month |
+| **Total** | ~$5/month | ~$50-60/month |
 
 ---
 
 ## Next Steps
 
-1. **Choose API hosting platform** (Render recommended for simplicity)
+1. **Set up Render** using `RENDER_SETUP.md`
 2. **Set up Cloudflare account** for queue consumer
-3. **Configure GitHub secrets** for CI/CD
-4. **Push to main** to deploy both environments
-5. **Test dev environment** first
-6. **Verify production** is working
+3. **Configure environment variables** in Render dashboard
+4. **Push to main** to auto-deploy dev environment
+5. **Test dev environment** thoroughly
+6. **Manually deploy production** when ready
 7. **Set up monitoring** and alerts
 
 ---

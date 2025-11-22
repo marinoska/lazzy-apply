@@ -2,10 +2,10 @@ import pino from "pino";
 
 import { env } from "./env.js";
 
-const baseLogger = pino({
-	level: env.LOG_LEVEL,
-	...(env.NODE_ENV === "development"
-		? {
+const baseLogger =
+	env.NODE_ENV === "development"
+		? pino({
+				level: env.LOG_LEVEL,
 				transport: {
 					target: "pino-pretty",
 					options: {
@@ -13,9 +13,10 @@ const baseLogger = pino({
 						translateTime: "SYS:standard",
 					},
 				},
-			}
-		: {}),
-});
+			})
+		: pino({
+				level: env.LOG_LEVEL,
+			});
 
 export const logger = baseLogger;
 

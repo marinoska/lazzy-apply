@@ -68,4 +68,4 @@ remote = true
 
 [env.dev.vars]
 ENVIRONMENT = "dev"
-API_URL = "http://localhost:5050"  # Dev API URL
+API_URL = "https://lazzyapply-api-dev.onrender.com"

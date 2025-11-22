@@ -14,7 +14,6 @@ const log = createLogger("server");
 
 const startServer = async () => {
 	try {
-		// Connect to MongoDB first
 		await connectToMongo();
 
 		// Start background jobs after DB is connected

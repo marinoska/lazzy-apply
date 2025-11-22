@@ -2,7 +2,7 @@
 
 ## Single Branch, Dual Environment
 
-This project uses a **single `main` branch** that deploys to **both production and dev environments simultaneously**.
+This project uses a **single `main` branch** with **dev auto-deploy** and **production manual deploy**.
 
 ## How It Works
 
@@ -17,8 +17,9 @@ This project uses a **single `main` branch** that deploys to **both production a
               │   API Prod  │   │   API Dev   │   │Queue Consumer│
               │   (Render)  │   │   (Render)  │   │  (CF Workers)│
               │             │   │             │   │              │
-              │ dyno-job-   │   │ dyno-job-   │   │ prod + dev   │
+              │ lazyapply-  │   │ lazyapply-  │   │ prod + dev   │
               │    api      │   │   api-dev   │   │ environments │
+              │  (manual)   │   │   (auto)    │   │              │
               └─────────────┘   └─────────────┘   └─────────────┘
 ```
 
@@ -29,20 +30,20 @@ This project uses a **single `main` branch** that deploys to **both production a
 ✅ **Consistency** - Same code in both environments  
 ✅ **Fast Testing** - Dev environment always up-to-date  
 ✅ **No Merge Conflicts** - No need to merge dev → main  
-✅ **Parallel Deployment** - Both environments deploy at once  
+✅ **Controlled Production** - Manual deploy prevents accidental changes  
 
 ### Trade-offs
-⚠️ **No Staging Gate** - Changes go to both environments immediately  
+⚠️ **Manual Production Step** - Requires manual trigger for production  
 ⚠️ **Shared Codebase** - Can't have different code in dev vs prod  
-⚠️ **Resource Usage** - Both environments rebuild on every push  
+⚠️ **Dev Rebuilds** - Dev environment rebuilds on every push  
 
 ## Environment Differentiation
 
 Environments are separated by:
 
 ### 1. API (Render.com)
-- **Production**: Service name `dyno-job-api`
-- **Dev**: Service name `dyno-job-api-dev`
+- **Production**: Service name `lazyapply-api` (manual deploy)
+- **Dev**: Service name `lazyapply-api-dev` (auto-deploy)
 - Both deploy from `main` branch
 - Different environment variables
 
@@ -57,9 +58,9 @@ Environments are separated by:
 |----------|-----------|-----|
 | **Queue** | `parse-cv` | `parse-cv-dev` |
 | **DLQ** | `parse-cv-dlq` | `parse-cv-dlq-dev` |
-| **R2 Bucket** | `dyno-job-uploads` | `dyno-job-uploads-dev` |
+| **R2 Bucket** | `lazyapply-uploads` | `lazyapply-uploads-dev` |
 | **MongoDB** | Production DB | Dev DB |
-| **API URL** | `api.dynojob.com` | `api-dev.dynojob.com` |
+| **API URL** | `lazyapply-api.onrender.com` | `lazyapply-api-dev.onrender.com` |
 
 ## GitHub Actions Workflows
 
@@ -85,13 +86,12 @@ git add .
 git commit -m "feat: new feature"
 git push origin main
 
-# 3. GitHub Actions triggers (automatically):
-├─ deploy-api-production.yml ──▶ Render (dyno-job-api)
-├─ deploy-api-dev.yml ─────────▶ Render (dyno-job-api-dev)
-├─ deploy-upload-consumer.yml ─▶ CF Workers (production)
-└─ deploy-upload-consumer-dev.yml ─▶ CF Workers (dev)
+# 3. Automatic deployments:
+├─ Render auto-deploys dev (lazyapply-api-dev)
+├─ CF Workers deploy both environments (via GitHub Actions)
+└─ Production API requires manual deploy
 
-# 4. Both environments are live with the same code
+# 4. Test in dev, then manually deploy to production
 ```
 
 ## Testing Strategy
@@ -116,7 +116,7 @@ pnpm --filter @lazyapply/extension dev
 **Dev Environment Testing:**
 ```bash
 # Test dev API
-curl https://dyno-job-api-dev.onrender.com/health
+curl https://lazyapply-api-dev.onrender.com/health
 
 # Test dev queue consumer
 wrangler tail --env dev
@@ -128,7 +128,7 @@ wrangler queues producer parse-cv-dev send '{"test": true}'
 **Production Verification:**
 ```bash
 # Test production API
-curl https://dyno-job-api.onrender.com/health
+curl https://lazyapply-api.onrender.com/health
 
 # Monitor production logs
 wrangler tail
@@ -174,7 +174,7 @@ If something breaks in production:
 git add .
 git commit -m "fix: critical bug"
 git push origin main
-# Both environments redeploy with fix
+# Dev auto-deploys, then manually deploy to production
 ```
 
 ### Option 2: Git Revert
@@ -182,7 +182,7 @@ git push origin main
 # Revert the problematic commit
 git revert HEAD
 git push origin main
-# Both environments redeploy with reverted code
+# Dev auto-deploys, then manually deploy to production
 ```
 
 ### Option 3: Cloudflare Rollback (Queue Consumer only)
@@ -199,7 +199,7 @@ wrangler rollback [deployment-id] --env dev
 
 ### Option 4: Render Rollback (API only)
 1. Go to Render Dashboard
-2. Select service (dyno-job-api or dyno-job-api-dev)
+2. Select service (lazyapply-api or lazyapply-api-dev)
 3. Go to "Deploys" tab
 4. Click "Rollback" on previous successful deploy
 
@@ -208,10 +208,10 @@ wrangler rollback [deployment-id] --env dev
 ### API Logs
 ```bash
 # Production
-render logs -s dyno-job-api
+render logs -s lazyapply-api
 
 # Dev
-render logs -s dyno-job-api-dev
+render logs -s lazyapply-api-dev
 ```
 
 ### Queue Consumer Logs
@@ -226,10 +226,10 @@ wrangler tail --env dev
 ### Health Checks
 ```bash
 # Production
-curl https://dyno-job-api.onrender.com/health
+curl https://lazyapply-api.onrender.com/health
 
 # Dev
-curl https://dyno-job-api-dev.onrender.com/health
+curl https://lazyapply-api-dev.onrender.com/health
 ```
 
 ## Cost Implications
@@ -237,8 +237,9 @@ curl https://dyno-job-api-dev.onrender.com/health
 With dual deployment from one branch:
 
 **Render.com:**
-- 2 services (prod + dev) = $14-50/month
-- Both rebuild on every push
+- 2 services (prod + dev) = $14/month
+- Only dev rebuilds on every push
+- Production rebuilds on manual deploy
 
 **Cloudflare Workers:**
 - 2 environments share the same account limits
@@ -246,15 +247,15 @@ With dual deployment from one branch:
 - Paid: $5/month (covers both)
 
 **Optimization:**
-- Use manual workflow triggers for dev if you don't need automatic deployment
 - Pause dev service when not in use (Render allows this)
 - Use Cloudflare's free tier for dev environment
+- Production only deploys when needed (saves build minutes)
 
 ## Summary
 
-✅ **Current Setup**: Single `main` branch → Dual deployment (prod + dev)  
+✅ **Current Setup**: Single `main` branch → Dev auto-deploy, Production manual  
 ✅ **Separation**: By service names, environment flags, and resources  
-✅ **Simplicity**: One branch, automatic deployment, consistent code  
-✅ **Testing**: Dev environment for validation before production use  
+✅ **Simplicity**: One branch, dev auto-deploys, production controlled  
+✅ **Testing**: Dev environment for validation before manual production deploy  
 
 This strategy prioritizes simplicity and speed over complex deployment gates, making it ideal for small teams and rapid development cycles.
