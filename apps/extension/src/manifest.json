@@ -1,27 +1,30 @@
 {
-  "manifest_version": 3,
-  "name": "LazyApplyAgent",
-  "version": "0.0.1",
-  "background": {
-    "service_worker": "src/background/index.ts",
-    "type": "module"
-  },
-  "content_scripts": [
-    {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["src/content/index.ts"],
-      "run_at": "document_idle"
-    }
-  ],
-  "action": {
-    "default_title": "LazyApplyAgent"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["src/content/*.js", "src/assets/*"],
-      "matches": ["<all_urls>"]
-    }
-  ],
-  "permissions": ["identity", "storage"],
-  "host_permissions": ["https://*.supabase.co/*"]
+	"manifest_version": 3,
+	"name": "LazyApplyAgent",
+	"version": "0.0.1",
+	"background": {
+		"service_worker": "src/background/index.ts",
+		"type": "module"
+	},
+	"content_scripts": [
+		{
+			"matches": ["http://*/*", "https://*/*"],
+			"js": ["src/content/index.ts"],
+			"run_at": "document_idle"
+		}
+	],
+	"action": {
+		"default_title": "LazyApplyAgent"
+	},
+	"web_accessible_resources": [
+		{
+			"resources": ["src/content/*.js", "src/assets/*"],
+			"matches": ["<all_urls>"]
+		}
+	],
+	"permissions": ["identity", "storage"],
+	"host_permissions": [
+		"https://*.supabase.co/*",
+		"https://*.r2.cloudflarestorage.com/*"
+	]
 }

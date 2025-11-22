@@ -1,16 +1,18 @@
 {
-  "extends": "@lazyapply/config/tsconfig.json",
-  "compilerOptions": {
-    "lib": ["DOM", "DOM.Iterable", "ES2020"],
-    "jsx": "react-jsx",
-    "noEmit": true,
-    "types": ["chrome", "vite/client"],
-    "paths": {
-      "@lazyapply/types": ["../../packages/types/src"],
-      "@lazyapply/utils": ["../../packages/utils/src"],
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": ["src"]
+	"extends": "@lazyapply/config/tsconfig.json",
+	"compilerOptions": {
+		"lib": ["DOM", "DOM.Iterable", "ES2020"],
+		"jsx": "react-jsx",
+		"noEmit": true,
+		"types": ["chrome", "vite/client"],
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"verbatimModuleSyntax": false,
+		"paths": {
+			"@lazyapply/types": ["../../packages/types/src"],
+			"@lazyapply/utils": ["../../packages/utils/src"],
+			"@/*": ["./src/*"]
+		}
+	},
+	"include": ["src"]
 }
-

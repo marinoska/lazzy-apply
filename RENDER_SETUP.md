@@ -35,21 +35,7 @@ Click **"Apply"** to create both services.
 
 ### Production Service (`lazyapply-api`)
 
-Go to the service → **Environment** tab and add:
-
-```bash
-# Already set in render.yaml
-NODE_ENV=production
-PORT=8080
-HOST=0.0.0.0
-
-# You need to add these manually:
-MONGO_CONNECTION=mongodb+srv://user:pass@cluster.mongodb.net/lazyapply-prod
-ALLOWED_ORIGINS=https://app.lazyapply.com,https://lazyapply.com
-SUPABASE_JWT_SECRET=your-supabase-jwt-secret
-SUPABASE_JWKS_URL=https://your-project.supabase.co/.well-known/jwks.json
-WORKER_SECRET=your-worker-secret-here
-```
+Go to the service → **Environment** tab and add env vars from .env
 
 ### Dev Service (`lazyapply-api-dev`)
 
