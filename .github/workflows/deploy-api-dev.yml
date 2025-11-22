@@ -1,13 +1,13 @@
 name: Deploy API (Dev)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'apps/api/**'
-      - 'packages/**'
-      - '.github/workflows/deploy-api-dev.yml'
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'apps/api/**'
+  #     - 'packages/**'
+  #     - '.github/workflows/deploy-api-dev.yml'
   workflow_dispatch:
 
 jobs:

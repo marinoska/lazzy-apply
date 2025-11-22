@@ -33,9 +33,12 @@ remote = true
 ENVIRONMENT = "prod"
 API_URL = "https://api.yourapp.com"  # Update with your production API URL
 
-# Secrets (set via wrangler secret put, not here):
-# - MONGO_CONNECTION
-
+[observability]
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
 
 ##############
 # DEV ENV    #
@@ -66,6 +69,3 @@ remote = true
 [env.dev.vars]
 ENVIRONMENT = "dev"
 API_URL = "http://localhost:5050"  # Dev API URL
-
-# Dev secrets: same names, but separate values
-# wrangler secret put MONGO_CONNECTION --env dev

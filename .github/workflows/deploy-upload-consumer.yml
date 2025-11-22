@@ -1,27 +1,21 @@
-name: Deploy Upload Queue Consumer (Dev)
+name: Deploy Upload Queue Consumer (Prod)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "apps/upload-queue-consumer/**"
-      - ".github/workflows/deploy-upload-consumer-dev.yml"
+  # push:
+    # branches:
+    #   - main
+    # paths:
+    #   - "apps/upload-queue-consumer/**"
+    #   - ".github/workflows/deploy-upload-consumer-prod.yml"
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy to Cloudflare Workers (Dev Environment)
+    name: Deploy to Cloudflare Workers (Production)
 
-    # 🔑 Attach the job to the 'dev' environment
-    # environment: prod
+    environment: prod
 
-    # Make token available to all run steps
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-
-    # Optional: default working directory for run steps
     defaults:
       run:
         working-directory: apps/upload-queue-consumer
@@ -39,16 +33,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Debug step to prove the env var is visible
-      - name: Debug Cloudflare env
-        run: env | grep CLOUDFLARE || echo "no CLOUDFLARE vars"
-
-      - name: Deploy to Cloudflare Workers (Dev)
-        run: pnpm exec wrangler deploy --env dev
-
-      - name: Set secrets for dev environment
+      - name: Deploy to Cloudflare Workers (Production)
         env:
-          # DEV_MONGO_CONNECTION is also an environment secret in 'dev'
-          DEV_MONGO_CONNECTION: ${{ secrets.DEV_MONGO_CONNECTION }}
-        run: |
-          echo "$DEV_MONGO_CONNECTION" | pnpm exec wrangler secret put MONGO_CONNECTION --env dev
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: pnpm exec wrangler deploy

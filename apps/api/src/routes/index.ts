@@ -3,6 +3,7 @@ import { Router } from "express";
 
 import { env } from "@/app/env.js";
 import { authenticateUser } from "@/app/middleware/authenticateUser.js";
+import { authenticateWorker } from "@/app/middleware/authenticateWorker.js";
 import { validateRequest } from "@/app/middleware/validateRequest.js";
 import {
 	updateOutboxBodySchema,
@@ -41,6 +42,7 @@ export const registerRoutes = (app: Express) => {
 	// Outbox status update endpoint (called by queue consumer worker)
 	router.patch(
 		"/outbox/:logId",
+		authenticateWorker,
 		validateRequest({
 			params: updateOutboxParamsSchema,
 			body: updateOutboxBodySchema,

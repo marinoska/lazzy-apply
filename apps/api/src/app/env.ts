@@ -17,6 +17,7 @@ const envSchema = z.object({
 	MONGO_CONNECTION: z.string(),
 	SUPABASE_JWKS_URL: z.string().url().optional(),
 	SUPABASE_JWT_SECRET: z.string().optional(),
+	WORKER_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -42,9 +43,9 @@ export const env = {
 export type AppEnv = typeof env;
 
 export function getEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) {
-    throw new Error(`Environment variable ${key} is undefined`);
-  }
-  return value;
+	const value = process.env[key];
+	if (!value) {
+		throw new Error(`Environment variable ${key} is undefined`);
+	}
+	return value;
 }

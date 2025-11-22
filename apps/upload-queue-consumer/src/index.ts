@@ -10,7 +10,9 @@ export type Env = {
 	// API base URL for callbacks
 	API_URL: string;
 
-	MONGO_CONNECTION: string;
+	// Worker authentication secret
+	WORKER_SECRET: string;
+
 	ENVIRONMENT: "prod" | "dev";
 };
 
@@ -179,10 +181,16 @@ async function updateOutboxStatus(
 	error?: string,
 ): Promise<void> {
 	try {
+		console.log(`[updateOutboxStatus] API_URL: ${env.API_URL}`);
+		console.log(
+			`[updateOutboxStatus] WORKER_SECRET present: ${env.WORKER_SECRET ? "yes" : "no"}`,
+		);
+
 		const response = await fetch(`${env.API_URL}/api/outbox/${logId}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
+				"X-Worker-Secret": env.WORKER_SECRET,
 			},
 			body: JSON.stringify({
 				status,
@@ -190,6 +198,8 @@ async function updateOutboxStatus(
 				error,
 			}),
 		});
+
+		console.log(`[updateOutboxStatus] Response status: ${response.status}`);
 
 		if (!response.ok) {
 			throw new Error(

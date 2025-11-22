@@ -38,12 +38,13 @@ Update `wrangler.toml`:
 - R2 bucket name
 - Dead letter queue name
 
-### 2. Set Secrets
+### 2. Configuration Variables
 
-```bash
-wrangler secret put API_URL
-wrangler secret put MONGO_CONNECTION
-```
+Set in `wrangler.toml`:
+- `API_URL` - Your API server endpoint
+- `ENVIRONMENT` - `prod` or `dev`
+
+No secrets needed! The worker calls your API, which handles MongoDB access.
 
 ### 3. Connect Queue to Consumer
 

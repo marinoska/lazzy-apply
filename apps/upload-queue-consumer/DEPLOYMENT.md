@@ -1,10 +1,84 @@
-# Production Deployment Guide
+# Deployment Guide - Upload Queue Consumer
 
 ## Overview
 
-The `upload-queue-consumer` worker is deployed to Cloudflare Workers using Wrangler CLI in CI/CD pipelines.
+This worker processes CV files from the queue and updates status via your API endpoint. **No MongoDB configuration needed in the worker** - it simply calls your existing API.
 
-## Setup Steps
+## Architecture
+
+```
+Queue Message → Worker → Process CV → Update via API → Your API handles MongoDB
+```
+
+The worker is **stateless** and delegates database operations to your API server.
+
+## Configuration
+
+### Environment Variables
+
+Only two variables needed:
+
+1. **`API_URL`** - Your API server endpoint
+2. **`ENVIRONMENT`** - `prod` or `dev`
+
+### Configuration Files
+
+#### `.dev.vars` (Local Development)
+```bash
+API_URL=http://localhost:5050
+```
+
+#### `wrangler.toml` (Production)
+```toml
+[vars]
+ENVIRONMENT = "prod"
+API_URL = "https://api.yourapp.com"  # Update this!
+```
+
+#### `wrangler.toml` (Dev Environment)
+```toml
+[env.dev.vars]
+ENVIRONMENT = "dev"
+API_URL = "http://localhost:5050"
+```
+
+### API Endpoint Required
+
+Your API must have this endpoint:
+
+```typescript
+PATCH /api/outbox/:logId
+Body: {
+  status: "completed" | "failed",
+  data: ParsedCVData | null,
+  error?: string
+}
+```
+
+## Local Testing
+
+```bash
+# 1. Start your API server first
+cd apps/api
+pnpm dev  # Runs on localhost:5050
+
+# 2. In another terminal, start the worker
+cd apps/upload-queue-consumer
+pnpm dev  # Runs on localhost:8787
+
+# 3. Test with a message
+curl -X POST http://localhost:8787/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fileId": "test-file-123",
+    "logId": "507f1f77bcf86cd799439011",
+    "userId": "user-123"
+  }'
+```
+
+## Production Deployment
+
+### Setup Steps
 
 ### 1. Get Cloudflare API Token
 
@@ -24,13 +98,9 @@ Go to your GitHub repo → Settings → Secrets and variables → Actions → Ne
 ```
 Name: CLOUDFLARE_API_TOKEN
 Value: <your-cloudflare-api-token>
-
-Name: API_URL
-Value: https://api.yourapp.com
-
-Name: MONGO_CONNECTION
-Value: mongodb+srv://...
 ```
+
+**Note:** No other secrets needed! The worker only needs `API_URL` which is set in `wrangler.toml` (not a secret).
 
 ### 3. Deployment Methods
 
