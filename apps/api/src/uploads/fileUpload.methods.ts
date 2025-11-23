@@ -3,7 +3,9 @@ import { randomUUID } from "node:crypto";
 import type { Schema } from "mongoose";
 import mongoose from "mongoose";
 
+import { createLogger } from "@/app/logger.js";
 import { type OutboxDocument, OutboxModel } from "@/outbox/outbox.model.js";
+import { MUTABLE_STATUS } from "./fileUpload.model.js";
 import type { FileUploadModelWithStatics } from "./fileUpload.statics.js";
 import type {
 	FileUploadDocument,
@@ -13,15 +15,33 @@ import type {
 	TFileUpload,
 } from "./fileUpload.types.js";
 
+const log = createLogger("FileUpload");
+
 export const registerFileUploadMethods = (
 	schema: Schema<TFileUpload, FileUploadModelWithStatics, FileUploadMethods>,
 ) => {
+	schema.methods.isMutable = function (this: FileUploadDocument) {
+		return this.status === MUTABLE_STATUS;
+	};
+
+	schema.methods.isTerminal = function (this: FileUploadDocument) {
+		return this.status !== MUTABLE_STATUS;
+	};
+
 	schema.methods.markAsFailed = async function (this: FileUploadDocument) {
 		// Skip if already in a locked state (race condition protection)
-		if (this.status !== "pending") {
+		if (this.isTerminal()) {
+			log.warn(
+				{
+					fileId: this.fileId,
+					status: this.status,
+				},
+				"Cannot mark upload as failed in a terminal state",
+			);
 			return this;
 		}
 
+		// Update local document to match database
 		this.status = "failed";
 
 		await this.save();
@@ -33,6 +53,18 @@ export const registerFileUploadMethods = (
 		this: FileUploadDocument,
 		params: MarkUploadDeduplicatedParams,
 	) {
+		// Skip if already in a locked state (race condition protection)
+		if (this.isTerminal()) {
+			log.warn(
+				{
+					fileId: this.fileId,
+					status: this.status,
+				},
+				"Cannot mark upload as deduplicated in a terminal state",
+			);
+			return this;
+		}
+
 		this.status = "deduplicated";
 		this.deduplicatedFrom = params.deduplicatedFrom;
 		this.size = params.size;
@@ -46,6 +78,18 @@ export const registerFileUploadMethods = (
 		this: FileUploadDocument,
 		params: MarkUploadCompletedParams,
 	) {
+		// Skip if already in a locked state (race condition protection)
+		if (this.isTerminal()) {
+			log.warn(
+				{
+					fileId: this.fileId,
+					status: this.status,
+				},
+				"Cannot mark upload as uploaded in a terminal state",
+			);
+			return this;
+		}
+
 		// Start a session for transaction
 		const session = await mongoose.startSession();
 		session.startTransaction();

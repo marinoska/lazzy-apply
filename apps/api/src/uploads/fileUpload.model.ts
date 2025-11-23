@@ -1,3 +1,4 @@
+import { createLogger } from "@/app/logger.js";
 import { applyOwnershipEnforcement } from "@/app/middleware/mongoOwnershipEnforcement.middleware.js";
 import { Schema, model } from "mongoose";
 
@@ -12,6 +13,10 @@ import type {
 	TFileUpload,
 } from "./fileUpload.types.js";
 import { FILE_UPLOAD_MODEL_NAME } from "./fileUpload.types.js";
+
+const log = createLogger("FileUploadModel");
+
+export const MUTABLE_STATUS = "pending";
 
 export type FileUploadModel = FileUploadModelWithStatics;
 
@@ -91,15 +96,21 @@ const fileUploadSchema = new Schema<
 	{ timestamps: true },
 );
 
-const MUTABLE_STATUS = "pending";
+// Store original values when document is loaded
+fileUploadSchema.post("init", (doc) => {
+	doc.$locals.immutable = doc.status !== MUTABLE_STATUS;
+});
 
 // Prevent updates to records that are not in mutable state
 fileUploadSchema.pre("save", async function (this, next) {
-	// If this is an existing document (not new)
-	if (!this.isNew) {
-		if (this && this.status !== MUTABLE_STATUS) {
+	if (this.isNew) {
+		return next();
+	}
+
+	if (this.isModified("status")) {
+		if (this.$locals.immutable) {
 			throw new Error(
-				`Cannot modify file upload in locked state: ${this.status}`,
+				`Cannot modify file upload in terminal state: ${this.status}`,
 			);
 		}
 	}
@@ -114,13 +125,23 @@ fileUploadSchema.pre(
 		// Get the filter to find which documents are being updated
 		const filter = this.getFilter();
 
+		// If filter already includes status: "pending", the query is self-protecting
+		// (it won't match locked documents, so no need to check)
+		if (filter.status === "pending") {
+			log.warn(
+				{ filter },
+				"Update to an initial state is not allowed. Skipping",
+			);
+			return next();
+		}
+
 		// Check if any matching documents are not in mutable state
 		const docs = await this.model
 			.find(filter)
 			.setOptions({ skipOwnershipEnforcement: true });
 
 		for (const doc of docs) {
-			if (doc.status !== MUTABLE_STATUS) {
+			if (!doc.isMutable()) {
 				throw new Error(
 					`Cannot modify file upload in locked state: ${doc.status}`,
 				);

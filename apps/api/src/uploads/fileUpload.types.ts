@@ -67,9 +67,9 @@ export type MarkUploadCompletedParams = {
 export type FileUploadDocument = Document & TFileUpload & FileUploadMethods;
 
 export type FileUploadMethods = {
-	markAsFailed(
-		this: FileUploadDocument,
-	): Promise<FileUploadDocument>;
+	isMutable(this: FileUploadDocument): boolean;
+	isTerminal(this: FileUploadDocument): boolean;
+	markAsFailed(this: FileUploadDocument): Promise<FileUploadDocument>;
 	markAsDeduplicated(
 		this: FileUploadDocument,
 		params: MarkUploadDeduplicatedParams,
