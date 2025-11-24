@@ -1,38 +1,41 @@
 {
-  "name": "@lazyapply/extension",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "vite dev --open /popup/index.html",
-    "dev:watch": "vite build --mode development --watch",
-    "build": "vite build",
-    "zip": "vite build && cd dist && zip -r ../extension.zip .",
-    "lint": "biome check .",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "react-dropzone": "^14.2.0",
-    "@emotion/cache": "^11.14.0",
-    "@emotion/react": "^11.13.5",
-    "@emotion/styled": "^11.13.5",
-    "@lazyapply/types": "workspace:*",
-    "@lazyapply/utils": "workspace:*",
-    "@mui/joy": "^5.0.0-beta.52",
-    "@supabase/supabase-js": "^2.78.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "@mui/icons-material": "^6.0.0",
-    "qs": "^6.11.0"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@crxjs/vite-plugin": "^2.2.1",
-    "@lazyapply/config": "workspace:*",
-    "@types/chrome": "^0.1.27",
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
-    "@vitejs/plugin-react": "^5.1.0",
-    "typescript": "^5.9.3",
-    "vite": "^7.1.12"
-  }
+	"name": "@lazyapply/extension",
+	"version": "1.0.0",
+	"private": true,
+	"scripts": {
+		"dev": "vite dev --open /popup/index.html",
+		"dev:watch": "vite build --mode development --watch",
+		"dev:reload": "concurrently \"vite build --mode development --watch\" \"web-ext run --source-dir dist --target chromium\"",
+		"build": "vite build",
+		"zip": "vite build && cd dist && zip -r ../extension.zip .",
+		"lint": "biome check .",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"react-dropzone": "^14.2.0",
+		"@emotion/cache": "^11.14.0",
+		"@emotion/react": "^11.13.5",
+		"@emotion/styled": "^11.13.5",
+		"@lazyapply/types": "workspace:*",
+		"@lazyapply/utils": "workspace:*",
+		"@mui/joy": "^5.0.0-beta.52",
+		"@supabase/supabase-js": "^2.78.0",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0",
+		"@mui/icons-material": "^6.0.0",
+		"qs": "^6.11.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@crxjs/vite-plugin": "^2.2.1",
+		"@lazyapply/config": "workspace:*",
+		"@types/chrome": "^0.1.27",
+		"@types/react": "^19.2.2",
+		"@types/react-dom": "^19.2.2",
+		"@vitejs/plugin-react": "^5.1.0",
+		"concurrently": "^9.1.0",
+		"typescript": "^5.9.3",
+		"vite": "^7.1.12",
+		"web-ext": "^8.3.0"
+	}
 }

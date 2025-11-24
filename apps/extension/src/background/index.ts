@@ -1,4 +1,4 @@
-  /**
+/**
  * Background script entry point
  * Initializes the extension and sets up event listeners
  */
@@ -10,7 +10,7 @@ setupAuthListener();
 
 // Initialize on startup
 bootstrap().catch((error) => {
-  console.error("[DynoJob] Bootstrap failed:", error);
+	console.error("[DynoJob] Bootstrap failed:", error);
 });
 
 // Setup Chrome extension listeners
