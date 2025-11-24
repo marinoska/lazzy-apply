@@ -2,6 +2,7 @@ import Divider from "@mui/joy/Divider";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import React, { useState } from "react";
+import { Snackbar } from "../../components/Snackbar.js";
 import {
 	ActionButtons,
 	LoadingIndicator,
@@ -20,11 +21,25 @@ export function SidebarView({
 }: SidebarViewProps) {
 	const { visible, loading, status, session } = state;
 	const [showDropzone, setShowDropzone] = useState(false);
+	const [alertMessage, setAlertMessage] = useState("");
+	const [alertType, setAlertType] = useState<"success" | "danger">("success");
 
 	const handleUploadComplete = (fileId: string, objectKey: string) => {
 		console.log("File uploaded:", fileId, objectKey);
 		// Hide dropzone and show upload button again
 		setShowDropzone(false);
+		// Show success notification
+		setAlertType("success");
+		setAlertMessage("CV uploaded successfully!");
+	};
+
+	const handleUploadError = (error: string) => {
+		console.error("Upload error:", error);
+		// Hide dropzone and show upload button again
+		setShowDropzone(false);
+		// Show error notification
+		setAlertType("danger");
+		setAlertMessage(error || "Upload failed. Please try again.");
 	};
 
 	return (
@@ -63,9 +78,16 @@ export function SidebarView({
 							visible={showDropzone}
 							onCancel={() => setShowDropzone(false)}
 							onUploadComplete={handleUploadComplete}
+							onUploadError={handleUploadError}
 						/>
 					)}
 				</Stack>
+				<Snackbar
+					msg={alertMessage}
+					show={!!alertMessage}
+					type={alertType}
+					onClose={() => setAlertMessage("")}
+				/>
 			</Sheet>
 		</div>
 	);

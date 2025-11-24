@@ -24,10 +24,12 @@ export const DropzoneBox = ({
 	file,
 	setFile,
 	onUploadComplete,
+	onUploadError,
 }: {
 	file: File | null;
 	setFile: StateSetter<File | null>;
 	onUploadComplete?: (fileId: string, objectKey: string) => void;
+	onUploadError?: (error: string) => void;
 }) => {
 	const [error, setError] = useState("");
 	const [uploading, setUploading] = useState(false);
@@ -79,6 +81,8 @@ export const DropzoneBox = ({
 			const errorMessage = err instanceof Error ? err.message : "Upload failed";
 			setError(errorMessage);
 			setUploadSuccess(false);
+			// Call error callback
+			onUploadError?.(errorMessage);
 			// Note: Worker will clean up failed uploads from quarantine after timeout
 		} finally {
 			setUploading(false);

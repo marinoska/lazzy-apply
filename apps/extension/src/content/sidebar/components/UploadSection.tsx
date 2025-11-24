@@ -8,12 +8,14 @@ interface UploadSectionProps {
 	visible: boolean;
 	onCancel: () => void;
 	onUploadComplete: (fileId: string, objectKey: string) => void;
+	onUploadError: (error: string) => void;
 }
 
 export function UploadSection({
 	visible,
 	onCancel,
 	onUploadComplete,
+	onUploadError,
 }: UploadSectionProps) {
 	const [file, setFile] = useState<File | null>(null);
 
@@ -39,6 +41,7 @@ export function UploadSection({
 					file={file}
 					setFile={setFile}
 					onUploadComplete={onUploadComplete}
+					onUploadError={onUploadError}
 				/>
 				<Button
 					variant="outlined"
