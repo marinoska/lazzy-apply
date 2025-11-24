@@ -3,8 +3,8 @@ import { extendTheme } from "@mui/joy/styles";
 import createCache from "@emotion/cache";
 import { getSidebarStyles } from "./styles.js";
 
-const HOST_ID = "dynojob-auth-sidebar-host";
-const ROOT_ID = "dynojob-auth-sidebar-root";
+const HOST_ID = "lazyjob-auth-sidebar-host";
+const ROOT_ID = "lazyjob-auth-sidebar-root";
 
 export interface ShadowDOMSetup {
   root: Root;
@@ -26,7 +26,7 @@ export function setupShadowDOM(): ShadowDOMSetup {
 
   // Create Emotion cache to inject MUI styles into shadow DOM
   const emotionCache = createCache({
-    key: 'dynojob',
+    key: 'lazyjob',
     container: shadow as unknown as HTMLElement,
     prepend: true
   });
@@ -42,7 +42,7 @@ export function setupShadowDOM(): ShadowDOMSetup {
       body: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       display: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     },
-    cssVarPrefix: 'dynojob'
+    cssVarPrefix: 'lazyjob'
   });
 
   return { root, theme, emotionCache };

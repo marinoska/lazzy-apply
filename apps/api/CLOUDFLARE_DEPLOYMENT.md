@@ -1,6 +1,6 @@
 # API Cloudflare Deployment Options
 
-The DynoJob API is currently an Express.js application with:
+The LazyJob API is currently an Express.js application with:
 - MongoDB connections
 - Background workers (outbox processor, pending uploads monitor)
 - Long-running processes
@@ -58,7 +58,7 @@ Keep the current architecture:
 # render.yaml
 services:
   - type: web
-    name: dyno-job-api
+    name: lazy-job-api
     env: node
     buildCommand: pnpm install && pnpm --filter @lazyapply/api build
     startCommand: pnpm --filter @lazyapply/api start
@@ -93,7 +93,7 @@ restartPolicyMaxRetries = 10
 
 ```toml
 # fly.toml
-app = "dyno-job-api"
+app = "lazy-job-api"
 
 [build]
   builder = "paketobuildpacks/builder:base"
@@ -140,7 +140,7 @@ app = "dyno-job-api"
 crons = ["*/5 * * * *"]  # Every 5 minutes
 
 # Separate worker for outbox processor
-name = "dyno-job-outbox-processor"
+name = "lazy-job-outbox-processor"
 main = "src/workers/outboxProcessor.ts"
 ```
 
@@ -170,11 +170,11 @@ This gives you:
 ## Environment-Specific Deployments
 
 ### Production
-- API: `api.dynojob.com` (Render/Railway/Fly.io)
+- API: `api.lazyjob.com` (Render/Railway/Fly.io)
 - Queue Consumer: `upload-queue-consumer` (CF Workers)
 
 ### Dev/Staging
-- API: `api-dev.dynojob.com` (Render/Railway/Fly.io)
+- API: `api-dev.lazyjob.com` (Render/Railway/Fly.io)
 - Queue Consumer: `upload-queue-consumer-dev` (CF Workers)
 
 ## Next Steps

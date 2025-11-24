@@ -49,7 +49,7 @@ wrangler queues create parse-cv-dlq
 ### 2. Create R2 Bucket
 
 ```bash
-wrangler r2 bucket create dyno-job-uploads-prod
+wrangler r2 bucket create lazy-job-uploads-prod
 ```
 
 ### 3. Configure wrangler.toml
@@ -97,7 +97,7 @@ wrangler queues create parse-cv-dlq-dev
 ### 2. Create Dev R2 Bucket
 
 ```bash
-wrangler r2 bucket create dyno-job-uploads-dev
+wrangler r2 bucket create lazy-job-uploads-dev
 ```
 
 ### 3. Configure Dev Environment

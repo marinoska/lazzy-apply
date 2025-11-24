@@ -124,7 +124,7 @@ export async function handleMessage(
 				sendResponse({ ok: false, error: "Unknown message type" });
 		}
 	} catch (error) {
-		console.error("[DynoJob] Message handler error:", error);
+		console.error("[LazyJob] Message handler error:", error);
 		sendResponse({ ok: false, error: String(error) });
 	}
 }

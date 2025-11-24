@@ -2,7 +2,7 @@
 
 ## Overview
 
-The DynoJob API is a Node.js Express application that requires:
+The LazyJob API is a Node.js Express application that requires:
 - Persistent MongoDB connections
 - Background workers (outbox processor, pending uploads monitor)
 - Long-running processes
@@ -74,7 +74,7 @@ The DynoJob API is a Node.js Express application that requires:
 **Dev/Staging:**
 Same as production but with dev-specific values:
 - `MONGO_CONNECTION` - Dev MongoDB
-- `R2_BUCKET_NAME=dyno-job-uploads-dev`
+- `R2_BUCKET_NAME=lazy-job-uploads-dev`
 - etc.
 
 ## Deployment Configurations
@@ -87,7 +87,7 @@ Create `render.yaml` in project root:
 services:
   # Production API
   - type: web
-    name: dyno-job-api
+    name: lazy-job-api
     env: node
     region: oregon
     plan: starter
@@ -118,7 +118,7 @@ services:
     
   # Dev/Staging API
   - type: web
-    name: dyno-job-api-dev
+    name: lazy-job-api-dev
     env: node
     region: oregon
     plan: starter
@@ -140,7 +140,7 @@ services:
       - key: ALLOWED_ORIGIN_LIST
         sync: false
       - key: R2_BUCKET_NAME
-        value: dyno-job-uploads-dev
+        value: lazy-job-uploads-dev
       - key: R2_ACCESS_KEY_ID
         sync: false
       - key: R2_SECRET_ACCESS_KEY
@@ -177,7 +177,7 @@ healthcheckTimeout = 100
 Create `apps/api/fly.toml`:
 
 ```toml
-app = "dyno-job-api"
+app = "lazy-job-api"
 primary_region = "sjc"
 
 [build]
@@ -213,7 +213,7 @@ primary_region = "sjc"
 For dev environment, create `apps/api/fly.dev.toml`:
 
 ```toml
-app = "dyno-job-api-dev"
+app = "lazy-job-api-dev"
 primary_region = "sjc"
 
 [build]
@@ -298,7 +298,7 @@ jobs:
       #   uses: bervProject/railway-deploy@main
       #   with:
       #     railway_token: ${{ secrets.RAILWAY_TOKEN }}
-      #     service: dyno-job-api
+      #     service: lazy-job-api
 
       # Fly.io deployment
       # - name: Deploy to Fly.io
@@ -388,7 +388,7 @@ app.get("/health", healthCheck);
 
 - [ ] Push to `main` branch
 - [ ] Verify deployment in platform dashboard
-- [ ] Check health endpoint: `https://api.dynojob.com/health`
+- [ ] Check health endpoint: `https://api.lazyjob.com/health`
 - [ ] Monitor logs for errors
 - [ ] Verify MongoDB connection
 - [ ] Verify R2 storage access
@@ -398,7 +398,7 @@ app.get("/health", healthCheck);
 
 - [ ] Push to `main` branch (deploys both prod and dev)
 - [ ] Verify dev deployment in platform dashboard
-- [ ] Check health endpoint: `https://api-dev.dynojob.com/health`
+- [ ] Check health endpoint: `https://api-dev.lazyjob.com/health`
 - [ ] Monitor logs for errors
 
 ## Monitoring
@@ -408,7 +408,7 @@ app.get("/health", healthCheck);
 **Render:**
 ```bash
 # View logs in dashboard or CLI
-render logs -s dyno-job-api
+render logs -s lazy-job-api
 ```
 
 **Railway:**
@@ -477,7 +477,7 @@ pnpm --filter @lazyapply/api build
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   DynoJob Platform                  │
+│                   LazyJob Platform                  │
 ├─────────────────────────────────────────────────────┤
 │                                                     │
 │  ┌──────────────┐      ┌──────────────────────┐   │

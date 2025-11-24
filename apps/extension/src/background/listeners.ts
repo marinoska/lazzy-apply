@@ -9,7 +9,7 @@ export function setupListeners(): void {
   // Handle extension icon click - open sidebar in active tab
   chrome.action.onClicked.addListener((tab) => {
     if (!tab.id) {
-      console.warn("[DynoJob] No tab ID available");
+      console.warn("[LazyJob] No tab ID available");
       return;
     }
 
@@ -17,7 +17,7 @@ export function setupListeners(): void {
     chrome.tabs.sendMessage(tab.id, message, () => {
       const error = chrome.runtime.lastError;
       if (error && !isExpectedError(error.message)) {
-        console.warn("[DynoJob] Failed to open sidebar:", error.message);
+        console.warn("[LazyJob] Failed to open sidebar:", error.message);
       }
     });
   });

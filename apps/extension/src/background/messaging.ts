@@ -9,7 +9,7 @@ export function broadcastAuthChange(session: StoredSession | null): void {
   chrome.runtime.sendMessage(message, () => {
     const error = chrome.runtime.lastError;
     if (error && !isExpectedError(error.message)) {
-      console.warn("[DynoJob] Failed to broadcast auth change:", error.message);
+      console.warn("[LazyJob] Failed to broadcast auth change:", error.message);
     }
   });
 }

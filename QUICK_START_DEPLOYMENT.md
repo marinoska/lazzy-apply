@@ -29,7 +29,7 @@ wrangler queues create parse-cv-dev
 wrangler queues create parse-cv-dlq-dev
 
 # Create R2 bucket
-wrangler r2 bucket create dyno-job-uploads-dev
+wrangler r2 bucket create lazy-job-uploads-dev
 ```
 
 ## Step 2: Render.com Setup (5 min)
@@ -42,7 +42,7 @@ wrangler r2 bucket create dyno-job-uploads-dev
 5. Render will detect `render.yaml`
 
 ### 2.2 Configure Dev Service
-1. Select `dyno-job-api-dev` service
+1. Select `lazy-job-api-dev` service
 2. Set branch to `dev`
 3. Add environment variables:
    ```
@@ -50,7 +50,7 @@ wrangler r2 bucket create dyno-job-uploads-dev
    MONGO_CONNECTION=<your-dev-mongodb-url>
    JWT_SECRET=<random-secret>
    ALLOWED_ORIGIN_LIST=http://localhost:3000
-   R2_BUCKET_NAME=dyno-job-uploads-dev
+   R2_BUCKET_NAME=lazy-job-uploads-dev
    R2_ACCESS_KEY_ID=<your-r2-key>
    R2_SECRET_ACCESS_KEY=<your-r2-secret>
    R2_ENDPOINT=<your-r2-endpoint>
@@ -67,7 +67,7 @@ Add these secrets:
 CLOUDFLARE_API_TOKEN=<from-step-1.1>
 DEV_API_URL=<your-render-dev-url>
 DEV_MONGO_CONNECTION=<your-dev-mongodb-url>
-DEV_R2_BUCKET_NAME=dyno-job-uploads-dev
+DEV_R2_BUCKET_NAME=lazy-job-uploads-dev
 DEV_R2_ACCESS_KEY_ID=<your-r2-key>
 DEV_R2_SECRET_ACCESS_KEY=<your-r2-secret>
 DEV_R2_ENDPOINT=<your-r2-endpoint>
@@ -98,7 +98,7 @@ This will trigger deployment to **BOTH** environments:
 ### Check API
 ```bash
 # Get your Render dev URL from dashboard
-curl https://dyno-job-api-dev.onrender.com/health
+curl https://lazy-job-api-dev.onrender.com/health
 # Should return: {"status":"ok"}
 ```
 
@@ -116,11 +116,11 @@ wrangler queues producer parse-cv-dev send '{"fileId":"test","logId":"test","use
 Both environments are now live from the same `main` branch:
 
 **Production:**
-- **API**: `https://dyno-job-api.onrender.com`
+- **API**: `https://lazy-job-api.onrender.com`
 - **Queue Consumer**: Running on Cloudflare Workers (production)
 
 **Dev:**
-- **API**: `https://dyno-job-api-dev.onrender.com`
+- **API**: `https://lazy-job-api-dev.onrender.com`
 - **Queue Consumer**: Running on Cloudflare Workers (dev environment)
 
 ## What's Next?
@@ -160,7 +160,7 @@ Both environments deploy simultaneously:
 ## Troubleshooting
 
 ### API Not Responding
-- Check Render logs: Dashboard → dyno-job-api-dev → Logs
+- Check Render logs: Dashboard → lazy-job-api-dev → Logs
 - Verify environment variables are set
 - Check MongoDB connection string
 

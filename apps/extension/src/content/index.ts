@@ -68,7 +68,7 @@ async function handleShowModal(sendResponse: (response: MessageResponse) => void
     await sidebarInstance.show();
     sendResponse({ ok: true });
   } catch (error) {
-    console.error("[DynoJob] Failed to open sidebar:", error);
+    console.error("[LazyJob] Failed to open sidebar:", error);
     sendResponse({ ok: false, error: String(error) });
   }
 }

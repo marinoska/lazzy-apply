@@ -21,7 +21,7 @@
 1. Sign in to the extension
 2. Check the browser console for background script logs
 3. Wait for token expiration (typically 1 hour for Supabase)
-4. **Expected**: You should see "[DynoJob] Session tokens refreshed and stored" in console
+4. **Expected**: You should see "[LazyJob] Session tokens refreshed and stored" in console
 5. Open sidebar - should still be logged in
 
 ### Test 4: Logout Clears Session
@@ -35,7 +35,7 @@
 1. Sign in to the extension
 2. Manually clear the session in Chrome DevTools:
    - Open DevTools → Application → Storage → Local Storage
-   - Find `dynoJob_session` and modify it to invalid data
+   - Find `lazyJob_session` and modify it to invalid data
 3. Reload the extension or restart browser
 4. **Expected**: Invalid session should be cleaned up, user should be logged out
 
@@ -54,14 +54,14 @@
 2. Find "LazyApplyAgent" extension
 3. Click "service worker" or "background page"
 4. Check console for logs:
-   - `[DynoJob] Initializing...`
-   - `[DynoJob] Session restored successfully`
-   - `[DynoJob] Session tokens refreshed and stored`
+   - `[LazyJob] Initializing...`
+   - `[LazyJob] Session restored successfully`
+   - `[LazyJob] Session tokens refreshed and stored`
 
 ### Check Stored Session
 1. Open DevTools → Application → Storage
 2. Navigate to Local Storage → chrome-extension://[extension-id]
-3. Look for `dynoJob_session` key
+3. Look for `lazyJob_session` key
 4. Verify it contains: `access_token`, `refresh_token`, `expires_at`, `user`
 
 ### Common Issues

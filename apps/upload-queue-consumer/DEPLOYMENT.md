@@ -328,7 +328,7 @@ name = "upload-queue-consumer"  # Production
 [env.dev]
 name = "upload-queue-consumer-dev"
 # Separate queues: parse-cv-dev, parse-cv-dlq-dev
-# Separate R2 bucket: dyno-job-uploads-dev
+# Separate R2 bucket: lazy-job-uploads-dev
 ```
 
 ### Deploy to Specific Environment

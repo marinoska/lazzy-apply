@@ -9,7 +9,7 @@ export async function startOAuth(provider: "google"): Promise<void> {
   const supabase = getSupabase();
   const redirectUrl = chrome.identity.getRedirectURL();
 
-  console.log("[DynoJob] Starting OAuth flow", { provider, redirectUrl });
+  console.log("[LazyJob] Starting OAuth flow", { provider, redirectUrl });
 
   // Get OAuth URL from Supabase
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -45,7 +45,7 @@ export async function startOAuth(provider: "google"): Promise<void> {
   await saveSession(session);
   broadcastAuthChange(session);
 
-  console.log("[DynoJob] OAuth flow completed successfully");
+  console.log("[LazyJob] OAuth flow completed successfully");
 }
 
 /**
@@ -57,7 +57,7 @@ function launchWebAuthFlow(url: string): Promise<string> {
       const error = chrome.runtime.lastError;
 
       if (error) {
-        console.error("[DynoJob] WebAuthFlow error:", error.message);
+        console.error("[LazyJob] WebAuthFlow error:", error.message);
         reject(new Error(error.message));
         return;
       }
@@ -67,7 +67,7 @@ function launchWebAuthFlow(url: string): Promise<string> {
         return;
       }
 
-      console.log("[DynoJob] OAuth redirect received");
+      console.log("[LazyJob] OAuth redirect received");
       resolve(responseUrl);
     });
   });

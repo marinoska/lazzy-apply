@@ -51,7 +51,7 @@ Implemented persistent session management to keep users logged in after page rel
 4. No re-authentication required
 
 ## Storage
-- Sessions are stored in `chrome.storage.local` with key `dynoJob_session`
+- Sessions are stored in `chrome.storage.local` with key `lazyJob_session`
 - Includes: `access_token`, `refresh_token`, `expires_at`, `user` object
 
 ## Benefits
