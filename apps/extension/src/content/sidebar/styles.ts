@@ -2,9 +2,15 @@
  * Get sidebar CSS styles for shadow DOM
  */
 export function getSidebarStyles(): string {
-  return `
-    :host { all: initial; }
-    :host *, :host *::before, :host *::after { box-sizing: border-box; }
+	return `
+    :host {
+      display: block;
+      font-family: system-ui, -apple-system, sans-serif;
+      /* Ensure Joy radius tokens exist inside the shadow root */
+    }
+    :host *, :host *::before, :host *::after { 
+      box-sizing: border-box;
+    }
     .overlay {
       position: fixed;
       inset: 0 0 0 auto;

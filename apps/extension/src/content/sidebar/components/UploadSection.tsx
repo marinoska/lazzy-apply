@@ -28,7 +28,6 @@ export function UploadSection({
 
 	return (
 		<>
-			<Divider sx={{ my: 0.5 }} />
 			<Box
 				sx={{
 					display: "flex",

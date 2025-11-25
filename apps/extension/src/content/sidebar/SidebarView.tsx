@@ -1,7 +1,7 @@
 import Divider from "@mui/joy/Divider";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
-import React, { useState } from "react";
+import { useState } from "react";
 import { Snackbar } from "../../components/Snackbar.js";
 import {
 	ActionButtons,
@@ -55,14 +55,14 @@ export function SidebarView({
 						onSignOut={onSignOut}
 						session={session}
 					/>
-
-					<StatusMessage status={status} />
+					<Divider orientation="horizontal" color="border" />
+					{/* <StatusMessage status={status} /> */}
 
 					<LoadingIndicator loading={loading} />
 
-					<UserInfo session={session} loading={loading} />
+					{/* <UserInfo session={session} loading={loading} /> */}
 
-					<Divider sx={{ my: 0.5 }} />
+					<Divider orientation="horizontal" color="border" />
 
 					{!showDropzone && (
 						<ActionButtons
@@ -72,7 +72,6 @@ export function SidebarView({
 							onUploadClick={() => setShowDropzone(true)}
 						/>
 					)}
-
 					{session && (
 						<UploadSection
 							visible={showDropzone}

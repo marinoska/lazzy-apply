@@ -106,20 +106,20 @@ export const DropzoneBox = ({
 		<>
 			{!uploadSuccess && (
 				<Stack
-					gap="4"
+					gap="2"
 					{...getRootProps()}
 					sx={{
-						p: 2,
-						width: 600,
-						minHeight: 200,
-						border: "2px dashed",
-						borderRadius: "md",
+						p: 1,
+						width: "100%",
+						// minHeight: 200,
+						border: "2px dashed lightgray",
+						borderRadius: "lg",
 						alignItems: "center",
 						justifyContent: "center",
 					}}
 				>
 					<Typography level="h2">
-						<CloudUpload />
+						<CloudUpload color="primary" />
 					</Typography>
 					{file ? (
 						<Stack gap={2} alignItems="center" width="100%">
@@ -142,10 +142,12 @@ export const DropzoneBox = ({
 								}
 								sx={{ width: "100%" }}
 							>
-								<Typography fontWeight="300">{file.name}</Typography>
+								<Typography fontWeight="300" level="body-sm">
+									{file.name}
+								</Typography>
 							</Alert>
 							<Button
-								size="lg"
+								size="md"
 								color="primary"
 								onClick={handleUpload}
 								disabled={uploading}
@@ -160,11 +162,13 @@ export const DropzoneBox = ({
 						<>
 							<Typography level="body-sm">Drag & drop a CV or</Typography>
 							<input {...getInputProps()} />
-							<Button size="lg" sx={{ m: 1 }} color="neutral" onClick={open}>
+							<Button size="md" sx={{ m: 1 }} color="primary" onClick={open}>
 								Browse Files
 							</Button>
-							<Typography level="body-xs">
-								Supported formats: PDF, DOCX (Max 3MB)
+							<Typography level="body-xs" textAlign="center">
+								Supported formats: PDF, DOCX
+								<br />
+								(Max 3MB)
 							</Typography>
 						</>
 					)}
