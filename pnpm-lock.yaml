@@ -273,6 +273,9 @@ importers:
       '@biomejs/biome':
         specifier: ^1.9.4
         version: 1.9.4
+      '@lazyapply/config':
+        specifier: workspace:*
+        version: link:../config
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

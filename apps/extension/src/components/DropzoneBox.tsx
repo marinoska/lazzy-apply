@@ -142,7 +142,7 @@ export const DropzoneBox = ({
 								}
 								sx={{ width: "100%" }}
 							>
-								<Typography fontWeight="300" level="body-sm">
+								<Typography fontWeight="300" level="body-xs">
 									{file.name}
 								</Typography>
 							</Alert>

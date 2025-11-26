@@ -32,8 +32,14 @@ export async function sendApiRequest<T>(
         }
 
         if (!response || !response.ok) {
-          console.error("[BackgroundClient] API request failed:", response);
-          reject(new Error(response?.error || "API request failed"));
+          const errorMsg = response?.error || "API request failed";
+          console.error("[BackgroundClient] API request failed:", {
+            error: errorMsg,
+            response,
+            method,
+            path
+          });
+          reject(new Error(errorMsg));
           return;
         }
 

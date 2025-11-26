@@ -11,6 +11,31 @@ import type {
 } from "./types.js";
 
 /**
+ * Serialize error to a meaningful string message
+ */
+function serializeError(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	if (typeof error === "string") {
+		return error;
+	}
+	if (error && typeof error === "object") {
+		// Try to extract message from error object
+		if ("message" in error && typeof error.message === "string") {
+			return error.message;
+		}
+		// Fallback to JSON stringify for objects
+		try {
+			return JSON.stringify(error);
+		} catch {
+			return String(error);
+		}
+	}
+	return String(error);
+}
+
+/**
  * Type guard for message validation
  */
 export function isValidMessage(msg: unknown): msg is BackgroundMessage {
@@ -85,7 +110,7 @@ export async function handleMessage(
 					sendResponse({ ok: true, data });
 				} catch (error) {
 					console.error("[MessageHandler] API request failed:", error);
-					sendResponse({ ok: false, error: String(error) });
+					sendResponse({ ok: false, error: serializeError(error) });
 				}
 				break;
 			}
@@ -115,16 +140,16 @@ export async function handleMessage(
 					sendResponse({ ok: true });
 				} catch (error) {
 					console.error("[MessageHandler] File upload failed:", error);
-					sendResponse({ ok: false, error: String(error) });
+					sendResponse({ ok: false, error: serializeError(error) });
 				}
 				break;
 			}
 
 			default:
-				sendResponse({ ok: false, error: "Unknown message type" });
+				sendResponse({ ok: false, error: serializeError("Unknown message type") });
 		}
 	} catch (error) {
 		console.error("[LazyJob] Message handler error:", error);
-		sendResponse({ ok: false, error: String(error) });
+		sendResponse({ ok: false, error: serializeError(error) });
 	}
 }

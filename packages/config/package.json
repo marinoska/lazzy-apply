@@ -2,6 +2,10 @@
   "name": "@lazyapply/config",
   "version": "0.0.0",
   "private": true,
+  "exports": {
+    "./tsconfig.json": "./tsconfig.json",
+    "./biome.json": "./biome.json"
+  },
   "files": [
     "tsconfig.json",
     "biome.json"

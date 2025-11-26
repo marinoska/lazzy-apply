@@ -1,5 +1,5 @@
 import { CopyObjectCommand } from "@aws-sdk/client-s3";
-
+import crypto from "node:crypto";
 import {
 	deleteRemoteObject,
 	fetchHeadObject,
@@ -57,7 +57,9 @@ const promoteFromQuarantine = async (
 		throw new Error("Failed to verify promoted file");
 	}
 
-	const fileHash = await hashRemoteObject(bucket, healthyKey);
+	const fileHash = process.env.NO_DEDUP && process.env.NODE_ENV === "development"
+		? crypto.randomUUID().replace(/-/g, "")
+		: await hashRemoteObject(bucket, healthyKey);
 	if (!fileHash) {
 		throw new Error("Failed to hash promoted file");
 	}
@@ -106,18 +108,21 @@ const validateAndPromoteUpload = async (
 	}
 
 	// Hash file in quarantine for deduplication check
-	const fileHash = await hashRemoteObject(
-		fileUpload.bucket,
-		fileUpload.objectKey,
-	);
+	const fileHash = process.env.NO_DEDUP && process.env.NODE_ENV === "development"
+		? crypto.randomUUID().replace(/-/g, "")
+		: await hashRemoteObject(
+			fileUpload.bucket,
+			fileUpload.objectKey,
+		);
 
 	if (!fileHash) {
 		throw new Error("Failed to hash file in quarantine");
 	}
 
 	// Check for existing file with same hash for this user
-	const existingFile =
-		await FileUploadModel.findExistingCompletedUploadByHash({
+	const existingFile = process.env.NO_DEDUP && process.env.NODE_ENV === "development"
+		? null
+		: await FileUploadModel.findExistingCompletedUploadByHash({
 			fileHash,
 			excludeFileId: fileUpload.fileId,
 			userId: fileUpload.userId,
