@@ -16,7 +16,7 @@
 		"@lazyapply/types": "workspace:*",
 		"ai": "^5.0.102",
 		"mammoth": "^1.11.0",
-		"pdfjs-dist": "^5.4.394",
+		"unpdf": "^1.4.0",
 		"zod": "^4.1.13"
 	},
 	"devDependencies": {
