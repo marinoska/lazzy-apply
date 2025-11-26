@@ -39,21 +39,19 @@ wrangler r2 bucket create lazy-job-uploads-dev
 2. Sign up / Login
 3. New → Web Service
 4. Connect your GitHub repo
-5. Render will detect `render.yaml`
+5. Render will detect `render.yaml` (if you add it using the template in `apps/api/DEPLOYMENT.md`)
 
 ### 2.2 Configure Dev Service
 1. Select `lazy-job-api-dev` service
-2. Set branch to `dev`
+2. Set branch to `main` (we use a single-branch workflow)
 3. Add environment variables:
    ```
    NODE_ENV=development
    MONGO_CONNECTION=<your-dev-mongodb-url>
-   JWT_SECRET=<random-secret>
-   ALLOWED_ORIGIN_LIST=http://localhost:3000
-   R2_BUCKET_NAME=lazy-job-uploads-dev
-   R2_ACCESS_KEY_ID=<your-r2-key>
-   R2_SECRET_ACCESS_KEY=<your-r2-secret>
-   R2_ENDPOINT=<your-r2-endpoint>
+   ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+   SUPABASE_JWT_SECRET=<optional-supabase-jwt-secret>
+   SUPABASE_JWKS_URL=<optional-supabase-jwks-url>
+   WORKER_SECRET=<shared-secret-for-worker-calls>
    ```
 
 ## Step 3: GitHub Secrets (3 min)
@@ -81,17 +79,14 @@ RENDER_DEPLOY_HOOK_URL_DEV=<from-render-dashboard>
 ## Step 4: Deploy! (1 min)
 
 ```bash
-# Make a small change to trigger deployment
-git checkout main
-echo "# Deployment setup complete" >> README.md
-git add .
-git commit -m "chore: trigger deployment"
 git push origin main
 ```
 
-This will trigger deployment to **BOTH** environments:
-- ✅ API deployment to Render (production AND dev services)
-- ✅ Queue Consumer deployment to Cloudflare Workers (production AND dev environments)
+What happens:
+- ✅ Cloudflare worker **dev** deploy runs automatically via `.github/workflows/deploy-upload-consumer-dev.yml` on `main`
+- ✅ Render dev service deploys automatically if `autoDeploy` is enabled
+- ⚠️ Cloudflare worker **prod** deploy is manual via the `Deploy Upload Queue Consumer (Prod)` workflow
+- ⚠️ API production deploy is manual from Render dashboard or deploy hook
 
 ## Step 5: Verify (2 min)
 
@@ -113,7 +108,7 @@ wrangler queues producer parse-cv-dev send '{"fileId":"test","logId":"test","use
 
 ## Done! 🎉
 
-Both environments are now live from the same `main` branch:
+Dev is now live from the `main` branch pushes. Production still needs a manual trigger when you're ready:
 
 **Production:**
 - **API**: `https://lazy-job-api.onrender.com`
@@ -143,7 +138,10 @@ pnpm --filter @lazyapply/extension dev
 
 ### Deploy Updates
 
-Any push to `main` will deploy to **both** production and dev:
+Any push to `main` will:
+- Auto-deploy the **dev** Cloudflare worker
+- Auto-deploy the Render **dev** service (if `autoDeploy` is on)
+- **Will not** deploy production automatically
 
 ```bash
 git checkout main
@@ -153,9 +151,9 @@ git commit -m "feat: your changes"
 git push origin main
 ```
 
-Both environments deploy simultaneously:
-- Production uses production resources (queues, buckets, DB)
-- Dev uses dev resources (queues with `-dev` suffix, separate buckets, dev DB)
+To deploy production:
+- Run the `Deploy Upload Queue Consumer (Prod)` workflow in GitHub Actions
+- Manually deploy the API from the Render dashboard (or via the deploy hook URL)
 
 ## Troubleshooting
 
@@ -192,4 +190,4 @@ Both environments deploy simultaneously:
 
 - **Full Documentation**: See `DEPLOYMENT_OVERVIEW.md`
 - **API Details**: See `apps/api/DEPLOYMENT.md`
-- **Queue Consumer**: See `apps/upload-queue-consumer/DEV_SETUP.md`
+- **Queue Consumer**: See `apps/upload-queue-consumer/SETUP.md`

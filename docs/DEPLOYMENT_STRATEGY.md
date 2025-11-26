@@ -14,12 +14,13 @@ This project uses a **single `main` branch** with **dev auto-deploy** and **prod
                      ├─────────────────┬──────────────────┐
                      ▼                 ▼                  ▼
               ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-              │   API Prod  │   │   API Dev   │   │Queue Consumer│
+             │   API Prod  │   │   API Dev   │   │Queue Consumer│
               │   (Render)  │   │   (Render)  │   │  (CF Workers)│
               │             │   │             │   │              │
               │ lazyapply-  │   │ lazyapply-  │   │ prod + dev   │
               │    api      │   │   api-dev   │   │ environments │
-              │  (manual)   │   │   (auto)    │   │              │
+              │  (manual)   │   │   (auto)    │   │ (dev auto,   │
+              │             │   │             │   │  prod manual)│
               └─────────────┘   └─────────────┘   └─────────────┘
 ```
 
@@ -48,9 +49,9 @@ Environments are separated by:
 - Different environment variables
 
 ### 2. Queue Consumer (Cloudflare Workers)
-- **Production**: Default environment (no flag)
-- **Dev**: `--env dev` flag
-- Both deploy from `main` branch
+- **Production**: Default environment (no flag), deployed via manual GH workflow dispatch
+- **Dev**: `--env dev` flag, auto-deployed on `main`
+- Both use the same code from `main` branch
 - Different queues, R2 buckets, secrets
 
 ### 3. Resources
@@ -65,14 +66,14 @@ Environments are separated by:
 ## GitHub Actions Workflows
 
 ### Production Workflows
-- `.github/workflows/deploy-api-production.yml`
 - `.github/workflows/deploy-upload-consumer.yml`
 
 ### Dev Workflows
-- `.github/workflows/deploy-api-dev.yml`
 - `.github/workflows/deploy-upload-consumer-dev.yml`
 
-**All workflows trigger on `main` branch**
+**Workflow triggers**
+- Dev worker deploys automatically on `main`
+- Prod worker is `workflow_dispatch` only
 
 ## Deployment Flow
 
@@ -87,9 +88,9 @@ git commit -m "feat: new feature"
 git push origin main
 
 # 3. Automatic deployments:
-├─ Render auto-deploys dev (lazyapply-api-dev)
-├─ CF Workers deploy both environments (via GitHub Actions)
-└─ Production API requires manual deploy
+├─ Render auto-deploys dev (lazyapply-api-dev) if enabled
+├─ CF Workers deploy dev env (via GitHub Actions)
+└─ Production API and prod worker require manual deploys
 
 # 4. Test in dev, then manually deploy to production
 ```

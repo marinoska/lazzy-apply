@@ -1,6 +1,7 @@
 import { createLogger } from "@/app/logger.js";
 import { applyOwnershipEnforcement } from "@/app/middleware/mongoOwnershipEnforcement.middleware.js";
 import { Schema, model } from "mongoose";
+import { FILE_UPLOAD_CONTENT_TYPES } from "@lazyapply/types";
 
 import { registerFileUploadMethods } from "./fileUpload.methods.js";
 import {
@@ -46,7 +47,7 @@ const fileUploadSchema = new Schema<
 		},
 		contentType: {
 			type: String,
-			enum: ["PDF", "DOCX"],
+			enum: FILE_UPLOAD_CONTENT_TYPES,
 			required: true,
 			immutable: true,
 		},

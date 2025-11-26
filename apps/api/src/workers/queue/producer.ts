@@ -1,11 +1,6 @@
 import { getEnv } from "@/app/env.js";
 import type { OutboxDocument } from "@/outbox/outbox.types.js";
-
-export type ParseCVQueueMessage = {
-	fileId: string;
-	logId: string;
-	userId: string;
-};
+import type { ParseCVQueueMessage } from "@lazyapply/types";
 
 /**
  * Send a message to the Cloudflare parse-cv queue

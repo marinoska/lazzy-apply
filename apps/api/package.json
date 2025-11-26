@@ -11,7 +11,10 @@
 		"build": "tsc --project tsconfig.json && tsc-alias -p tsconfig.json",
 		"start": "node ./dist/index.js",
 		"lint": "biome check .",
-		"clean": "rm -rf dist"
+		"clean": "rm -rf dist",
+		"test": "vitest",
+		"test:watch": "vitest --watch",
+		"test:coverage": "vitest --coverage"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.925.0",
@@ -19,6 +22,7 @@
 		"@aws-sdk/s3-request-presigner": "^3.925.0",
 		"@hapi/boom": "^10.0.1",
 		"@lazyapply/schemas": "workspace:*",
+		"@lazyapply/types": "workspace:*",
 		"cors": "^2.8.5",
 		"dotenv": "^16.4.7",
 		"express": "^4.21.2",
@@ -36,9 +40,12 @@
 		"@types/cors": "^2.8.17",
 		"@types/express": "^4.17.21",
 		"@types/node": "^22.13.10",
+		"@vitest/coverage-v8": "^2.1.8",
+		"mongodb-memory-server": "^10.1.2",
 		"pino-pretty": "^11.3.0",
 		"tsc-alias": "^1.8.16",
 		"tsx": "^4.19.3",
-		"typescript": "^5.9.3"
+		"typescript": "^5.9.3",
+		"vitest": "^2.1.8"
 	}
 }

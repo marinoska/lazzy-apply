@@ -1,5 +1,17 @@
 // Shared TypeScript types for LazyApply
 
+export * from "./constants.js";
+
+/**
+ * File upload content type values
+ */
+export const FILE_UPLOAD_CONTENT_TYPES = ["PDF", "DOCX"] as const;
+
+/**
+ * File upload content type
+ */
+export type FileUploadContentType = (typeof FILE_UPLOAD_CONTENT_TYPES)[number];
+
 export interface User {
 	id: string;
 	email: string;
@@ -21,9 +33,11 @@ export interface JobApplication {
  * Must match the producer message structure
  */
 export interface ParseCVQueueMessage {
-	fileId: string;
+	uploadId: string; // MongoDB _id from file_uploads
+	fileId: string; // R2 storage filename
 	logId: string;
 	userId: string;
+	fileType: FileUploadContentType;
 }
 
 /**
@@ -31,57 +45,52 @@ export interface ParseCVQueueMessage {
  * Returned by the worker after processing a CV file
  */
 export interface ParsedCVData {
-	fileId: string;
-	personalInfo: {
-		name?: string;
-		email?: string;
-		phone?: string;
-		location?: string;
-		linkedIn?: string;
-		github?: string;
-		website?: string;
+	personal: {
+		fullName: string | null;
+		email: string | null;
+		phone: string | null;
+		location: string | null;
+		nationality?: string | null;
+		rightToWork?: string | null;
 	};
-	summary?: string;
-	skills: string[];
-	experience: WorkExperience[];
-	education: Education[];
-	certifications?: Certification[];
-	languages?: Language[];
-	rawText?: string; // Full extracted text for reference
-}
-
-export interface WorkExperience {
-	company: string;
-	position: string;
-	location?: string;
-	startDate?: string;
-	endDate?: string;
-	current?: boolean;
-	description?: string;
-	achievements?: string[];
-}
-
-export interface Education {
-	institution: string;
-	degree?: string;
-	field?: string;
-	location?: string;
-	startDate?: string;
-	endDate?: string;
-	gpa?: string;
-}
-
-export interface Certification {
-	name: string;
-	issuer?: string;
-	date?: string;
-	expiryDate?: string;
-	credentialId?: string;
-}
-
-export interface Language {
-	name: string;
-	proficiency?: "native" | "fluent" | "professional" | "intermediate" | "basic";
+	links: Array<{
+		type: string; // "linkedin", "github", "portfolio", "behance", "other"
+		url: string;
+	}>;
+	summary: string | null;
+	experience: Array<{
+		role: string | null;
+		company: string | null;
+		startDate: string | null;
+		endDate: string | null;
+		description: string | null;
+	}>;
+	education: Array<{
+		degree: string | null;
+		field: string | null;
+		institution: string | null;
+		startDate?: string | null;
+		endDate?: string | null;
+	}>;
+	certifications: Array<{
+		name: string;
+		issuer?: string | null;
+		date?: string | null;
+	}>;
+	languages: Array<{
+		language: string;
+		level?: string | null;
+	}>;
+	extras: {
+		drivingLicense?: string | null;
+		workPermit?: string | null;
+		willingToRelocate?: boolean | null;
+		remotePreference?: string | null;
+		noticePeriod?: string | null;
+		availability?: string | null;
+		salaryExpectation?: string | null;
+	};
+	rawText: string;
 }
 
 // Add more shared types here

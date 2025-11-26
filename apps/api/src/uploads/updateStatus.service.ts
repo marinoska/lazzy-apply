@@ -166,9 +166,11 @@ const validateAndPromoteUpload = async (
 		if (outboxEntry && outboxEntry.status === "pending") {
 			await sendToParseQueue(
 				{
+					uploadId: fileUpload._id.toString(),
 					fileId: fileUpload.fileId,
 					logId: outboxEntry.logId,
 					userId: fileUpload.userId,
+					fileType: fileUpload.contentType,
 				},
 				outboxEntry,
 			);

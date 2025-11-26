@@ -14,14 +14,30 @@ npm install -g pnpm@9
 pnpm install
 ```
 
+Requirements:
+- Node.js 22+
+- pnpm 9
+
 This will install dependencies for:
 - Root workspace
-- All apps (`apps/extension`, `apps/functions`)
+- All apps (`apps/extension`, `apps/api`, `apps/functions`, `apps/upload-queue-consumer`)
 - All packages (`packages/types`, `packages/schemas`, `packages/utils`, `packages/config`)
 
 ### 2. Environment Variables
 
 Create `.env` files in the appropriate locations:
+
+**For API (`apps/api/.env`):**
+```bash
+NODE_ENV=development
+HOST=0.0.0.0
+PORT=3000
+MONGO_CONNECTION=your_mongodb_url
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+SUPABASE_JWT_SECRET=optional_supabase_jwt_secret
+SUPABASE_JWKS_URL=optional_supabase_jwks_url
+WORKER_SECRET=shared_secret_if_calling_from_workers
+```
 
 **For Extension (`apps/extension/.env`):**
 ```bash
@@ -34,6 +50,8 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
+
+The Cloudflare worker (`apps/upload-queue-consumer`) uses `wrangler secret put` for secrets; see `apps/upload-queue-consumer/wrangler.toml` for variable names and bindings.
 
 ## Development Workflow
 
@@ -54,8 +72,14 @@ This will start:
 # Extension only
 pnpm --filter @lazyapply/extension dev
 
+# API only (requires apps/api/.env)
+pnpm --filter @lazyapply/api dev
+
 # Functions only
 pnpm --filter @lazyapply/functions dev
+
+# Cloudflare worker against dev resources
+pnpm --filter @lazyapply/upload-queue-consumer dev
 ```
 
 ### Building
@@ -227,9 +251,9 @@ pnpm install
 ## Next Steps
 
 - Read the main [README.md](./README.md) for architecture overview
-- Check individual app READMEs:
-  - [Extension README](./apps/extension/README.md) (if exists)
-  - [Functions README](./apps/functions/README.md)
+- Check individual app docs:
+  - API deployment: `apps/api/DEPLOYMENT.md`
+  - Queue worker config: `apps/upload-queue-consumer/wrangler.toml`
 - Explore the shared packages in `packages/`
 
 ## Useful Commands Reference
@@ -238,7 +262,9 @@ pnpm install
 # Development
 pnpm dev                                    # Run all apps
 pnpm --filter @lazyapply/extension dev     # Run extension
+pnpm --filter @lazyapply/api dev           # Run API
 pnpm --filter @lazyapply/functions dev     # Run functions
+pnpm --filter @lazyapply/upload-queue-consumer dev  # Run queue consumer (dev)
 
 # Building
 pnpm build                                  # Build everything

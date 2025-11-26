@@ -6,6 +6,7 @@ Complete guide to deploy both production and dev environments on Render.
 
 - **Production** (`lazyapply-api`): Manual deploy only
 - **Dev** (`lazyapply-api-dev`): Auto-deploy on push to `main`
+- `render.yaml` is not checked in—generate it from the template in `apps/api/DEPLOYMENT.md` before applying the blueprint.
 
 ## Prerequisites
 

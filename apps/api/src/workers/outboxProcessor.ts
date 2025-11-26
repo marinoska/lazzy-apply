@@ -44,9 +44,11 @@ const processOutboxEntries = async () => {
 				if (entry.type === "file_upload") {
 					await sendToParseQueue(
 						{
+							uploadId: entry.uploadId,
 							fileId: entry.fileId,
 							logId: entry.logId,
 							userId: entry.userId,
+							fileType: entry.fileType,
 						},
 						entry,
 					);

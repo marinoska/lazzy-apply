@@ -1,2 +1,1 @@
-const THREE_MB = 3145728;
-export const MAXIMUM_UPLOAD_SIZE_BYTES = THREE_MB;
+export { MAXIMUM_UPLOAD_SIZE_BYTES } from "@lazyapply/types";

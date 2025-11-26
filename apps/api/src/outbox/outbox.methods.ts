@@ -6,12 +6,23 @@ import type {
 	OutboxModelWithStatics,
 	TOutbox,
 } from "./outbox.types.js";
-import { OutboxEntryAlreadyProcessingError } from "./outbox.errors.js";
+import {
+	OutboxEntryAlreadyProcessingError,
+	OutboxTerminalStatusError,
+} from "./outbox.errors.js";
 
 export const registerOutboxMethods = (
 	schema: Schema<TOutbox, OutboxModelWithStatics, OutboxMethods>,
 ) => {
+	schema.methods.isTerminal = function (this: OutboxDocument) {
+		return this.status === "completed" || this.status === "failed";
+	};
 	schema.methods.markAsProcessing = async function (this: OutboxDocument) {
+		// Check if already in terminal state
+		if (this.isTerminal()) {
+			throw new OutboxTerminalStatusError(this.status, "processing");
+		}
+		
 		// Use atomic update to prevent race conditions
 		// Only update if status is still "pending"
 		const updated = await this.model("outbox").findOneAndUpdate(
@@ -30,6 +41,11 @@ export const registerOutboxMethods = (
 	};
 
 	schema.methods.markAsCompleted = async function (this: OutboxDocument) {
+		// Check if already in terminal state
+		if (this.isTerminal()) {
+			throw new OutboxTerminalStatusError(this.status, "completed");
+		}
+		
 		this.status = "completed";
 		this.processedAt = new Date();
 		return await this.save();
@@ -39,6 +55,11 @@ export const registerOutboxMethods = (
 		this: OutboxDocument,
 		error: string,
 	) {
+		// Check if already in terminal state
+		if (this.isTerminal()) {
+			throw new OutboxTerminalStatusError(this.status, "failed");
+		}
+		
 		this.status = "failed";
 		this.error = error;
 		this.processedAt = new Date();

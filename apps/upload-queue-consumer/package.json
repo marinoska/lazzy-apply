@@ -10,13 +10,19 @@
 		"types": "wrangler types"
 	},
 	"dependencies": {
+		"@ai-sdk/openai": "^2.0.72",
 		"@aws-sdk/client-s3": "^3.925.0",
+		"@lazyapply/schemas": "workspace:*",
 		"@lazyapply/types": "workspace:*",
-		"@lazyapply/schemas": "workspace:*"
+		"ai": "^5.0.102",
+		"mammoth": "^1.11.0",
+		"pdfjs-dist": "^5.4.394",
+		"zod": "^4.1.13"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20250110.0",
-		"wrangler": "^4.47.0",
-		"typescript": "^5.9.3"
+		"@types/node": "^22.10.5",
+		"typescript": "^5.9.3",
+		"wrangler": "^4.47.0"
 	}
 }

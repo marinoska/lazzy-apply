@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { FILE_UPLOAD_CONTENT_TYPES } from "@lazyapply/types";
 
 import type {
 	OutboxDocument,
@@ -37,6 +38,13 @@ const outboxSchema = new Schema<
 			default: "pending",
 			index: true,
 		},
+		uploadId: {
+			type: String,
+			required: true,
+			index: true,
+			immutable: true,
+			ref: "file_uploads",
+		},
 		fileId: {
 			type: String,
 			required: true,
@@ -45,6 +53,12 @@ const outboxSchema = new Schema<
 		},
 		userId: {
 			type: String,
+			required: true,
+			immutable: true,
+		},
+		fileType: {
+			type: String,
+			enum: FILE_UPLOAD_CONTENT_TYPES,
 			required: true,
 			immutable: true,
 		},

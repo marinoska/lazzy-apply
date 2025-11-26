@@ -1,4 +1,5 @@
 import type { Document, Model } from "mongoose";
+import type { FileUploadContentType } from "@lazyapply/types";
 
 export type OutboxStatus = "pending" | "processing" | "completed" | "failed";
 
@@ -10,17 +11,20 @@ export type TOutbox = {
 	logId: string;
 	type: OutboxType;
 	status: OutboxStatus;
-	fileId: string;
+	uploadId: string; // MongoDB _id from file_uploads
+	fileId: string; // R2 storage filename
 	userId: string;
+	fileType: FileUploadContentType;
 	error?: string;
 	processedAt?: Date;
 	createdAt: Date;
 	updatedAt: Date;
 };
 
-export type CreateOutboxParams = Pick<TOutbox, "logId" | "type" | "fileId">;
+export type CreateOutboxParams = Pick<TOutbox, "logId" | "type" | "uploadId" | "fileId" | "userId" | "fileType">;
 
 export type OutboxMethods = {
+	isTerminal(): boolean;
 	markAsProcessing(): Promise<OutboxDocument>;
 	markAsCompleted(): Promise<OutboxDocument>;
 	markAsFailed(error: string): Promise<OutboxDocument>;

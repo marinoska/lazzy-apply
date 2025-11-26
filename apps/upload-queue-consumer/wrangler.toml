@@ -1,6 +1,7 @@
 name = "upload-queue-consumer"
 main = "src/index.ts"
 compatibility_date = "2025-01-13"
+node_compat = true
 
 ############################
 # Default (PRODUCTION) ENV #

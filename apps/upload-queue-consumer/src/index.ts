@@ -1,4 +1,13 @@
-import type { ParseCVQueueMessage, ParsedCVData } from "@lazyapply/types";
+import type {
+	ParseCVQueueMessage,
+	ParsedCVData,
+	FileUploadContentType,
+} from "@lazyapply/types";
+import { MAXIMUM_UPLOAD_SIZE_BYTES } from "@lazyapply/types";
+import { extractText } from "./lib/extractText";
+import { extractCVData } from "./lib/extractCVData";
+
+const CV_DIRECTORY = "cv";
 
 export type Env = {
 	// R2 Bucket binding
@@ -12,6 +21,9 @@ export type Env = {
 
 	// Worker authentication secret
 	WORKER_SECRET: string;
+
+	// OpenAI API Key for CV extraction
+	OPENAI_API_KEY: string;
 
 	ENVIRONMENT: "prod" | "dev";
 };
@@ -78,9 +90,9 @@ async function processMessage(
 	payload: ParseCVQueueMessage,
 	env: Env,
 ): Promise<void> {
-	const { fileId, logId, userId } = payload;
+	const { uploadId, fileId, logId, userId, fileType } = payload;
 
-	console.log(`Processing file: ${fileId} for user: ${userId}`);
+	console.log(`Processing upload: ${uploadId}, file: ${fileId} for user: ${userId}, type: ${fileType}`);
 
 	try {
 		// 1. Download the CV file from R2
@@ -89,18 +101,27 @@ async function processMessage(
 			throw new Error(`File not found in R2: ${fileId}`);
 		}
 
-		// 2. Parse the CV (implement your parsing logic here)
-		const parsedData = await parseCV(file, fileId);
+		// 2. Validate file size
+		if (file.byteLength > MAXIMUM_UPLOAD_SIZE_BYTES) {
+			// Delete the file and fail
+			await deleteFile(env, fileId);
+			throw new Error(
+				`File size (${file.byteLength} bytes) exceeds maximum allowed size (${MAXIMUM_UPLOAD_SIZE_BYTES} bytes)`,
+			);
+		}
 
-		// 3. Update the outbox entry via API call
+		// 3. Parse the CV using AI extraction with fileType validation
+		const parsedData = await parseCV(file, fileId, fileType, env);
+
+		// 4. Update the outbox entry via API call
 		await updateOutboxStatus(
 			env,
 			logId,
 			"completed",
-			parsedData as unknown as Record<string, unknown>,
+			parsedData,
 		);
 
-		// 4. Acknowledge the message (automatic if no error is thrown)
+		// 5. Acknowledge the message (automatic if no error is thrown)
 		console.log(`Successfully processed file: ${fileId}`);
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
@@ -122,8 +143,8 @@ async function downloadFile(
 	fileId: string,
 ): Promise<ArrayBuffer | null> {
 	try {
-		// Files are stored in the 'cv' directory after being promoted from quarantine
-		const objectKey = `cv/${fileId}`;
+		// Files are stored in the CV directory after being promoted from quarantine
+		const objectKey = `${CV_DIRECTORY}/${fileId}`;
 		const object = await env.UPLOADS_BUCKET.get(objectKey);
 		if (!object) {
 			return null;
@@ -136,38 +157,41 @@ async function downloadFile(
 }
 
 /**
- * Parse CV file
- * TODO: Implement actual CV parsing logic
+ * Delete file from R2 bucket
+ */
+async function deleteFile(env: Env, fileId: string): Promise<void> {
+	try {
+		const objectKey = `${CV_DIRECTORY}/${fileId}`;
+		await env.UPLOADS_BUCKET.delete(objectKey);
+		console.log(`Deleted file: ${fileId}`);
+	} catch (error) {
+		console.error(`Failed to delete file ${fileId}:`, error);
+		throw error;
+	}
+}
+
+/**
+ * Parse CV file using AI extraction
  */
 async function parseCV(
 	fileBuffer: ArrayBuffer,
 	fileId: string,
+	expectedFileType: FileUploadContentType,
+	env: Env,
 ): Promise<ParsedCVData> {
-	// Placeholder - implement your CV parsing logic here
-	// You might want to:
-	// 1. Convert PDF/DOCX to text
-	// 2. Extract structured data (name, email, experience, etc.)
-	// 3. Use an AI service for parsing
+	console.log(`Parsing CV file: ${fileId}, expected type: ${expectedFileType}`);
 
-	console.log(`Parsing CV file: ${fileId}`);
+	// 1. Extract text from PDF or DOCX with type validation
+	const cvText = await extractText(fileBuffer, expectedFileType);
 
-	// For now, return a placeholder with the correct structure
-	return {
-		fileId,
-		personalInfo: {
-			name: undefined,
-			email: undefined,
-			phone: undefined,
-			location: undefined,
-		},
-		summary: undefined,
-		skills: [],
-		experience: [],
-		education: [],
-		certifications: [],
-		languages: [],
-		rawText: undefined,
-	};
+	console.log(`Extracted ${cvText.length} characters from file`);
+
+	// 2. Extract structured data using GPT-4o-mini
+	const parsedData = await extractCVData(cvText, env.OPENAI_API_KEY);
+
+	console.log(`Successfully extracted CV data for file: ${fileId}`);
+
+	return parsedData;
 }
 
 /**
@@ -177,7 +201,7 @@ async function updateOutboxStatus(
 	env: Env,
 	logId: string,
 	status: "completed" | "failed",
-	data: Record<string, unknown> | null,
+	data: ParsedCVData | null,
 	error?: string,
 ): Promise<void> {
 	try {

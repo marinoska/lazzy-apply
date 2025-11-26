@@ -1,4 +1,4 @@
-export const MAXIMUM_UPLOAD_SIZE_BYTES = 3145728; // 3MB
+export { MAXIMUM_UPLOAD_SIZE_BYTES } from "@lazyapply/types";
 
 // Upload directories
 export const QUARANTINE_DIRECTORY = "quarantine";

@@ -8,3 +8,14 @@ export class OutboxEntryAlreadyProcessingError extends Error {
 		this.name = "OutboxEntryAlreadyProcessingError";
 	}
 }
+
+/**
+ * Thrown when attempting to change the status of an outbox entry that is in a terminal state.
+ * Terminal states (completed, failed) are immutable and cannot be changed.
+ */
+export class OutboxTerminalStatusError extends Error {
+	constructor(currentStatus: string, attemptedStatus: string) {
+		super(`Cannot change status from ${currentStatus} to ${attemptedStatus}`);
+		this.name = "OutboxTerminalStatusError";
+	}
+}

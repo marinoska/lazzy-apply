@@ -51,7 +51,7 @@ Complete deployment setup for all LazyApply components with dev and production e
 | Component | Platform | Production | Dev/Staging |
 |-----------|----------|------------|-------------|
 | **API** | Render | `main` branch → manual prod | `main` branch → auto dev |
-| **Queue Consumer** | Cloudflare Workers | `main` branch → prod env | `main` branch → dev env |
+| **Queue Consumer** | Cloudflare Workers | Manual workflow dispatch | `main` branch → dev env (auto) |
 | **Extension** | Chrome Web Store | Manual upload | Manual upload (unlisted) |
 | **Functions** | Supabase | `main` branch | `main` branch |
 
@@ -87,9 +87,10 @@ R2_ENDPOINT, DEV_R2_ENDPOINT
 ```
 
 **Deploy:**
-- Push to `main` → Both production and dev environments
+- Push to `main` → Deploys **dev** worker via `deploy-upload-consumer-dev.yml`
+- GitHub Actions → Run `Deploy Upload Queue Consumer (Prod)` manually for production
 
-**Docs:** `apps/upload-queue-consumer/DEV_SETUP.md`
+**Docs:** `apps/upload-queue-consumer/SETUP.md`
 
 ---
 
@@ -98,10 +99,9 @@ R2_ENDPOINT, DEV_R2_ENDPOINT
 **Status:** ✅ Configured
 
 **Files:**
-- `render.yaml` - Render.com configuration (both prod and dev)
-- `.github/workflows/deploy-api-production.yml` - Production deployment
-- `.github/workflows/deploy-api-dev.yml` - Dev deployment
 - `apps/api/DEPLOYMENT.md` - Full deployment guide
+- `docs/RENDER_SETUP.md` - Render setup walkthrough
+- `render.yaml` - Create from the template in `apps/api/DEPLOYMENT.md` (not tracked in repo)
 
 **Setup:**
 
@@ -167,7 +167,7 @@ pnpm zip          # Creates extension.zip
 2. Chrome → Extensions → Load unpacked
 3. Select `apps/extension/dist/`
 
-**Docs:** `apps/extension/README.md`
+**Docs:** Source in `apps/extension/` (no dedicated README yet)
 
 ---
 
@@ -255,12 +255,15 @@ git push origin main
 
 # 3. Automatic deployments trigger:
 # - API Dev → Render (auto-deploy)
-# - Queue Consumer → Cloudflare Workers (production AND dev environments)
+# - Queue Consumer → Cloudflare Workers (dev only via GH Actions)
 # - API Production → Manual deploy required
+# - Queue Consumer Prod → Manual workflow dispatch
 
 # 4. Manual deployments:
 # - Extension → Chrome Web Store (manual upload)
 # - Functions → Supabase (manual or CI/CD)
+# - Queue Consumer Prod → GitHub Actions workflow dispatch
+# - API Prod → Render dashboard or deploy hook
 ```
 
 **Note:** Both production and dev environments deploy from the same `main` branch. They are differentiated by:
@@ -302,10 +305,10 @@ supabase functions logs <function-name>
 ## Troubleshooting
 
 ### API Not Deploying
-1. Check GitHub Actions logs
+1. Check Render build/service logs
 2. Verify environment variables are set
 3. Test build locally: `pnpm --filter @lazyapply/api build`
-4. Check platform-specific logs
+4. If using CI, review workflow logs
 
 ### Queue Consumer Not Working
 1. Check Cloudflare Workers logs: `wrangler tail`
@@ -354,5 +357,5 @@ supabase functions logs <function-name>
 ## Support
 
 - **API Issues:** See `apps/api/DEPLOYMENT.md`
-- **Queue Consumer Issues:** See `apps/upload-queue-consumer/DEV_SETUP.md`
+- **Queue Consumer Issues:** See `apps/upload-queue-consumer/SETUP.md`
 - **General Questions:** Check individual README files in each app directory
