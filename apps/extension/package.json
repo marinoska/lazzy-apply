@@ -12,18 +12,18 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"react-dropzone": "^14.2.0",
 		"@emotion/cache": "^11.14.0",
 		"@emotion/react": "^11.13.5",
 		"@emotion/styled": "^11.13.5",
 		"@lazyapply/types": "workspace:*",
 		"@lazyapply/utils": "workspace:*",
+		"@mui/icons-material": "^6.0.0",
 		"@mui/joy": "^5.0.0-beta.52",
 		"@supabase/supabase-js": "^2.78.0",
+		"qs": "^6.11.0",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0",
-		"@mui/icons-material": "^6.0.0",
-		"qs": "^6.11.0"
+		"react-dropzone": "^14.2.0"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",

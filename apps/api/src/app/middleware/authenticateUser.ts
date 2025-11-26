@@ -87,7 +87,7 @@ export const authenticateUser = async (
 		throw new Error("Neither SUPABASE_JWT_SECRET nor SUPABASE_JWKS_URL is configured");
 	}
 	const id = typeof payload.sub === "string" ? payload.sub : undefined;
-console.log(payload);
+	
 	if (!id) {
 		throw new Unauthorized("Token is missing subject claim");
 	}

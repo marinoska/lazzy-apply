@@ -33,6 +33,8 @@ remote = true
 [vars]
 ENVIRONMENT = "prod"
 API_URL = "https://api.yourapp.com"  # Update with your production API URL
+AXIOM_OTEL_DATASET = "otel-upload-queue-consumer"  # OpenTelemetry traces dataset
+AXIOM_LOGS_DATASET = "upload-queue-consumer"  # Regular logs/events dataset
 
 [observability]
 [observability.logs]
@@ -70,3 +72,5 @@ remote = true
 [env.dev.vars]
 ENVIRONMENT = "dev"
 API_URL = "https://lazzyapply-api-dev.onrender.com"
+AXIOM_OTEL_DATASET = "otel-upload-queue-consumer"  # OpenTelemetry traces dataset
+AXIOM_LOGS_DATASET = "upload-queue-consumer"  # Regular logs/events dataset
