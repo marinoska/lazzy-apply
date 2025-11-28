@@ -67,10 +67,6 @@ export async function extractText(
 ): Promise<string> {
 	const detectedFileType = detectFileType(fileBuffer);
 
-	console.log(
-		`Detected file type: ${detectedFileType}, expected: ${expectedFileType}`,
-	);
-
 	// Determine which file type to use for parsing
 	let fileTypeToUse: FileUploadContentType | "unknown" = detectedFileType;
 	
@@ -79,9 +75,6 @@ export async function extractText(
 		// If detection failed but we expected a specific type, try to parse it anyway
 		// This handles cases where the file might have unusual headers but is still valid
 		if (detectedFileType === "unknown") {
-			console.warn(
-				`Warning: Could not detect file type from magic bytes, but expected ${expectedFileType}. Attempting to parse anyway...`
-			);
 			// Use the expected type for parsing
 			fileTypeToUse = expectedFileType;
 		} else {

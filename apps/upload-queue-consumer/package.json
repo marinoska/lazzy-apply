@@ -4,11 +4,15 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "wrangler dev --env dev",
+		"dev": "wrangler dev --env local",
+		"dev:remote": "wrangler dev --env dev",
 		"deploy": "wrangler deploy",
 		"tail": "wrangler tail",
 		"dev:tail": "wrangler tail --env dev",
-		"types": "wrangler types"
+		"types": "wrangler types",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^2.0.72",
@@ -26,7 +30,9 @@
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20250110.0",
 		"@types/node": "^22.10.5",
+		"@vitest/coverage-v8": "^2.1.8",
 		"typescript": "^5.9.3",
+		"vitest": "^2.1.8",
 		"wrangler": "^4.47.0"
 	}
 }

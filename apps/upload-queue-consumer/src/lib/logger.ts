@@ -1,5 +1,5 @@
 import { Axiom } from "@axiomhq/js";
-import type { Env } from "../index";
+import type { Env } from "../types";
 
 export type LogLevel = "info" | "warn" | "error" | "debug";
 
@@ -33,12 +33,12 @@ export class Logger {
 		this.isLocal = env.ENVIRONMENT === "local";
 	}
 
-	private async log(
+	private log(
 		level: LogLevel,
 		message: string,
 		context?: LogContext,
 		error?: Error,
-	): Promise<void> {
+	) {
 		const timestamp = new Date().toISOString();
 
 		// Console log for Cloudflare logs
@@ -80,20 +80,20 @@ export class Logger {
 		}
 	}
 
-	async info(message: string, context?: LogContext): Promise<void> {
-		await this.log("info", message, context);
+	info(message: string, context?: LogContext) {
+		this.log("info", message, context);
 	}
 
-	async warn(message: string, context?: LogContext): Promise<void> {
-		await this.log("warn", message, context);
+	warn(message: string, context?: LogContext) {
+		this.log("warn", message, context);
 	}
 
-	async error(message: string, context?: LogContext, error?: Error): Promise<void> {
-		await this.log("error", message, context, error);
+	error(message: string, context?: LogContext, error?: Error) {
+		this.log("error", message, context, error);
 	}
 
-	async debug(message: string, context?: LogContext): Promise<void> {
-		await this.log("debug", message, context);
+	debug(message: string, context?: LogContext) {
+		this.log("debug", message, context);
 	}
 
 	/**

@@ -18,3 +18,5 @@ OPENAI_API_KEY=your-openai-api-key-here
 
 # Axiom API Token for OpenTelemetry (get from https://app.axiom.co/settings/tokens)
 AXIOM_API_TOKEN=your-axiom-api-token-here
+AXIOM_OTEL_DATASET=your-axiom-otel-dataset-here
+AXIOM_LOGS_DATASET=your-axiom-logs-dataset-here

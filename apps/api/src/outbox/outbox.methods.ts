@@ -41,8 +41,22 @@ export const registerOutboxMethods = (
 	};
 
 	schema.methods.markAsCompleted = async function (this: OutboxDocument) {
-		// Check if already in terminal state
-		if (this.isTerminal()) {
+		// If already completed, this is idempotent - just return
+		if (this.status === "completed") {
+			return this;
+		}
+		
+		// Allow transitioning from "failed" to "completed" for retry scenarios
+		// This happens when a message fails initially but succeeds on retry
+		if (this.status === "failed") {
+			this.status = "completed";
+			this.error = undefined; // Clear the error since it succeeded
+			this.processedAt = new Date();
+			return await this.save();
+		}
+		
+		// Only prevent transition if status is something unexpected
+		if (this.status !== "processing" && this.status !== "pending") {
 			throw new OutboxTerminalStatusError(this.status, "completed");
 		}
 		

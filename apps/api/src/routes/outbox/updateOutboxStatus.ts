@@ -56,11 +56,20 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 			await outboxEntry.markAsCompleted();
 
 			// 2. Save parsed CV data (guaranteed to exist due to schema validation)
-			await CVDataModel.createCVData({
+			const cvDataPayload = {
 				uploadId: outboxEntry.uploadId,
 				userId: outboxEntry.userId,
 				...(data satisfies ParsedCVData),
-			});
+			};
+			
+			log.info({ 
+				logId, 
+				personal: cvDataPayload.personal,
+				linksCount: cvDataPayload.links?.length,
+				languagesCount: cvDataPayload.languages?.length,
+			}, "Saving CV data to database");
+			
+			await CVDataModel.createCVData(cvDataPayload);
 
 			log.info(
 				{ logId, uploadId: outboxEntry.uploadId },

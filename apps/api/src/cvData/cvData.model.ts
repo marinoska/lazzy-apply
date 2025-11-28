@@ -29,12 +29,16 @@ const cvDataSchema = new Schema<TCVData, CVDataModel, CVDataMethods>(
 			immutable: true,
 		},
 		personal: {
-			fullName: { type: String, default: null },
-			email: { type: String, default: null },
-			phone: { type: String, default: null },
-			location: { type: String, default: null },
-			nationality: { type: String, default: null },
-			rightToWork: { type: String, default: null },
+			type: {
+				fullName: { type: String, default: null },
+				email: { type: String, default: null },
+				phone: { type: String, default: null },
+				location: { type: String, default: null },
+				nationality: { type: String, default: null },
+				rightToWork: { type: String, default: null },
+			},
+			required: true,
+			default: {},
 		},
 		links: [
 			{
@@ -75,13 +79,17 @@ const cvDataSchema = new Schema<TCVData, CVDataModel, CVDataMethods>(
 			},
 		],
 		extras: {
-			drivingLicense: { type: String, default: null },
-			workPermit: { type: String, default: null },
-			willingToRelocate: { type: Boolean, default: null },
-			remotePreference: { type: String, default: null },
-			noticePeriod: { type: String, default: null },
-			availability: { type: String, default: null },
-			salaryExpectation: { type: String, default: null },
+			type: {
+				drivingLicense: { type: String, default: null },
+				workPermit: { type: String, default: null },
+				willingToRelocate: { type: Boolean, default: null },
+				remotePreference: { type: String, default: null },
+				noticePeriod: { type: String, default: null },
+				availability: { type: String, default: null },
+				salaryExpectation: { type: String, default: null },
+			},
+			required: false,
+			default: {},
 		},
 		rawText: {
 			type: String,

@@ -94,7 +94,7 @@ dead_letter_queue = "parse-cv-dlq-local"
 binding = "PARSE_CV_DLQ"
 queue = "parse-cv-dlq-local"
 
-# Local R2 bucket
+# Local R2 bucket (connects to remote R2 bucket for development)
 [[env.local.r2_buckets]]
 binding = "UPLOADS_BUCKET"
 bucket_name = "local"
