@@ -28,7 +28,7 @@ export type Env = {
 	// OpenAI API Key for CV extraction
 	OPENAI_API_KEY: string;
 
-	ENVIRONMENT: "prod" | "dev";
+	ENVIRONMENT: "prod" | "dev" | "local";
 
 	// Axiom OpenTelemetry configuration
 	AXIOM_API_TOKEN: string;

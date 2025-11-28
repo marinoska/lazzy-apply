@@ -74,3 +74,35 @@ ENVIRONMENT = "dev"
 API_URL = "https://lazzyapply-api-dev.onrender.com"
 AXIOM_OTEL_DATASET = "otel-upload-queue-consumer"  # OpenTelemetry traces dataset
 AXIOM_LOGS_DATASET = "upload-queue-consumer"  # Regular logs/events dataset
+
+################
+# LOCAL ENV    #
+################
+
+[env.local]
+name = "upload-queue-consumer-local"
+
+# Local-specific queues (completely separate from dev/prod)
+[[env.local.queues.consumers]]
+queue = "parse-cv-local"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "parse-cv-dlq-local"
+
+[[env.local.queues.producers]]
+binding = "PARSE_CV_DLQ"
+queue = "parse-cv-dlq-local"
+
+# Local R2 bucket
+[[env.local.r2_buckets]]
+binding = "UPLOADS_BUCKET"
+bucket_name = "local"
+preview_bucket_name = "local"
+remote = true
+
+[env.local.vars]
+ENVIRONMENT = "local"
+API_URL = "http://0.0.0.0:5050"
+AXIOM_OTEL_DATASET = "otel-upload-queue-consumer"  # OpenTelemetry traces dataset
+AXIOM_LOGS_DATASET = "upload-queue-consumer"  # Regular logs/events dataset

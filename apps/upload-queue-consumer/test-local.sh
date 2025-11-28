@@ -7,9 +7,11 @@
 curl -X POST http://localhost:8787 \
   -H "Content-Type: application/json" \
   -d '{
-    "fileId": "423d6cc6-0142-4904-87e4-e5d101a617aa",
-    "logId": "155663b4-2a4a-4398-ad9d-129c6898c183",
-    "userId": "96f4e7a2-491c-4162-b1e4-fd3a66318b51"
+      "uploadId": "692873cb1d6044a8a18580d4",
+      "fileId": "3297c255-8f2b-4c05-8793-73321b821fc5",
+      "logId": "8b0ff663-57ee-452a-ad36-c2c654d1feb8",
+      "userId": "96f4e7a2-491c-4162-b1e4-fd3a66318b51",
+      "fileType": "PDF"
   }'
 
 echo "\n\nNote: In local dev mode, the queue handler won't actually process messages."

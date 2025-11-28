@@ -20,12 +20,6 @@ export interface ApiRequestMessage extends BackgroundMessage {
 	headers?: Record<string, string>;
 }
 
-export interface UploadFileMessage extends BackgroundMessage {
-	type: "UPLOAD_FILE";
-	uploadUrl: string;
-	fileData: ArrayBuffer;
-	contentType: string;
-}
 
 export interface MessageResponse {
 	ok: boolean;

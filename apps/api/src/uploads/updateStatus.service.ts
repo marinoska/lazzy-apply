@@ -27,7 +27,6 @@ type CompleteUploadPayload = {
 
 type PromoteUploadResult = {
 	newObjectKey: string;
-	fileHash: string;
 	size: number;
 };
 
@@ -51,17 +50,10 @@ const promoteFromQuarantine = async (
 
 	await getCloudflareClient().send(copyCommand);
 
-	// Get file metadata and hash from the new location
+	// Get file metadata from the new location
 	const headResult = await fetchHeadObject(bucket, healthyKey);
 	if (!headResult?.ContentLength) {
 		throw new Error("Failed to verify promoted file");
-	}
-
-	const fileHash = process.env.NO_DEDUP && process.env.NODE_ENV === "development"
-		? crypto.randomUUID().replace(/-/g, "")
-		: await hashRemoteObject(bucket, healthyKey);
-	if (!fileHash) {
-		throw new Error("Failed to hash promoted file");
 	}
 
 	// Delete from quarantine
@@ -69,7 +61,6 @@ const promoteFromQuarantine = async (
 
 	return {
 		newObjectKey: healthyKey,
-		fileHash,
 		size: headResult.ContentLength,
 	};
 };
@@ -108,7 +99,7 @@ const validateAndPromoteUpload = async (
 	}
 
 	// Hash file in quarantine for deduplication check
-	const fileHash = process.env.NO_DEDUP && process.env.NODE_ENV === "development"
+	const fileHash = process.env.NO_DEDUP && process.env.NODE_ENV !== "production"
 		? crypto.randomUUID().replace(/-/g, "")
 		: await hashRemoteObject(
 			fileUpload.bucket,
@@ -120,7 +111,7 @@ const validateAndPromoteUpload = async (
 	}
 
 	// Check for existing file with same hash for this user
-	const existingFile = process.env.NO_DEDUP && process.env.NODE_ENV === "development"
+	const existingFile = process.env.NO_DEDUP && process.env.NODE_ENV !== "production"
 		? null
 		: await FileUploadModel.findExistingCompletedUploadByHash({
 			fileHash,
@@ -144,11 +135,7 @@ const validateAndPromoteUpload = async (
 	}
 
 	// Promote file from quarantine to healthy directory
-	const {
-		newObjectKey,
-		fileHash: verifiedHash,
-		size,
-	} = await promoteFromQuarantine(
+	const { newObjectKey, size } = await promoteFromQuarantine(
 		fileUpload.bucket,
 		fileUpload.objectKey,
 		fileUpload.fileId,
@@ -160,7 +147,7 @@ const validateAndPromoteUpload = async (
 	const updatedFileUpload = await fileUpload.markAsUploaded({
 		objectKey: newObjectKey,
 		directory,
-		fileHash: verifiedHash,
+		fileHash,
 		size,
 	});
 

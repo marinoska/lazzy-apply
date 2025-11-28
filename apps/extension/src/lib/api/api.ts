@@ -31,40 +31,27 @@ export async function getUploadSignedUrl(
 
 /**
  * Upload a file to a signed URL using PUT request (Cloudflare R2 compatible)
- * Routes through background script to avoid CORS issues
+ * Uses direct fetch since R2 presigned URLs have CORS configured
  */
 export async function uploadFileToSignedUrl(
 	file: File,
 	uploadDetails: UploadSignedUrlResponse,
 ): Promise<void> {
-	// Convert file to ArrayBuffer for message passing
-	const arrayBuffer = await file.arrayBuffer();
-
-	// Send upload request through background script
-	// Background script has proper permissions and avoids CORS
-	return new Promise((resolve, reject) => {
-		chrome.runtime.sendMessage(
-			{
-				type: "UPLOAD_FILE",
-				uploadUrl: uploadDetails.uploadUrl,
-				fileData: arrayBuffer,
-				contentType: file.type,
-			},
-			(response) => {
-				if (chrome.runtime.lastError) {
-					reject(new Error(chrome.runtime.lastError.message));
-					return;
-				}
-
-				if (!response || !response.ok) {
-					reject(new Error(response?.error || "File upload failed"));
-					return;
-				}
-
-				resolve();
-			},
-		);
+	// Upload directly to R2 using the presigned URL
+	// No need to route through background script since R2 CORS allows all origins
+	const response = await fetch(uploadDetails.uploadUrl, {
+		method: "PUT",
+		body: file,
+		headers: {
+			"Content-Type": file.type,
+		},
 	});
+
+	if (!response.ok) {
+		throw new Error(
+			`Upload failed: ${response.status} ${response.statusText}`,
+		);
+	}
 }
 
 /**

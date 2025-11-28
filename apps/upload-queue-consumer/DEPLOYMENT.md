@@ -2,30 +2,57 @@
 
 ## Overview
 
-This worker processes CV files from the queue and updates status via your API endpoint. **No MongoDB configuration needed in the worker** - it simply calls your existing API.
+This Cloudflare Queue Consumer worker processes CV/resume files asynchronously:
+
+1. **Downloads** files from R2 storage
+2. **Validates** file size against limits
+3. **Extracts** text from PDF/DOCX files
+4. **Parses** CV data using OpenAI GPT-4o-mini
+5. **Updates** status via your API endpoint
+
+The worker is **stateless** and delegates database operations to your API server. It includes OpenTelemetry tracing (Axiom) and structured logging for observability.
 
 ## Architecture
 
 ```
-Queue Message → Worker → Process CV → Update via API → Your API handles MongoDB
+Cloudflare Queue → Worker → Download from R2 → Extract Text → OpenAI GPT-4o-mini → Update API → MongoDB
+                                                                                      ↓
+                                                                              Axiom (Traces & Logs)
 ```
-
-The worker is **stateless** and delegates database operations to your API server.
 
 ## Configuration
 
 ### Environment Variables
 
-Only two variables needed:
+**Required Variables:**
 
-1. **`API_URL`** - Your API server endpoint
-2. **`ENVIRONMENT`** - `prod` or `dev`
+1. **`API_URL`** - Your API server endpoint (e.g., `https://api.yourapp.com`)
+2. **`ENVIRONMENT`** - `prod`, `dev`, or `local`
+3. **`WORKER_SECRET`** - Authentication secret for API calls (set via `wrangler secret put`)
+4. **`OPENAI_API_KEY`** - OpenAI API key for CV parsing (set via `wrangler secret put`)
+5. **`AXIOM_API_TOKEN`** - Axiom API token for observability (set via `wrangler secret put`)
+6. **`AXIOM_OTEL_DATASET`** - Axiom dataset for OpenTelemetry traces (e.g., `otel-upload-queue-consumer`)
+7. **`AXIOM_LOGS_DATASET`** - Axiom dataset for structured logs (e.g., `upload-queue-consumer`)
+
+**Bindings (configured in `wrangler.toml`):**
+- **`UPLOADS_BUCKET`** - R2 bucket binding for file storage
+- **`PARSE_CV_DLQ`** - Dead Letter Queue binding for failed messages
 
 ### Configuration Files
 
 #### `.dev.vars` (Local Development)
 ```bash
-API_URL=http://localhost:5050
+# Copy from .dev.vars.example and fill in your values
+API_URL=http://0.0.0.0:5050
+WORKER_SECRET=your-worker-secret-here
+OPENAI_API_KEY=your-openai-api-key-here
+AXIOM_API_TOKEN=your-axiom-api-token-here
+
+# R2 credentials (if using remote R2 in local dev)
+R2_BUCKET_NAME=dev
+R2_ACCESS_KEY_ID=your-r2-access-key-id
+R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
+R2_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
 ```
 
 #### `wrangler.toml` (Production)
@@ -33,13 +60,22 @@ API_URL=http://localhost:5050
 [vars]
 ENVIRONMENT = "prod"
 API_URL = "https://api.yourapp.com"  # Update this!
+AXIOM_OTEL_DATASET = "otel-upload-queue-consumer"
+AXIOM_LOGS_DATASET = "upload-queue-consumer"
+
+# Secrets (set via wrangler secret put):
+# - WORKER_SECRET
+# - OPENAI_API_KEY
+# - AXIOM_API_TOKEN
 ```
 
 #### `wrangler.toml` (Dev Environment)
 ```toml
 [env.dev.vars]
 ENVIRONMENT = "dev"
-API_URL = "http://localhost:5050"
+API_URL = "https://lazzyapply-api-dev.onrender.com"
+AXIOM_OTEL_DATASET = "otel-upload-queue-consumer"
+AXIOM_LOGS_DATASET = "upload-queue-consumer"
 ```
 
 ### API Endpoint Required
@@ -70,11 +106,17 @@ pnpm dev  # Runs on localhost:8787
 curl -X POST http://localhost:8787/ \
   -H "Content-Type: application/json" \
   -d '{
+    "uploadId": "upload-123",
     "fileId": "test-file-123",
     "logId": "507f1f77bcf86cd799439011",
-    "userId": "user-123"
+    "userId": "user-123",
+    "fileType": "application/pdf"
   }'
 ```
+
+**Note:** For local testing, ensure you have:
+- R2 bucket with test files in the `cv/` directory
+- `.dev.vars` file with required secrets (see `.dev.vars.example`)
 
 ## Production Deployment
 
@@ -223,7 +265,12 @@ wrangler deploy
 
 ## Managing Secrets in Production
 
-Secrets (like `API_URL`, `MONGO_CONNECTION`) need to be set separately:
+Secrets (sensitive values) must be set separately using `wrangler secret put`:
+
+**Required Secrets:**
+- `WORKER_SECRET` - Authentication secret for API calls
+- `OPENAI_API_KEY` - OpenAI API key for CV parsing
+- `AXIOM_API_TOKEN` - Axiom API token for observability
 
 ### During Deployment (Automated)
 
@@ -231,25 +278,28 @@ In GitHub Actions (already configured):
 ```yaml
 - name: Set secrets
   run: |
-    echo "${{ secrets.API_URL }}" | pnpm wrangler secret put API_URL
-    echo "${{ secrets.MONGO_CONNECTION }}" | pnpm wrangler secret put MONGO_CONNECTION
+    echo "${{ secrets.WORKER_SECRET }}" | pnpm wrangler secret put WORKER_SECRET
+    echo "${{ secrets.OPENAI_API_KEY }}" | pnpm wrangler secret put OPENAI_API_KEY
+    echo "${{ secrets.AXIOM_API_TOKEN }}" | pnpm wrangler secret put AXIOM_API_TOKEN
 ```
 
 ### Manual Secret Updates
 
 ```bash
 # Set individual secrets
-wrangler secret put API_URL
+wrangler secret put WORKER_SECRET
 # Enter value when prompted
 
 # Or pipe from environment
-echo "$API_URL" | wrangler secret put API_URL
+echo "$WORKER_SECRET" | wrangler secret put WORKER_SECRET
+echo "$OPENAI_API_KEY" | wrangler secret put OPENAI_API_KEY
+echo "$AXIOM_API_TOKEN" | wrangler secret put AXIOM_API_TOKEN
 
 # List all secrets
 wrangler secret list
 
 # Delete a secret
-wrangler secret delete API_URL
+wrangler secret delete WORKER_SECRET
 ```
 
 ## Deployment Workflow
@@ -351,33 +401,31 @@ Each environment has its own secrets. Set them using:
 
 ```bash
 # Production secrets
-wrangler secret put API_URL
-wrangler secret put MONGO_CONNECTION
+wrangler secret put WORKER_SECRET
+wrangler secret put OPENAI_API_KEY
+wrangler secret put AXIOM_API_TOKEN
 
 # Dev secrets
-wrangler secret put API_URL --env dev
-wrangler secret put MONGO_CONNECTION --env dev
+wrangler secret put WORKER_SECRET --env dev
+wrangler secret put OPENAI_API_KEY --env dev
+wrangler secret put AXIOM_API_TOKEN --env dev
 ```
 
 ### GitHub Secrets Required
 
 **For Production:**
-- `CLOUDFLARE_API_TOKEN`
-- `API_URL`
-- `MONGO_CONNECTION`
-- `R2_BUCKET_NAME`
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
-- `R2_ENDPOINT`
+- `CLOUDFLARE_API_TOKEN` - Cloudflare API token for deployment
+- `WORKER_SECRET` - Authentication secret for API calls
+- `OPENAI_API_KEY` - OpenAI API key for CV parsing
+- `AXIOM_API_TOKEN` - Axiom API token for observability
 
 **For Dev:**
 - `CLOUDFLARE_API_TOKEN` (same token)
-- `DEV_API_URL`
-- `DEV_MONGO_CONNECTION`
-- `DEV_R2_BUCKET_NAME`
-- `DEV_R2_ACCESS_KEY_ID`
-- `DEV_R2_SECRET_ACCESS_KEY`
-- `DEV_R2_ENDPOINT`
+- `DEV_WORKER_SECRET` - Dev environment authentication secret
+- `DEV_OPENAI_API_KEY` - Dev environment OpenAI API key
+- `DEV_AXIOM_API_TOKEN` - Dev environment Axiom API token
+
+**Note:** `API_URL` and Axiom dataset names are set in `wrangler.toml` (not secrets)
 
 ## Rollback
 

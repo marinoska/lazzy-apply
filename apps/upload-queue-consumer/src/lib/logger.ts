@@ -22,6 +22,7 @@ export class Logger {
 	private axiom: Axiom;
 	private dataset: string;
 	private environment: string;
+	private isLocal: boolean;
 
 	constructor(env: Env) {
 		this.axiom = new Axiom({
@@ -29,6 +30,7 @@ export class Logger {
 		});
 		this.dataset = env.AXIOM_LOGS_DATASET;
 		this.environment = env.ENVIRONMENT;
+		this.isLocal = env.ENVIRONMENT === "local";
 	}
 
 	private async log(
@@ -49,7 +51,12 @@ export class Logger {
 			console.log(consoleMessage, context);
 		}
 
-		// Send to Axiom
+		// Skip Axiom in local development
+		if (this.isLocal) {
+			return;
+		}
+
+		// Send to Axiom (deployed environments only)
 		try {
 			this.axiom.ingest(this.dataset, [
 				{
@@ -93,6 +100,11 @@ export class Logger {
 	 * Flush any pending logs to Axiom
 	 */
 	async flush(): Promise<void> {
+		// Skip flush in local development
+		if (this.isLocal) {
+			return;
+		}
+
 		try {
 			await this.axiom.flush();
 		} catch (error) {

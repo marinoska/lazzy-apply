@@ -16,7 +16,8 @@
 		"clean": "rm -rf dist",
 		"test": "vitest",
 		"test:watch": "vitest --watch",
-		"test:coverage": "vitest --coverage"
+		"test:coverage": "vitest --coverage",
+		"setup:cors": "tsx src/util/setupR2Cors.ts"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.925.0",

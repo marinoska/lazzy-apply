@@ -7,7 +7,6 @@ import type {
 	ApiRequestMessage,
 	BackgroundMessage,
 	MessageResponse,
-	UploadFileMessage,
 } from "./types.js";
 
 /**
@@ -110,36 +109,6 @@ export async function handleMessage(
 					sendResponse({ ok: true, data });
 				} catch (error) {
 					console.error("[MessageHandler] API request failed:", error);
-					sendResponse({ ok: false, error: serializeError(error) });
-				}
-				break;
-			}
-
-			case "UPLOAD_FILE": {
-				const uploadMsg = msg as UploadFileMessage;
-				console.log(
-					"[MessageHandler] Handling UPLOAD_FILE to:",
-					uploadMsg.uploadUrl,
-				);
-				try {
-					const response = await fetch(uploadMsg.uploadUrl, {
-						method: "PUT",
-						body: uploadMsg.fileData,
-						headers: {
-							"Content-Type": uploadMsg.contentType,
-						},
-					});
-
-					if (!response.ok) {
-						throw new Error(
-							`Upload failed: ${response.status} ${response.statusText}`,
-						);
-					}
-
-					console.log("[MessageHandler] File upload successful");
-					sendResponse({ ok: true });
-				} catch (error) {
-					console.error("[MessageHandler] File upload failed:", error);
 					sendResponse({ ok: false, error: serializeError(error) });
 				}
 				break;
