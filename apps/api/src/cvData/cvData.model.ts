@@ -19,6 +19,7 @@ const cvDataSchema = new Schema<TCVData, CVDataModel, CVDataMethods>(
 			type: String,
 			ref: "file_uploads",
 			required: true,
+			unique: true,
 			index: true,
 			immutable: true,
 		},

@@ -1,6 +1,5 @@
 import { createLogger } from "@/app/logger.js";
 import { OutboxModel } from "@/outbox/outbox.model.js";
-import { OutboxEntryAlreadyProcessingError } from "@/outbox/outbox.errors.js";
 import { sendToParseQueue } from "@/workers/queue/index.js";
 
 const log = createLogger("outbox-processor");
@@ -46,7 +45,7 @@ const processOutboxEntries = async () => {
 						{
 							uploadId: entry.uploadId,
 							fileId: entry.fileId,
-							logId: entry.logId,
+							processId: entry.processId,
 							userId: entry.userId,
 							fileType: entry.fileType,
 						},
@@ -54,41 +53,35 @@ const processOutboxEntries = async () => {
 					);
 
 					log.info(
-						{ fileId: entry.fileId, logId: entry.logId },
+						{ fileId: entry.fileId, processId: entry.processId },
 						"Successfully sent file to parse queue",
 					);
 				} else {
 					log.warn(
-						{ type: entry.type, logId: entry.logId },
+						{ type: entry.type, processId: entry.processId },
 						"Unknown outbox entry type",
 					);
-					await entry.markAsFailed(`Unknown outbox type: ${entry.type}`);
+					await OutboxModel.markAsFailed(
+						entry,
+						`Unknown outbox type: ${entry.type}`,
+					);
 				}
 			} catch (error) {
-				// If entry is already being processed, another process won the race - skip it
-				if (error instanceof OutboxEntryAlreadyProcessingError) {
-					log.debug(
-						{ logId: entry.logId, fileId: entry.fileId },
-						"Entry already being processed by another process",
-					);
-					continue;
-				}
-
 				const errorMessage =
 					error instanceof Error ? error.message : String(error);
 
 				log.error(
 					{
 						error: errorMessage,
-						logId: entry.logId,
+						processId: entry.processId,
 						fileId: entry.fileId,
 						type: entry.type,
 					},
 					"Failed to process outbox entry",
 				);
 
-				// Mark as failed in outbox
-				await entry.markAsFailed(errorMessage);
+				// Create failed entry in outbox
+				await OutboxModel.markAsFailed(entry, errorMessage);
 			}
 		}
 	} catch (error) {

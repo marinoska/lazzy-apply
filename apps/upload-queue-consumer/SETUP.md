@@ -32,7 +32,7 @@ Complete guide for setting up the Cloudflare Queue consumer for processing CV fi
 
 - Cloudflare account with Workers enabled
 - R2 bucket created
-- API server with `/api/outbox/:logId` endpoint
+- API server with `/api/outbox/:processId` endpoint
 
 ## Production Setup
 
@@ -157,7 +157,7 @@ curl -X POST http://localhost:8787/ \
   -H "Content-Type: application/json" \
   -d '{
     "fileId": "test-file-123",
-    "logId": "507f1f77bcf86cd799439011",
+    "processId": "507f1f77bcf86cd799439011",
     "userId": "user-123"
   }'
 ```
@@ -189,10 +189,10 @@ Configure in Cloudflare Dashboard → Queues → Settings → Consumers:
 
 ```bash
 # Production
-wrangler queues producer parse-cv send '{"fileId":"test","logId":"test","userId":"test"}'
+wrangler queues producer parse-cv send '{"fileId":"test","processId":"test","userId":"test"}'
 
 # Dev
-wrangler queues producer parse-cv-dev send '{"fileId":"test","logId":"test","userId":"test"}'
+wrangler queues producer parse-cv-dev send '{"fileId":"test","processId":"test","userId":"test"}'
 ```
 
 ### Monitor Queue
@@ -250,7 +250,7 @@ Your API should log:
 
 - Verify `API_URL` in `wrangler.toml`
 - Ensure API server is running
-- Check API endpoint exists: `PATCH /api/outbox/:logId`
+- Check API endpoint exists: `PATCH /api/outbox/:processId`
 
 ### R2 Access Issues
 
@@ -263,7 +263,7 @@ Your API should log:
 Your API must have this endpoint:
 
 ```typescript
-PATCH /api/outbox/:logId
+PATCH /api/outbox/:processId
 
 Request Body:
 {
@@ -275,7 +275,7 @@ Request Body:
 Response:
 {
   success: true,
-  logId: string,
+  processId: string,
   status: string
 }
 ```

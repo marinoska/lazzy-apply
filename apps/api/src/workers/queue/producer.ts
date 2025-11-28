@@ -1,5 +1,7 @@
 import { getEnv } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
+import { OutboxModel } from "@/outbox/outbox.model.js";
+import { OutboxEntryAlreadyProcessingError } from "@/outbox/outbox.errors.js";
 import type { OutboxDocument } from "@/outbox/outbox.types.js";
 import type { ParseCVQueueMessage } from "@lazyapply/types";
 
@@ -18,7 +20,7 @@ export async function sendToParseQueue(
 	const apiToken = getEnv("CLOUDFLARE_QUEUE_TOKEN");
 
 	log.debug(
-		{ logId: message.logId, fileId: message.fileId, queueId },
+		{ processId: message.processId, fileId: message.fileId, queueId },
 		"Sending message to Cloudflare Queue",
 	);
 
@@ -39,7 +41,7 @@ export async function sendToParseQueue(
 		const errorText = await response.text();
 		log.error(
 			{
-				logId: message.logId,
+				processId: message.processId,
 				fileId: message.fileId,
 				status: response.status,
 				error: errorText,
@@ -58,7 +60,7 @@ export async function sendToParseQueue(
 	if (!result.success) {
 		log.error(
 			{
-				logId: message.logId,
+				processId: message.processId,
 				fileId: message.fileId,
 				errors: result.errors,
 			},
@@ -70,15 +72,27 @@ export async function sendToParseQueue(
 	}
 
 	log.info(
-		{ logId: message.logId, fileId: message.fileId },
+		{ processId: message.processId, fileId: message.fileId },
 		"Message sent to Cloudflare Queue successfully",
 	);
 
-	// Mark outbox as processing after successful queue push
-	await outboxDoc.markAsProcessing();
+	// Check if entry is still pending before marking as processing
+	// This prevents race conditions where multiple workers try to process the same entry
+	const entries = await OutboxModel.findByProcessId(message.processId);
+	const currentEntry = entries.length ? entries[0] : null; // Get latest entry (sorted by createdAt desc)
+	if (!currentEntry || currentEntry.status !== "pending") {
+		log.warn(
+			{ processId: message.processId, fileId: message.fileId, currentStatus: currentEntry?.status },
+			"Outbox entry already processed by another worker",
+		);
+		throw new OutboxEntryAlreadyProcessingError(message.processId);
+	}
+
+	// Create processing entry after successful queue push
+	await OutboxModel.markAsProcessing(outboxDoc);
 
 	log.debug(
-		{ logId: message.logId, fileId: message.fileId },
-		"Outbox entry marked as processing",
+		{ processId: message.processId, fileId: message.fileId },
+		"Created processing outbox entry",
 	);
 }

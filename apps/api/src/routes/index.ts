@@ -41,7 +41,7 @@ export const registerRoutes = (app: Express) => {
 
 	// Outbox status update endpoint (called by queue consumer worker)
 	router.patch(
-		"/outbox/:logId",
+		"/outbox/:processId",
 		authenticateWorker,
 		validateRequest({
 			params: updateOutboxParamsSchema,

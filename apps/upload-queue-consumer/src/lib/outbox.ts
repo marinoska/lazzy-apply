@@ -7,7 +7,7 @@ import { Logger } from "./logger";
  */
 export async function updateOutboxStatus(
 	env: Env,
-	logId: string,
+	processId: string,
 	status: "completed" | "failed",
 	data: ParsedCVData | null,
 	error?: string,
@@ -15,13 +15,13 @@ export async function updateOutboxStatus(
 	const logger = new Logger(env);
 	try {
 		logger.debug("Updating outbox status via API", {
-			logId,
+			processId,
 			status,
 			apiUrl: env.API_URL,
 			operation: "outbox_update",
 		});
 
-		const response = await fetch(`${env.API_URL}/api/outbox/${logId}`, {
+		const response = await fetch(`${env.API_URL}/api/outbox/${processId}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
@@ -37,7 +37,7 @@ export async function updateOutboxStatus(
 		if (!response.ok) {
 			const responseText = await response.text();
 			logger.error("Failed to update outbox status", {
-				logId,
+				processId,
 				status,
 				responseStatus: response.status,
 				responseText,
@@ -55,13 +55,13 @@ export async function updateOutboxStatus(
 			// For "failed" status updates, log but don't throw
 			// We don't want to retry a message that already failed
 			logger.warn("Could not mark outbox as failed, but continuing", {
-				logId,
+				processId,
 				status,
 				operation: "outbox_update",
 			});
 		} else {
 			logger.info("Updated outbox status", {
-				logId,
+				processId,
 				status,
 				operation: "outbox_update",
 			});
@@ -69,7 +69,7 @@ export async function updateOutboxStatus(
 	} catch (error) {
 		logger.error(
 			"Failed to update outbox",
-			{ logId, status, operation: "outbox_update" },
+			{ processId, status, operation: "outbox_update" },
 			error instanceof Error ? error : new Error(String(error)),
 		);
 		
@@ -81,7 +81,7 @@ export async function updateOutboxStatus(
 		// For "failed" status, log but don't throw
 		// The message processing already failed, no need to retry
 		logger.warn("Swallowing error for failed status update", {
-			logId,
+			processId,
 			status,
 			operation: "outbox_update",
 		});

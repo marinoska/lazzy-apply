@@ -6,7 +6,7 @@ export type LogLevel = "info" | "warn" | "error" | "debug";
 export interface LogContext {
 	uploadId?: string;
 	fileId?: string;
-	logId?: string;
+	processId?: string;
 	userId?: string;
 	fileType?: string;
 	fileSize?: number;

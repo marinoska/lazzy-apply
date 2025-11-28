@@ -83,7 +83,7 @@ AXIOM_LOGS_DATASET = "upload-queue-consumer"
 Your API must have this endpoint:
 
 ```typescript
-PATCH /api/outbox/:logId
+PATCH /api/outbox/:processId
 Body: {
   status: "completed" | "failed",
   data: ParsedCVData | null,
@@ -108,7 +108,7 @@ curl -X POST http://localhost:8787/ \
   -d '{
     "uploadId": "upload-123",
     "fileId": "test-file-123",
-    "logId": "507f1f77bcf86cd799439011",
+    "processId": "507f1f77bcf86cd799439011",
     "userId": "user-123",
     "fileType": "application/pdf"
   }'
@@ -356,7 +356,7 @@ wrangler tail --format pretty
 curl -X POST "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/queues/parse-cv/messages" \
   -H "Authorization: Bearer $CLOUDFLARE_QUEUE_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"body": {"fileId": "test", "logId": "test", "userId": "test"}}'
+  -d '{"body": {"fileId": "test", "processId": "test", "userId": "test"}}'
 
 # Watch logs
 wrangler tail

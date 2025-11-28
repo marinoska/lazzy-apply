@@ -106,11 +106,11 @@ export const registerFileUploadMethods = (
 
 			// Create outbox entry for async queue processing
 			// The outbox processor worker will handle sending to Cloudflare parse-cv queue
-			const logId = randomUUID();
+			const processId = randomUUID();
 			await OutboxModel.create(
 				[
 					{
-						logId,
+						processId,
 						type: "file_upload",
 						status: "pending",
 						uploadId: this._id.toString(),

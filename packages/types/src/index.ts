@@ -35,7 +35,7 @@ export interface JobApplication {
 export interface ParseCVQueueMessage {
 	uploadId: string; // MongoDB _id from file_uploads
 	fileId: string; // R2 storage filename
-	logId: string;
+	processId: string;
 	userId: string;
 	fileType: FileUploadContentType;
 }

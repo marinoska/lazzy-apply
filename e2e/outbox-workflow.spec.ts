@@ -10,7 +10,7 @@ test.describe("Outbox and CV Data Workflow", () => {
 		// 2. Worker processes file and sends parsed data
 		// 3. API saves outbox completion and CV data in transaction
 
-		const logId = `test-log-${Date.now()}`;
+		const processId = `test-log-${Date.now()}`;
 		const fileId = `test-file-${Date.now()}`;
 		const userId = "test-user-e2e";
 
@@ -72,7 +72,7 @@ test.describe("Outbox and CV Data Workflow", () => {
 		};
 
 		// Update outbox status with parsed data
-		const response = await request.patch(`/api/outbox/${logId}`, {
+		const response = await request.patch(`/api/outbox/${processId}`, {
 			data: {
 				status: "completed",
 				data: parsedData,
@@ -86,9 +86,9 @@ test.describe("Outbox and CV Data Workflow", () => {
 	});
 
 	test("should handle failed processing correctly", async ({ request }) => {
-		const logId = `test-log-failed-${Date.now()}`;
+		const processId = `test-log-failed-${Date.now()}`;
 
-		const response = await request.patch(`/api/outbox/${logId}`, {
+		const response = await request.patch(`/api/outbox/${processId}`, {
 			data: {
 				status: "failed",
 				error: "File type validation failed",
@@ -102,12 +102,12 @@ test.describe("Outbox and CV Data Workflow", () => {
 	});
 
 	test("should reject invalid file types", async ({ request }) => {
-		const logId = `test-log-invalid-${Date.now()}`;
+		const processId = `test-log-invalid-${Date.now()}`;
 
 		// Attempt to create outbox with invalid file type
 		const response = await request.post("/api/outbox", {
 			data: {
-				logId,
+				processId,
 				type: "file_upload",
 				fileId: "test-file",
 				userId: "test-user",

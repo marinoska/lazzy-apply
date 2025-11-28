@@ -70,7 +70,7 @@ describe("messageProcessor", () => {
 		mockPayload = {
 			uploadId: "upload-123",
 			fileId: "file-456",
-			logId: "log-789",
+			processId: "log-789",
 			userId: "user-001",
 			fileType: "PDF",
 		};

@@ -45,7 +45,7 @@ describe("queueHandler", () => {
 			body: {
 				uploadId: "upload-123",
 				fileId: "file-456",
-				logId: "log-789",
+				processId: "log-789",
 				userId: "user-001",
 				fileType: "PDF",
 			},
@@ -111,8 +111,8 @@ describe("queueHandler", () => {
 		});
 
 		it("should handle multiple messages with mixed results", async () => {
-			const successMessage = { ...mockMessage, body: { ...mockMessage.body, logId: "log-success" } };
-			const failMessage = { ...mockMessage, body: { ...mockMessage.body, logId: "log-fail" }, retry: vi.fn() };
+			const successMessage = { ...mockMessage, body: { ...mockMessage.body, processId: "log-success" } };
+			const failMessage = { ...mockMessage, body: { ...mockMessage.body, processId: "log-fail" }, retry: vi.fn() };
 
 			const batch = {
 				messages: [successMessage, failMessage],
@@ -134,7 +134,7 @@ describe("queueHandler", () => {
 		it("should process batch in parallel", async () => {
 			const messages = Array.from({ length: 5 }, (_, i) => ({
 				...mockMessage,
-				body: { ...mockMessage.body, logId: `log-${i}` },
+				body: { ...mockMessage.body, processId: `log-${i}` },
 			}));
 
 			const batch = {

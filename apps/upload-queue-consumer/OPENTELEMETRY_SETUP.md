@@ -54,7 +54,7 @@ The worker automatically traces:
 - HTTP requests to the worker
 - Queue message processing
 - Custom spans for:
-  - **processMessage**: Overall message processing with attributes (uploadId, fileId, logId, userId, fileType)
+  - **processMessage**: Overall message processing with attributes (uploadId, fileId, processId, userId, fileType)
   - **downloadFile**: R2 file download with file size
   - **parseCV**: CV parsing with file type
   - **updateOutboxStatus**: API callback with status
@@ -64,7 +64,7 @@ The worker automatically traces:
 1. Go to your Axiom dashboard
 2. Select the `upload-queue-consumer` (or `-dev`) dataset
 3. View traces in the OpenTelemetry traces dashboard
-4. Filter by attributes like `fileId`, `logId`, `userId`, etc.
+4. Filter by attributes like `fileId`, `processId`, `userId`, etc.
 
 ## Troubleshooting
 

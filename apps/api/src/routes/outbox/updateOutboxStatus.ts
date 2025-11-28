@@ -10,7 +10,7 @@ import mongoose from "mongoose";
 const log = createLogger("update-outbox-status");
 
 export const updateOutboxParamsSchema = z.object({
-	logId: z.string().min(1, "logId is required"),
+	processId: z.string().min(1, "processId is required"),
 });
 
 export const updateOutboxBodySchema = z
@@ -38,22 +38,22 @@ export const updateOutboxBodySchema = z
  * Called by the queue consumer worker after processing
  */
 export async function updateOutboxStatus(req: Request, res: Response) {
-	const { logId } = req.params;
+	const { processId } = req.params;
 	const { status, data, error } = req.body;
 
-	log.info({ logId, status }, "Updating outbox status");
+	log.info({ processId, status }, "Updating outbox status");
 
-	const outboxEntry = await OutboxModel.findOne({ logId });
+	const outboxEntry = await OutboxModel.findOne({ processId });
 	if (!outboxEntry) {
-		throw new NotFound(`Outbox entry not found: ${logId}`);
+		throw new NotFound(`Outbox entry not found: ${processId}`);
 	}
 
 	if (status === "completed") {
 		// Use transaction to ensure atomicity
 		const session = await mongoose.startSession();
 		await session.withTransaction(async () => {
-			// 1. Mark outbox as completed
-			await outboxEntry.markAsCompleted();
+			// 1. Create new outbox entry with completed status
+			await OutboxModel.markAsCompleted(outboxEntry);
 
 			// 2. Save parsed CV data (guaranteed to exist due to schema validation)
 			const cvDataPayload = {
@@ -63,7 +63,7 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 			};
 			
 			log.info({ 
-				logId, 
+					processId,
 				personal: cvDataPayload.personal,
 				linksCount: cvDataPayload.links?.length,
 				languagesCount: cvDataPayload.languages?.length,
@@ -72,19 +72,22 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 			await CVDataModel.createCVData(cvDataPayload);
 
 			log.info(
-				{ logId, uploadId: outboxEntry.uploadId },
-				"Outbox entry marked as completed and CV data saved",
+				{ processId, uploadId: outboxEntry.uploadId },
+				"Created completed outbox entry and saved CV data",
 			);
 		});
 		await session.endSession();
 	} else if (status === "failed") {
-		await outboxEntry.markAsFailed(error || "Processing failed");
-		log.error({ logId, error }, "Outbox entry marked as failed");
+		await OutboxModel.markAsFailed(
+			outboxEntry,
+			error || "Processing failed",
+		);
+		log.error({ processId, error }, "Created failed outbox entry");
 	}
 
 	return res.status(200).json({
 		success: true,
-		logId,
-		status: outboxEntry.status,
+		processId,
+		status,
 	});
 }

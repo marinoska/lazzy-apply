@@ -69,7 +69,7 @@ pnpm types    # Generate TypeScript types
 
 ## How It Works
 
-1. **Queue receives message**: Producer (API) sends a message with `{ fileId, logId, userId }`
+1. **Queue receives message**: Producer (API) sends a message with `{ fileId, processId, userId }`
 2. **Worker processes batch**: Worker receives batches of messages (up to `max_batch_size`)
 3. **Download file**: Downloads CV file from R2 bucket
 4. **Parse CV**: Processes the CV (TODO: implement actual parsing logic)
@@ -81,7 +81,7 @@ pnpm types    # Generate TypeScript types
 ```typescript
 interface ParseCVQueueMessage {
   fileId: string;   // R2 object key
-  logId: string;    // Outbox entry ID
+  processId: string;    // Outbox entry ID
   userId: string;   // User who uploaded the file
 }
 ```

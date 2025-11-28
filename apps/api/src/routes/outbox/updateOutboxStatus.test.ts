@@ -20,10 +20,10 @@ describe("Update Outbox Status", () => {
 	});
 
 	describe("Completed Status with Transaction", () => {
-		it("should mark outbox as completed and save CV data in transaction", async () => {
+		it("should create completed outbox entry and save CV data in transaction", async () => {
 			// Create outbox entry
 			const outbox = await OutboxModel.create({
-				logId: "test-log-txn-1",
+				processId: "test-process-txn-1",
 				type: "file_upload",
 				status: "pending",
 				uploadId: "upload-id-txn-1",
@@ -50,7 +50,7 @@ describe("Update Outbox Status", () => {
 			};
 
 			mockReq = {
-				params: { logId: "test-log-txn-1" },
+				params: { processId: "test-process-txn-1" },
 				body: {
 					status: "completed",
 					data: parsedData,
@@ -59,14 +59,17 @@ describe("Update Outbox Status", () => {
 
 			await updateOutboxStatus(mockReq, mockRes);
 
-			// Verify outbox was updated
-			const updatedOutbox = await OutboxModel.findOne({ logId: "test-log-txn-1" });
-			expect(updatedOutbox?.status).toBe("completed");
-			expect(updatedOutbox?.processedAt).toBeDefined();
+			// Verify new completed entry was created
+			const allEntries = await OutboxModel.find({ processId: "test-process-txn-1" }).sort({ createdAt: -1 });
+			expect(allEntries).toHaveLength(2); // Original + completed
+			const latestEntry = allEntries[0];
+			expect(latestEntry.status).toBe("completed");
+			expect(latestEntry.processedAt).toBeDefined();
+			expect(latestEntry.error).toBeUndefined();
 
 			// Verify CV data was saved (skip ownership enforcement for test)
 			const cvData = await CVDataModel.findOne(
-				{ uploadId: updatedOutbox.uploadId },
+				{ uploadId: latestEntry.uploadId },
 				null,
 				{ skipOwnershipEnforcement: true },
 			);
@@ -80,14 +83,14 @@ describe("Update Outbox Status", () => {
 			expect(statusMock).toHaveBeenCalledWith(200);
 			expect(jsonMock).toHaveBeenCalledWith({
 				success: true,
-				logId: "test-log-txn-1",
+				processId: "test-process-txn-1",
 				status: "completed",
 			});
 		});
 
 		it("should reject completed status without data", async () => {
 			await OutboxModel.create({
-				logId: "test-log-no-data",
+				processId: "test-process-no-data",
 				type: "file_upload",
 				status: "pending",
 				uploadId: "upload-id-no-data",
@@ -110,14 +113,15 @@ describe("Update Outbox Status", () => {
 				);
 			}
 
-			// Verify outbox was not updated
-			const outbox = await OutboxModel.findOne({ logId: "test-log-no-data" });
-			expect(outbox?.status).toBe("pending");
+			// Verify no new entry was created
+			const entries = await OutboxModel.find({ processId: "test-process-no-data" });
+			expect(entries).toHaveLength(1); // Only original entry
+			expect(entries[0].status).toBe("pending");
 		});
 
 		it("should save all ParsedCVData fields correctly", async () => {
 			await OutboxModel.create({
-				logId: "test-log-full-data",
+				processId: "test-process-full-data",
 				type: "file_upload",
 				status: "pending",
 				uploadId: "upload-id-full",
@@ -182,7 +186,7 @@ describe("Update Outbox Status", () => {
 			};
 
 			mockReq = {
-				params: { logId: "test-log-full-data" },
+				params: { processId: "test-process-full-data" },
 				body: {
 					status: "completed",
 					data: fullParsedData,
@@ -210,9 +214,9 @@ describe("Update Outbox Status", () => {
 	});
 
 	describe("Failed Status", () => {
-		it("should mark outbox as failed with error message", async () => {
+		it("should create failed outbox entry with error message", async () => {
 			await OutboxModel.create({
-				logId: "test-log-failed",
+				processId: "test-process-failed",
 				type: "file_upload",
 				status: "pending",
 				uploadId: "upload-id-failed",
@@ -222,7 +226,7 @@ describe("Update Outbox Status", () => {
 			});
 
 			mockReq = {
-				params: { logId: "test-log-failed" },
+				params: { processId: "test-process-failed" },
 				body: {
 					status: "failed",
 					error: "Processing failed due to invalid format",
@@ -231,10 +235,13 @@ describe("Update Outbox Status", () => {
 
 			await updateOutboxStatus(mockReq, mockRes);
 
-			const updatedOutbox = await OutboxModel.findOne({ logId: "test-log-failed" });
-			expect(updatedOutbox?.status).toBe("failed");
-			expect(updatedOutbox?.error).toBe("Processing failed due to invalid format");
-			expect(updatedOutbox?.processedAt).toBeDefined();
+			// Verify new failed entry was created
+			const allEntries = await OutboxModel.find({ processId: "test-process-failed" }).sort({ createdAt: -1 });
+			expect(allEntries).toHaveLength(2); // Original + failed
+			const latestEntry = allEntries[0];
+			expect(latestEntry.status).toBe("failed");
+			expect(latestEntry.error).toBe("Processing failed due to invalid format");
+			expect(latestEntry.processedAt).toBeDefined();
 
 			// Verify no CV data was created
 			const cvData = await CVDataModel.findOne(
@@ -247,9 +254,9 @@ describe("Update Outbox Status", () => {
 	});
 
 	describe("Error Handling", () => {
-		it("should throw NotFound error for non-existent logId", async () => {
+		it("should throw NotFound error for non-existent processId", async () => {
 			mockReq = {
-				params: { logId: "non-existent-log" },
+				params: { processId: "non-existent-process" },
 				body: {
 					status: "completed",
 				},

@@ -103,7 +103,7 @@ curl https://lazy-job-api-dev.onrender.com/health
 wrangler tail --env dev
 
 # Send test message
-wrangler queues producer parse-cv-dev send '{"fileId":"test","logId":"test","userId":"test"}'
+wrangler queues producer parse-cv-dev send '{"fileId":"test","processId":"test","userId":"test"}'
 ```
 
 ## Done! 🎉

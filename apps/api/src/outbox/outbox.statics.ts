@@ -18,16 +18,78 @@ export const registerOutboxStatics = (
 		});
 	};
 
+	schema.statics.createWithStatus = async function (original, status, error) {
+		const newEntry: Partial<TOutbox> = {
+			processId: original.processId,
+			type: original.type,
+			uploadId: original.uploadId,
+			fileId: original.fileId,
+			userId: original.userId,
+			fileType: original.fileType,
+			status,
+		};
+
+		if (error) {
+			newEntry.error = error;
+		}
+
+		if (status === "completed" || status === "failed") {
+			newEntry.processedAt = new Date();
+		}
+
+		return await this.create(newEntry);
+	};
+
+	schema.statics.markAsProcessing = async function (original) {
+		return await this.createWithStatus(original, "processing");
+	};
+
+	schema.statics.markAsCompleted = async function (original) {
+		return await this.createWithStatus(original, "completed");
+	};
+
+	schema.statics.markAsFailed = async function (original, error) {
+		return await this.createWithStatus(original, "failed", error);
+	};
+
 	schema.statics.findPendingLogs = async function (limit) {
-		return await this.find({
-			status: "pending",
-		})
-			.sort({ createdAt: 1 })
-			.limit(limit)
-			.exec();
+		// Find the latest record for each processId where status is "pending"
+		// This uses aggregation to group by processId and get the most recent entry
+		const results = await this.aggregate([
+			// Sort by processId and createdAt descending to get latest first
+			{ $sort: { processId: 1, createdAt: -1 } },
+			// Group by processId and take the first (latest) document
+			{
+				$group: {
+					_id: "$processId",
+					latestDoc: { $first: "$$ROOT" },
+				},
+			},
+			// Replace root with the latest document
+			{ $replaceRoot: { newRoot: "$latestDoc" } },
+			// Filter to only include entries with status "pending"
+			{ $match: { status: "pending" } },
+			// Sort by creation time to process oldest first
+			{ $sort: { createdAt: 1 } },
+			// Limit results
+			{ $limit: limit },
+		]);
+
+		// Convert plain objects back to Mongoose documents
+		return results.map((doc) => new this(doc));
+	};
+
+	schema.statics.getPending = async function (limit) {
+		// Alias for findPendingLogs for backward compatibility
+		return await this.findPendingLogs(limit);
 	};
 
 	schema.statics.findByFileId = async function (fileId) {
-		return await this.findOne({ fileId }).exec();
+		return await this.findOne({ fileId }).sort({ createdAt: -1 }).exec();
+	};
+	
+
+	schema.statics.findByProcessId = async function (processId) {
+		return await this.find({ processId }).sort({ createdAt: -1 }).exec();
 	};
 };

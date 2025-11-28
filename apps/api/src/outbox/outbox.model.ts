@@ -9,7 +9,6 @@ import type {
 } from "./outbox.types.js";
 import { OUTBOX_MODEL_NAME } from "./outbox.types.js";
 import { registerOutboxStatics } from "./outbox.statics.js";
-import { registerOutboxMethods } from "./outbox.methods.js";
 
 export type OutboxModel = OutboxModelWithStatics;
 
@@ -19,17 +18,10 @@ const outboxSchema = new Schema<
 	OutboxMethods
 >(
 	{
-		logId: {
+		processId: {
 			type: String,
 			required: true,
-			unique: true,
 			index: true,
-			immutable: true,
-		},
-		type: {
-			type: String,
-			enum: ["file_upload"],
-			required: true,
 			immutable: true,
 		},
 		status: {
@@ -37,6 +29,12 @@ const outboxSchema = new Schema<
 			enum: ["pending", "processing", "completed", "failed"],
 			default: "pending",
 			index: true,
+		},
+		type: {
+			type: String,
+			enum: ["file_upload"],
+			required: true,
+			immutable: true,
 		},
 		uploadId: {
 			type: String,
@@ -74,10 +72,29 @@ const outboxSchema = new Schema<
 	{ timestamps: true },
 );
 
-// Index for efficient queue processing
+// Index for efficient queue processing - get latest entry per processId
+outboxSchema.index({ processId: 1, createdAt: -1 });
 outboxSchema.index({ status: 1, createdAt: 1 });
 
-registerOutboxMethods(outboxSchema);
+// Make collection immutable - prevent all updates
+outboxSchema.pre('findOneAndUpdate', function() {
+	throw new Error('Updates not allowed on immutable outbox collection');
+});
+
+outboxSchema.pre('updateOne', function() {
+	throw new Error('Updates not allowed on immutable outbox collection');
+});
+
+outboxSchema.pre('updateMany', function() {
+	throw new Error('Updates not allowed on immutable outbox collection');
+});
+
+outboxSchema.pre('save', function() {
+	if (!this.isNew) {
+		throw new Error('Updates not allowed on immutable outbox collection');
+	}
+});
+
 registerOutboxStatics(outboxSchema);
 
 export type { OutboxDocument } from "./outbox.types.js";

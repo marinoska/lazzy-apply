@@ -10,7 +10,7 @@ import { updateOutboxStatus } from "./outbox";
 type LogContext = {
 	uploadId: string;
 	fileId: string;
-	logId: string;
+	processId: string;
 	userId: string;
 	fileType: string;
 };
@@ -22,9 +22,9 @@ export async function processMessage(
 	payload: ParseCVQueueMessage,
 	env: Env,
 ): Promise<void> {
-	const { uploadId, fileId, logId, userId, fileType } = payload;
+	const { uploadId, fileId, processId, userId, fileType } = payload;
 	const logger = new Logger(env);
-	const logContext: LogContext = { uploadId, fileId, logId, userId, fileType };
+	const logContext: LogContext = { uploadId, fileId, processId, userId, fileType };
 
 	logger.info("Starting message processing", logContext);
 
@@ -42,12 +42,12 @@ export async function processMessage(
 		const parsedData = await parseCVFile(file, fileId, fileType, env, logContext, logger, tracer, span);
 
 		// 3. Update outbox status
-		await updateOutboxWithResult(env, logId, parsedData, tracer, span);
+		await updateOutboxWithResult(env, processId, parsedData, tracer, span);
 
 		// 4. Complete processing
 		await completeProcessing(logger, logContext, startTime, span);
 	} catch (error) {
-		await handleProcessingError(error, env, logId, logger, logContext, startTime, span);
+		await handleProcessingError(error, env, processId, logger, logContext, startTime, span);
 		throw error;
 	}
 }
@@ -55,7 +55,7 @@ export async function processMessage(
 function setSpanAttributes(span: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>, payload: ParseCVQueueMessage): void {
 	span.setAttribute("uploadId", payload.uploadId);
 	span.setAttribute("fileId", payload.fileId);
-	span.setAttribute("logId", payload.logId);
+	span.setAttribute("processId", payload.processId);
 	span.setAttribute("userId", payload.userId);
 	span.setAttribute("fileType", payload.fileType);
 }
@@ -148,7 +148,7 @@ async function parseCVFile(
 
 async function updateOutboxWithResult(
 	env: Env,
-	logId: string,
+	processId: string,
 	parsedData: Awaited<ReturnType<typeof parseCV>>,
 	tracer: ReturnType<typeof trace.getTracer>,
 	parentSpan: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>,
@@ -158,10 +158,10 @@ async function updateOutboxWithResult(
 		{},
 		context.active().setValue(Symbol.for("OpenTelemetry Context Key SPAN"), parentSpan),
 	);
-	updateSpan.setAttribute("logId", logId);
+	updateSpan.setAttribute("processId", processId);
 	updateSpan.setAttribute("status", "completed");
 
-	await updateOutboxStatus(env, logId, "completed", parsedData);
+	await updateOutboxStatus(env, processId, "completed", parsedData);
 	
 	updateSpan.end();
 }
@@ -189,7 +189,7 @@ async function completeProcessing(
 async function handleProcessingError(
 	error: unknown,
 	env: Env,
-	logId: string,
+	processId: string,
 	logger: Logger,
 	logContext: LogContext,
 	startTime: number,
@@ -210,7 +210,7 @@ async function handleProcessingError(
 	);
 
 	// Update outbox to failed status
-	await updateOutboxStatus(env, logId, "failed", null, errorMessage);
+	await updateOutboxStatus(env, processId, "failed", null, errorMessage);
 
 	// Record error in span
 	span.recordException(error instanceof Error ? error : new Error(String(error)));

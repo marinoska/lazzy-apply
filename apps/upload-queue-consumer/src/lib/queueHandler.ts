@@ -17,7 +17,7 @@ export async function handleQueueBatch(
 	logger.info("Processing queue batch", {
 		batchSize: batch.messages.length,
 		environment: env.ENVIRONMENT,
-		logIds: batch.messages.map(m => m.body.logId).join(", "),
+		processIds: batch.messages.map(m => m.body.processId).join(", "),
 		operation: "queue_batch",
 	});
 
@@ -43,13 +43,13 @@ function handleFailedMessage(
 	ctx: ExecutionContext,
 	logger: Logger,
 ): void {
-	const { logId } = message.body;
+	const { processId } = message.body;
 	const attempts = message.attempts;
 
 	logger.error(
 		"Queue message processing failed",
 		{
-			logId,
+			processId,
 			attempts,
 			operation: "queue_message",
 		},
@@ -57,11 +57,11 @@ function handleFailedMessage(
 	);
 
 	if (attempts < MAX_RETRIES) {
-		logger.info("Retrying queue message", { logId, attempts, operation: "queue_retry" });
+		logger.info("Retrying queue message", { processId, attempts, operation: "queue_retry" });
 		message.retry();
 	} else {
 		logger.error("Message exceeded max retries, sending to DLQ", {
-			logId,
+			processId,
 			attempts,
 			maxRetries: MAX_RETRIES,
 			operation: "queue_dlq",
@@ -76,7 +76,7 @@ function handleSuccessfulMessage(
 	logger: Logger,
 ): void {
 	logger.info("Queue message processed successfully", {
-		logId: message.body.logId,
+		processId: message.body.processId,
 		batchIndex: index,
 		operation: "queue_message",
 	});
