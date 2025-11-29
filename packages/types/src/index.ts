@@ -93,4 +93,13 @@ export interface ParsedCVData {
 	rawText: string;
 }
 
+/**
+ * Token usage from AI processing
+ */
+export type TokenUsage = {
+	promptTokens: number;
+	completionTokens: number;
+	totalTokens: number;
+};
+
 // Add more shared types here

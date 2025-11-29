@@ -1,5 +1,6 @@
 import { CacheProvider } from "@emotion/react";
 import { CssVarsProvider } from "@mui/joy/styles";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { StoredSession } from "../../lib/supabase.js";
 import { SidebarView } from "./SidebarView.js";
 import { setupShadowDOM } from "./shadowDOM.js";
@@ -19,6 +20,16 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
 	// Setup shadow DOM
 	const { root, theme, emotionCache, shadowRootElement } = setupShadowDOM();
 
+	// Setup React Query
+	const queryClient = new QueryClient({
+		defaultOptions: {
+			queries: {
+				refetchOnWindowFocus: false,
+				staleTime: 5 * 60 * 1000, // 5 minutes
+			},
+		},
+	});
+
 	// State management
 	const update = (partial: Partial<SidebarState>): void => {
 		Object.assign(state, partial);
@@ -27,21 +38,23 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
 
 	const render = (): void => {
 		root.render(
-			<CacheProvider value={emotionCache}>
-				<CssVarsProvider
-					theme={theme}
-					colorSchemeNode={shadowRootElement} // where the data-joy-color-scheme attr is set
-					colorSchemeSelector=":host" // so the vars live on the shadow root
-					disableNestedContext
-				>
-			<SidebarView
-						state={state}
-						onClose={hide}
-						onSignIn={handleSignIn}
-						onSignOut={handleSignOut}
-					/>
-				</CssVarsProvider>
-			</CacheProvider>,
+			<QueryClientProvider client={queryClient}>
+				<CacheProvider value={emotionCache}>
+					<CssVarsProvider
+						theme={theme}
+						colorSchemeNode={shadowRootElement} // where the data-joy-color-scheme attr is set
+						colorSchemeSelector=":host" // so the vars live on the shadow root
+						disableNestedContext
+					>
+						<SidebarView
+							state={state}
+							onClose={hide}
+							onSignIn={handleSignIn}
+							onSignOut={handleSignOut}
+						/>
+					</CssVarsProvider>
+				</CacheProvider>
+			</QueryClientProvider>,
 		);
 	};
 

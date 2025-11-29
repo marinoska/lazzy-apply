@@ -1,12 +1,11 @@
-import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
-import Divider from "@mui/joy/Divider";
-import React, { useState } from "react";
-import { DropzoneBox } from "../../../components/DropzoneBox.js";
+import Stack from "@mui/joy/Stack";
+import { useState } from "react";
+import { DropzoneBox } from "@/components/DropzoneBox.js";
 
 interface UploadSectionProps {
 	visible: boolean;
-	onCancel: () => void;
+	onCancel: () => void;	
 	onUploadComplete: (fileId: string, objectKey: string) => void;
 	onUploadError: (error: string) => void;
 }
@@ -27,30 +26,21 @@ export function UploadSection({
 	};
 
 	return (
-		<>
-			<Box
-				sx={{
-					display: "flex",
-					flexDirection: "column",
-					alignItems: "center",
-					gap: 2,
-				}}
+		<Stack direction="column" spacing={2} alignItems="center">
+			<DropzoneBox
+				file={file}
+				setFile={setFile}
+				onUploadComplete={onUploadComplete}
+				onUploadError={onUploadError}
+			/>
+			<Button
+				variant="outlined"
+				color="neutral"
+				size="sm"
+				onClick={handleCancel}
 			>
-				<DropzoneBox
-					file={file}
-					setFile={setFile}
-					onUploadComplete={onUploadComplete}
-					onUploadError={onUploadError}
-				/>
-				<Button
-					variant="outlined"
-					color="neutral"
-					size="sm"
-					onClick={handleCancel}
-				>
-					Cancel
-				</Button>
-			</Box>
-		</>
+				Cancel
+			</Button>
+		</Stack>
 	);
 }

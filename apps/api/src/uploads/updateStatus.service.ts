@@ -154,7 +154,7 @@ const validateAndPromoteUpload = async (
 	// Immediately send to parse queue for faster processing
 	// The outbox worker will retry if this fails
 	try {
-		const outboxEntry = await OutboxModel.findByProcessId(fileUpload.processId);
+		const outboxEntry = await OutboxModel.findByFileId(fileUpload.fileId);
 		if (outboxEntry && outboxEntry.status === "pending") {
 			await sendToParseQueue(
 				{

@@ -1,4 +1,4 @@
-import type { ParsedCVData } from "@lazyapply/types";
+import type { ParsedCVData, TokenUsage } from "@lazyapply/types";
 import type { Env } from "../types";
 import { Logger } from "./logger";
 
@@ -11,6 +11,7 @@ export async function updateOutboxStatus(
 	status: "completed" | "failed",
 	data: ParsedCVData | null,
 	error?: string,
+	usage?: TokenUsage,
 ): Promise<void> {
 	const logger = new Logger(env);
 	try {
@@ -31,6 +32,7 @@ export async function updateOutboxStatus(
 				status,
 				data,
 				error,
+				usage,
 			}),
 		});
 

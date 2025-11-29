@@ -18,6 +18,10 @@ import {
 	completeUploadController,
 	completeUploadRequestSchema,
 } from "./uploads/setUploadStatus.js";
+import {
+	getUploadsController,
+	getUploadsQuerySchema,
+} from "./uploads/getUploads.js";
 
 export const registerRoutes = (app: Express) => {
 	const router = Router();
@@ -37,6 +41,12 @@ export const registerRoutes = (app: Express) => {
 		authenticateUser,
 		validateRequest({ body: completeUploadRequestSchema }),
 		completeUploadController,
+	);
+	router.get(
+		"/uploads",
+		authenticateUser,
+		validateRequest({ query: getUploadsQuerySchema }),
+		getUploadsController,
 	);
 
 	// Outbox status update endpoint (called by queue consumer worker)

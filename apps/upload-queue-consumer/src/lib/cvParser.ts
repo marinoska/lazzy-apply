@@ -2,7 +2,7 @@ import type { FileUploadContentType, ParsedCVData } from "@lazyapply/types";
 import type { Env } from "../types";
 import { Logger } from "./logger";
 import { extractText } from "./extractText";
-import { extractCVData } from "./extractCVData";
+import { extractCVData, type ExtractCVDataResult } from "./extractCVData";
 
 /**
  * Parse CV file using AI extraction
@@ -12,7 +12,7 @@ export async function parseCV(
 	fileId: string,
 	expectedFileType: FileUploadContentType,
 	env: Env,
-): Promise<ParsedCVData> {
+): Promise<ExtractCVDataResult> {
 	const logger = new Logger(env);
 	logger.debug("Starting CV parsing", {
 		fileId,
@@ -39,12 +39,15 @@ export async function parseCV(
 		fileId,
 		operation: "openai_extract",
 	});
-	const parsedData = await extractCVData(cvText, env.OPENAI_API_KEY);
+	const result = await extractCVData(cvText, env.OPENAI_API_KEY);
 
 	logger.info("Successfully extracted CV data", {
 		fileId,
 		operation: "parse",
+		promptTokens: result.usage.promptTokens,
+		completionTokens: result.usage.completionTokens,
+		totalTokens: result.usage.totalTokens,
 	});
 
-	return parsedData;
+	return result;
 }

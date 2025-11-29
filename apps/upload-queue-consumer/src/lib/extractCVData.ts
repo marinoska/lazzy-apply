@@ -154,13 +154,22 @@ OUTPUT SCHEMA:
 
 NOW EXTRACT THE DATA.`;
 
+export type ExtractCVDataResult = {
+	parsedData: ParsedCVData;
+	usage: {
+		promptTokens: number;
+		completionTokens: number;
+		totalTokens: number;
+	};
+};
+
 /**
  * Extract structured CV data from raw text using GPT-4o-mini
  */
 export async function extractCVData(
 	cvText: string,
 	openaiApiKey: string,
-): Promise<ParsedCVData> {
+): Promise<ExtractCVDataResult> {
 	try {
 		// Create OpenAI client with API key
 		const openai = createOpenAI({
@@ -236,7 +245,14 @@ export async function extractCVData(
 			rawText: extractedData.rawText,
 		};
 
-		return parsedData;
+		return {
+			parsedData,
+			usage: {
+				promptTokens: result.usage.inputTokens ?? 0,
+				completionTokens: result.usage.outputTokens ?? 0,
+				totalTokens: result.usage.totalTokens ?? 0,
+			},
+		};
 	} catch (error) {
 		console.error("[extractCVData] Error extracting CV data:", error);
 		

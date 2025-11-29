@@ -9,6 +9,7 @@ import {
 	SidebarHeader,
 	StatusMessage,
 	UploadSection,
+	UploadsList,
 	UserInfo,
 } from "./components/index.js";
 import type { SidebarViewProps } from "./types.js";
@@ -62,7 +63,7 @@ export function SidebarView({
 
 					{/* <UserInfo session={session} loading={loading} /> */}
 
-					<Divider orientation="horizontal" color="border" />
+					{session && <UploadsList />}
 
 					{!showDropzone && (
 						<ActionButtons

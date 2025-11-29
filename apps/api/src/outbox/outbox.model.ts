@@ -68,6 +68,18 @@ const outboxSchema = new Schema<
 			type: Date,
 			required: false,
 		},
+		promptTokens: {
+			type: Number,
+			required: false,
+		},
+		completionTokens: {
+			type: Number,
+			required: false,
+		},
+		totalTokens: {
+			type: Number,
+			required: false,
+		},
 	},
 	{ timestamps: true },
 );

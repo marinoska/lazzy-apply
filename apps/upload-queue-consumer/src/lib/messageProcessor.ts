@@ -33,21 +33,23 @@ export async function processMessage(
 	setSpanAttributes(span, payload);
 
 	const startTime = Date.now();
+	let tokenUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | undefined;
 
 	try {
 		// 1. Download and validate file
 		const file = await downloadAndValidateFile(env, fileId, logContext, logger, tracer, span);
 
-		// 2. Parse the CV
-		const parsedData = await parseCVFile(file, fileId, fileType, env, logContext, logger, tracer, span);
+		// 2. Parse the CV - capture token usage even if subsequent steps fail
+		const result = await parseCVFile(file, fileId, fileType, env, logContext, logger, tracer, span);
+		tokenUsage = result.usage;
 
 		// 3. Update outbox status
-		await updateOutboxWithResult(env, processId, parsedData, tracer, span);
+		await updateOutboxWithResult(env, processId, result, tracer, span);
 
 		// 4. Complete processing
 		await completeProcessing(logger, logContext, startTime, span);
 	} catch (error) {
-		await handleProcessingError(error, env, processId, logger, logContext, startTime, span);
+		await handleProcessingError(error, env, processId, logger, logContext, startTime, span, tokenUsage);
 		throw error;
 	}
 }
@@ -132,8 +134,11 @@ async function parseCVFile(
 	parseSpan.setAttribute("fileId", fileId);
 	parseSpan.setAttribute("fileType", fileType);
 
-	const parsedData = await parseCV(file, fileId, fileType, env);
+	const result = await parseCV(file, fileId, fileType, env);
 	
+	parseSpan.setAttribute("promptTokens", result.usage.promptTokens);
+	parseSpan.setAttribute("completionTokens", result.usage.completionTokens);
+	parseSpan.setAttribute("totalTokens", result.usage.totalTokens);
 	parseSpan.end();
 	const parseDuration = Date.now() - parseStart;
 	
@@ -141,15 +146,18 @@ async function parseCVFile(
 		...logContext,
 		operation: "parse",
 		duration: parseDuration,
+		promptTokens: result.usage.promptTokens,
+		completionTokens: result.usage.completionTokens,
+		totalTokens: result.usage.totalTokens,
 	});
 
-	return parsedData;
+	return result;
 }
 
 async function updateOutboxWithResult(
 	env: Env,
 	processId: string,
-	parsedData: Awaited<ReturnType<typeof parseCV>>,
+	result: Awaited<ReturnType<typeof parseCV>>,
 	tracer: ReturnType<typeof trace.getTracer>,
 	parentSpan: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>,
 ): Promise<void> {
@@ -161,7 +169,14 @@ async function updateOutboxWithResult(
 	updateSpan.setAttribute("processId", processId);
 	updateSpan.setAttribute("status", "completed");
 
-	await updateOutboxStatus(env, processId, "completed", parsedData);
+	await updateOutboxStatus(
+		env,
+		processId,
+		"completed",
+		result.parsedData,
+		undefined,
+		result.usage,
+	);
 	
 	updateSpan.end();
 }
@@ -194,6 +209,7 @@ async function handleProcessingError(
 	logContext: LogContext,
 	startTime: number,
 	span: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>,
+	tokenUsage?: { promptTokens: number; completionTokens: number; totalTokens: number },
 ): Promise<void> {
 	const errorMessage = error instanceof Error ? error.message : String(error);
 	const totalDuration = Date.now() - startTime;
@@ -205,12 +221,17 @@ async function handleProcessingError(
 			operation: "complete",
 			duration: totalDuration,
 			status: "failed",
+			...(tokenUsage && {
+				promptTokens: tokenUsage.promptTokens,
+				completionTokens: tokenUsage.completionTokens,
+				totalTokens: tokenUsage.totalTokens,
+			}),
 		},
 		error instanceof Error ? error : new Error(String(error)),
 	);
 
-	// Update outbox to failed status
-	await updateOutboxStatus(env, processId, "failed", null, errorMessage);
+	// Update outbox to failed status - include token usage if available
+	await updateOutboxStatus(env, processId, "failed", null, errorMessage, tokenUsage);
 
 	// Record error in span
 	span.recordException(error instanceof Error ? error : new Error(String(error)));

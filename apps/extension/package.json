@@ -20,6 +20,7 @@
 		"@mui/icons-material": "^6.0.0",
 		"@mui/joy": "^5.0.0-beta.52",
 		"@supabase/supabase-js": "^2.78.0",
+		"@tanstack/react-query": "^5.90.11",
 		"qs": "^6.11.0",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0",

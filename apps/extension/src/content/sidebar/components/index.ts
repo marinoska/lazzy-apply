@@ -4,3 +4,4 @@ export { LoadingIndicator } from "./LoadingIndicator.js";
 export { UserInfo } from "./UserInfo.js";
 export { ActionButtons } from "./ActionButtons.js";
 export { UploadSection } from "./UploadSection.js";
+export { UploadsList } from "./UploadsList.js";

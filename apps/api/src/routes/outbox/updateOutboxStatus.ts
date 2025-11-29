@@ -18,6 +18,11 @@ export const updateOutboxBodySchema = z
 		status: z.enum(["completed", "failed"]),
 		data: z.any().nullable().optional(), // ParsedCVData
 		error: z.string().optional(),
+		usage: z.object({
+			promptTokens: z.number(),
+			completionTokens: z.number(),
+			totalTokens: z.number(),
+		}).optional(),
 	})
 	.refine(
 		(body) => {
@@ -39,7 +44,7 @@ export const updateOutboxBodySchema = z
  */
 export async function updateOutboxStatus(req: Request, res: Response) {
 	const { processId } = req.params;
-	const { status, data, error } = req.body;
+	const { status, data, error, usage } = req.body;
 
 	log.info({ processId, status }, "Updating outbox status");
 
@@ -53,7 +58,7 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 		const session = await mongoose.startSession();
 		await session.withTransaction(async () => {
 			// 1. Create new outbox entry with completed status
-			await OutboxModel.markAsCompleted(outboxEntry);
+			await OutboxModel.markAsCompleted(outboxEntry, usage);
 
 			// 2. Save parsed CV data (guaranteed to exist due to schema validation)
 			const cvDataPayload = {
@@ -67,6 +72,11 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 				personal: cvDataPayload.personal,
 				linksCount: cvDataPayload.links?.length,
 				languagesCount: cvDataPayload.languages?.length,
+				...(usage && {
+					promptTokens: usage.promptTokens,
+					completionTokens: usage.completionTokens,
+					totalTokens: usage.totalTokens,
+				}),
 			}, "Saving CV data to database");
 			
 			await CVDataModel.createCVData(cvDataPayload);
@@ -81,8 +91,17 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 		await OutboxModel.markAsFailed(
 			outboxEntry,
 			error || "Processing failed",
+			usage,
 		);
-		log.error({ processId, error }, "Created failed outbox entry");
+		log.error({ 
+			processId, 
+			error,
+			...(usage && {
+				promptTokens: usage.promptTokens,
+				completionTokens: usage.completionTokens,
+				totalTokens: usage.totalTokens,
+			}),
+		}, "Created failed outbox entry");
 	}
 
 	return res.status(200).json({

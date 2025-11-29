@@ -1,11 +1,6 @@
-import {
-	type UploadSignedUrlResponse,
-	completeUpload,
-	getUploadSignedUrl,
-	uploadFileToSignedUrl,
-} from "@/lib/api/api.js";
 import { MAXIMUM_UPLOAD_SIZE_BYTES } from "@/lib/consts.js";
 import { validateFileContent } from "@/lib/files.js";
+import { useUploadMutation } from "@/hooks/useUploadMutation.js";
 import type { StateSetter } from "@/types.js";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CloseIcon from "@mui/icons-material/Close";
@@ -16,7 +11,7 @@ import Button from "@mui/joy/Button";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Snackbar } from "./Snackbar";
 
@@ -32,8 +27,15 @@ export const DropzoneBox = ({
 	onUploadError?: (error: string) => void;
 }) => {
 	const [error, setError] = useState("");
-	const [uploading, setUploading] = useState(false);
 	const [uploadSuccess, setUploadSuccess] = useState(false);
+	const uploadMutation = useUploadMutation();
+
+	// Reset uploadSuccess when file is cleared
+	useEffect(() => {
+		if (!file) {
+			setUploadSuccess(false);
+		}
+	}, [file]);
 
 	const onDrop = async (acceptedFiles: File[]) => {
 		if (acceptedFiles.length > 1) {
@@ -55,38 +57,34 @@ export const DropzoneBox = ({
 	const handleUpload = async () => {
 		if (!file) return;
 
-		setUploading(true);
 		setError("");
 		setUploadSuccess(false);
-		let uploadDetails: UploadSignedUrlResponse | null = null;
 
-		try {
-			// Get signed URL from API
-			uploadDetails = await getUploadSignedUrl(file.name, file.type, file.size);
+		uploadMutation.mutate(
+			{ file },
+			{
+				onSuccess: (completeResponse) => {
+					setUploadSuccess(true);
 
-			// Upload file to signed URL
-			await uploadFileToSignedUrl(file, uploadDetails);
+					// Use the returned fileId (might be different if deduplicated)
+					const finalFileId = completeResponse.fileId;
+					const finalObjectKey = `cv/${finalFileId}`;
 
-			// Signal completion - server validates and promotes from quarantine
-			const completeResponse = await completeUpload(uploadDetails.fileId);
-
-			setUploadSuccess(true);
-
-			// Use the returned fileId (might be different if deduplicated)
-			const finalFileId = completeResponse.fileId;
-			const finalObjectKey = `cv/${finalFileId}`;
-
-			onUploadComplete?.(finalFileId, finalObjectKey);
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : "Upload failed";
-			setError(errorMessage);
-			setUploadSuccess(false);
-			// Call error callback
-			onUploadError?.(errorMessage);
-			// Note: Worker will clean up failed uploads from quarantine after timeout
-		} finally {
-			setUploading(false);
-		}
+					onUploadComplete?.(finalFileId, finalObjectKey);
+					// Clear the file after successful upload
+					setFile(null);
+				},
+				onError: (err) => {
+					const errorMessage =
+						err instanceof Error ? err.message : "Upload failed";
+					setError(errorMessage);
+					setUploadSuccess(false);
+					// Call error callback
+					onUploadError?.(errorMessage);
+					// Note: Worker will clean up failed uploads from quarantine after timeout
+				},
+			},
+		);
 	};
 
 	const { getRootProps, getInputProps, open } = useDropzone({
@@ -135,7 +133,7 @@ export const DropzoneBox = ({
 											setUploadSuccess(false);
 										}}
 										color="neutral"
-										disabled={uploading}
+										disabled={uploadMutation.isPending}
 									>
 										<CloseIcon />
 									</Button>
@@ -150,12 +148,16 @@ export const DropzoneBox = ({
 								size="md"
 								color="primary"
 								onClick={handleUpload}
-								disabled={uploading}
+								disabled={uploadMutation.isPending}
 								startDecorator={
-									uploading ? <CircularProgress size="sm" /> : <CloudUpload />
+									uploadMutation.isPending ? (
+										<CircularProgress size="sm" />
+									) : (
+										<CloudUpload />
+									)
 								}
 							>
-								{uploading ? "Uploading..." : "Upload File"}
+								{uploadMutation.isPending ? "Uploading..." : "Upload File"}
 							</Button>
 						</Stack>
 					) : (

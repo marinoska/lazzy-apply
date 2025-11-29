@@ -66,3 +66,45 @@ export async function completeUpload(
 		fileId,
 	});
 }
+
+export type UploadDTO = {
+	fileId: string;
+	originalFilename: string;
+	contentType: "PDF" | "DOCX";
+	status: UploadStatus;
+	size?: number;
+	createdAt: string;
+	updatedAt: string;
+};
+
+export interface GetUploadsResponse {
+	uploads: UploadDTO[];
+	total: number;
+	limit: number;
+	offset: number;
+}
+
+export interface GetUploadsParams {
+	limit?: number;
+	offset?: number;
+}
+
+/**
+ * Get user's uploaded files
+ */
+export async function getUploads(
+	params: GetUploadsParams = {},
+): Promise<GetUploadsResponse> {
+	const queryParams = new URLSearchParams();
+	if (params.limit !== undefined) {
+		queryParams.append("limit", params.limit.toString());
+	}
+	if (params.offset !== undefined) {
+		queryParams.append("offset", params.offset.toString());
+	}
+
+	const queryString = queryParams.toString();
+	const path = queryString ? `/uploads?${queryString}` : "/uploads";
+
+	return sendApiRequest<GetUploadsResponse>("GET", path);
+}

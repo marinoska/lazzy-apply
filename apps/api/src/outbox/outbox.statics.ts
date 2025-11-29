@@ -18,7 +18,7 @@ export const registerOutboxStatics = (
 		});
 	};
 
-	schema.statics.createWithStatus = async function (original, status, error) {
+	schema.statics.createWithStatus = async function (original, status, error, usage) {
 		const newEntry: Partial<TOutbox> = {
 			processId: original.processId,
 			type: original.type,
@@ -37,6 +37,12 @@ export const registerOutboxStatics = (
 			newEntry.processedAt = new Date();
 		}
 
+		if (usage) {
+			newEntry.promptTokens = usage.promptTokens;
+			newEntry.completionTokens = usage.completionTokens;
+			newEntry.totalTokens = usage.totalTokens;
+		}
+
 		return await this.create(newEntry);
 	};
 
@@ -44,12 +50,12 @@ export const registerOutboxStatics = (
 		return await this.createWithStatus(original, "processing");
 	};
 
-	schema.statics.markAsCompleted = async function (original) {
-		return await this.createWithStatus(original, "completed");
+	schema.statics.markAsCompleted = async function (original, usage) {
+		return await this.createWithStatus(original, "completed", undefined, usage);
 	};
 
-	schema.statics.markAsFailed = async function (original, error) {
-		return await this.createWithStatus(original, "failed", error);
+	schema.statics.markAsFailed = async function (original, error, usage) {
+		return await this.createWithStatus(original, "failed", error, usage);
 	};
 
 	schema.statics.findPendingLogs = async function (limit) {

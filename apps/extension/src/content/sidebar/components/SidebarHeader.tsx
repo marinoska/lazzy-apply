@@ -19,7 +19,7 @@ export function SidebarHeader({
 	return (
 		<Stack direction="row" justifyContent="space-between" alignItems="center">
 			<Typography level="title-lg" sx={{ fontWeight: 600 }}>
-				LazyApplyAgent
+				JobAutoFill
 			</Typography>
 			<Stack direction="row" alignItems="center">
 				{session && <LogoutButton onSignOut={onSignOut} />}

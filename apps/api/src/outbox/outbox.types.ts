@@ -1,5 +1,5 @@
 import type { Document, Model } from "mongoose";
-import type { FileUploadContentType } from "@lazyapply/types";
+import type { FileUploadContentType, TokenUsage } from "@lazyapply/types";
 
 export type OutboxStatus = "pending" | "processing" | "completed" | "failed";
 
@@ -17,6 +17,10 @@ export type TOutbox = {
 	fileType: FileUploadContentType;
 	error?: string;
 	processedAt?: Date;
+	// Token usage from AI processing
+	promptTokens?: number;
+	completionTokens?: number;
+	totalTokens?: number;
 	createdAt: Date;
 	updatedAt: Date;
 };
@@ -35,6 +39,7 @@ export type OutboxStatics = {
 		original: Pick<TOutbox, "processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType">,
 		status: OutboxStatus,
 		error?: string,
+		usage?: TokenUsage,
 	): Promise<OutboxDocument>;
 	markAsProcessing(
 		this: OutboxModelWithStatics,
@@ -43,11 +48,13 @@ export type OutboxStatics = {
 	markAsCompleted(
 		this: OutboxModelWithStatics,
 		original: Pick<TOutbox, "processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType">,
+		usage?: TokenUsage,
 	): Promise<OutboxDocument>;
 	markAsFailed(
 		this: OutboxModelWithStatics,
 		original: Pick<TOutbox, "processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType">,
 		error: string,
+		usage?: TokenUsage,
 	): Promise<OutboxDocument>;
 	findPendingLogs(
 		this: OutboxModelWithStatics,

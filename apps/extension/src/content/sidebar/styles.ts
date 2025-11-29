@@ -14,7 +14,7 @@ export function getSidebarStyles(): string {
     .overlay {
       position: fixed;
       inset: 0 0 0 auto;
-      width: 320px;
+      width: 360px;
       max-width: calc(100vw - 32px);
       padding: 16px;
       z-index: 2147483647;
