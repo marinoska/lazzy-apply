@@ -42,7 +42,7 @@ export const getUploadsController = async (
 
 	const { limit, offset } = req.query as unknown as GetUploadsQuery;
 
-	// Find uploaded files for the user (exclude pending and failed)
+	// Find uploaded files for the user (exclude pending, failed, and deleted)
 	const uploads = await FileUploadModel.find({
 		status: { $in: ["uploaded", "deduplicated"] },
 	})

@@ -108,3 +108,17 @@ export async function getUploads(
 
 	return sendApiRequest<GetUploadsResponse>("GET", path);
 }
+
+export interface DeleteUploadResponse {
+	fileId: string;
+	status: "deleted-by-user";
+}
+
+/**
+ * Delete an uploaded file
+ */
+export async function deleteUpload(
+	fileId: string,
+): Promise<DeleteUploadResponse> {
+	return sendApiRequest<DeleteUploadResponse>("DELETE", `/uploads/${fileId}`);
+}

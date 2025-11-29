@@ -5,7 +5,8 @@ export type FileUploadStatus =
 	| "pending"
 	| "uploaded"
 	| "failed"
-	| "deduplicated";
+	| "deduplicated"
+	| "deleted-by-user";
 
 export const FILE_UPLOAD_MODEL_NAME = "file_uploads" as const;
 

@@ -22,6 +22,10 @@ import {
 	getUploadsController,
 	getUploadsQuerySchema,
 } from "./uploads/getUploads.js";
+import {
+	deleteUploadController,
+	deleteUploadParamsSchema,
+} from "./uploads/deleteUpload.js";
 
 export const registerRoutes = (app: Express) => {
 	const router = Router();
@@ -47,6 +51,12 @@ export const registerRoutes = (app: Express) => {
 		authenticateUser,
 		validateRequest({ query: getUploadsQuerySchema }),
 		getUploadsController,
+	);
+	router.delete(
+		"/uploads/:fileId",
+		authenticateUser,
+		validateRequest({ params: deleteUploadParamsSchema }),
+		deleteUploadController,
 	);
 
 	// Outbox status update endpoint (called by queue consumer worker)

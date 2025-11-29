@@ -72,7 +72,7 @@ const fileUploadSchema = new Schema<
 		},
 		status: {
 			type: String,
-			enum: ["pending", "uploaded", "failed", "deduplicated"],
+			enum: ["pending", "uploaded", "failed", "deduplicated", "deleted-by-user"],
 			default: "pending",
 		},
 		deduplicatedFrom: {
@@ -109,6 +109,11 @@ fileUploadSchema.pre("save", async function (this, next) {
 	}
 
 	if (this.isModified("status")) {
+		// Allow transition to deleted-by-user from any state
+		if (this.status === "deleted-by-user") {
+			return next();
+		}
+
 		if (this.$locals.immutable) {
 			throw new Error(
 				`Cannot modify file upload in terminal state: ${this.status}`,
