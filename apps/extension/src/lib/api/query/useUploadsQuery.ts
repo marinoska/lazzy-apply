@@ -3,8 +3,8 @@ import {
 	getUploads,
 	type GetUploadsParams,
 	type GetUploadsResponse,
-} from "../lib/api/api.js";
-import { uploadsKeys } from "../lib/api/queryKeys.js";
+} from "../api.js";
+import { uploadsKeys } from "../queryKeys.js";
 
 const TIMES_THREE = 3;
 

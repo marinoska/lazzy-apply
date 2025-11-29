@@ -4,8 +4,8 @@ import {
 	getUploadSignedUrl,
 	uploadFileToSignedUrl,
 	type CompleteUploadResponse,
-} from "../lib/api/api.js";
-import { uploadsKeys } from "../lib/api/queryKeys.js";
+} from "../api.js";
+import { uploadsKeys } from "../queryKeys.js";
 
 interface UploadParams {
 	file: File;
