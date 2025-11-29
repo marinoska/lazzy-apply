@@ -41,6 +41,15 @@ export const registerOutboxStatics = (
 			newEntry.promptTokens = usage.promptTokens;
 			newEntry.completionTokens = usage.completionTokens;
 			newEntry.totalTokens = usage.totalTokens;
+			if (usage.inputCost !== undefined) {
+				newEntry.inputCost = usage.inputCost;
+			}
+			if (usage.outputCost !== undefined) {
+				newEntry.outputCost = usage.outputCost;
+			}
+			if (usage.totalCost !== undefined) {
+				newEntry.totalCost = usage.totalCost;
+			}
 		}
 
 		return await this.create(newEntry);

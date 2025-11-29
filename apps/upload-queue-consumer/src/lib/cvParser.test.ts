@@ -38,20 +38,41 @@ describe("cvParser", () => {
 			const mockBuffer = new ArrayBuffer(100);
 			const mockText = "Sample CV text content";
 			const mockParsedData = {
-				personal: {
-					fullName: "Jane Doe",
-					email: "jane@example.com",
-					phone: null,
-					location: null,
+				parsedData: {
+					personal: {
+						fullName: "Jane Doe",
+						email: "jane@example.com",
+						phone: null,
+						location: null,
+						nationality: null,
+						rightToWork: null,
+					},
+					links: [],
+					summary: "Software Engineer",
+					experience: [],
+					education: [],
+					certifications: [],
+					languages: [],
+					extras: {
+						drivingLicense: null,
+						workPermit: null,
+						willingToRelocate: null,
+						remotePreference: null,
+						noticePeriod: null,
+						availability: null,
+						salaryExpectation: null,
+					},
+					rawText: mockText,
 				},
-				links: [],
-				summary: "Software Engineer",
-				experience: [],
-				education: [],
-				certifications: [],
-				languages: [],
-				extras: {},
-				rawText: mockText,
+				usage: {
+					promptTokens: 100,
+					completionTokens: 50,
+					totalTokens: 150,
+					inputCost: 0.001,
+					outputCost: 0.0005,
+					totalCost: 0.0015,
+				},
+				finishReason: 'stop' as const,
 			};
 
 			vi.mocked(extractText).mockResolvedValue(mockText);
@@ -68,20 +89,41 @@ describe("cvParser", () => {
 			const mockBuffer = new ArrayBuffer(200);
 			const mockText = "DOCX CV content";
 			const mockParsedData = {
-				personal: {
-					fullName: "John Smith",
-					email: null,
-					phone: null,
-					location: null,
+				parsedData: {
+					personal: {
+						fullName: "John Smith",
+						email: null,
+						phone: null,
+						location: null,
+						nationality: null,
+						rightToWork: null,
+					},
+					links: [],
+					summary: null,
+					experience: [],
+					education: [],
+					certifications: [],
+					languages: [],
+					extras: {
+						drivingLicense: null,
+						workPermit: null,
+						willingToRelocate: null,
+						remotePreference: null,
+						noticePeriod: null,
+						availability: null,
+						salaryExpectation: null,
+					},
+					rawText: mockText,
 				},
-				links: [],
-				summary: null,
-				experience: [],
-				education: [],
-				certifications: [],
-				languages: [],
-				extras: {},
-				rawText: mockText,
+				usage: {
+					promptTokens: 80,
+					completionTokens: 40,
+					totalTokens: 120,
+					inputCost: 0.0008,
+					outputCost: 0.0004,
+					totalCost: 0.0012,
+				},
+				finishReason: 'stop' as const,
 			};
 
 			vi.mocked(extractText).mockResolvedValue(mockText);
@@ -124,20 +166,41 @@ describe("cvParser", () => {
 			const mockBuffer = new ArrayBuffer(50);
 			const emptyText = "";
 			const mockParsedData = {
-				personal: {
-					fullName: null,
-					email: null,
-					phone: null,
-					location: null,
+				parsedData: {
+					personal: {
+						fullName: null,
+						email: null,
+						phone: null,
+						location: null,
+						nationality: null,
+						rightToWork: null,
+					},
+					links: [],
+					summary: null,
+					experience: [],
+					education: [],
+					certifications: [],
+					languages: [],
+					extras: {
+						drivingLicense: null,
+						workPermit: null,
+						willingToRelocate: null,
+						remotePreference: null,
+						noticePeriod: null,
+						availability: null,
+						salaryExpectation: null,
+					},
+					rawText: emptyText,
 				},
-				links: [],
-				summary: null,
-				experience: [],
-				education: [],
-				certifications: [],
-				languages: [],
-				extras: {},
-				rawText: emptyText,
+				usage: {
+					promptTokens: 50,
+					completionTokens: 20,
+					totalTokens: 70,
+					inputCost: 0.0005,
+					outputCost: 0.0002,
+					totalCost: 0.0007,
+				},
+				finishReason: 'stop' as const,
 			};
 
 			vi.mocked(extractText).mockResolvedValue(emptyText);

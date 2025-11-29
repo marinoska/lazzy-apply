@@ -21,6 +21,9 @@ export type TOutbox = {
 	promptTokens?: number;
 	completionTokens?: number;
 	totalTokens?: number;
+	inputCost?: number; // Input cost in USD
+	outputCost?: number; // Output cost in USD
+	totalCost?: number; // Total cost in USD
 	createdAt: Date;
 	updatedAt: Date;
 };

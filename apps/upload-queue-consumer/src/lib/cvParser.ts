@@ -34,12 +34,12 @@ export async function parseCV(
 		operation: "extract_text",
 	});
 
-	// 2. Extract structured data using GPT-4o-mini
+	// 2. Extract structured data using configured AI model
 	logger.debug("Calling OpenAI API for data extraction", {
 		fileId,
 		operation: "openai_extract",
 	});
-	const result = await extractCVData(cvText, env.OPENAI_API_KEY);
+	const result = await extractCVData(cvText, env);
 
 	logger.info("Successfully extracted CV data", {
 		fileId,
@@ -47,6 +47,9 @@ export async function parseCV(
 		promptTokens: result.usage.promptTokens,
 		completionTokens: result.usage.completionTokens,
 		totalTokens: result.usage.totalTokens,
+		inputCost: result.usage.inputCost,
+		outputCost: result.usage.outputCost,
+		totalCost: result.usage.totalCost,
 	});
 
 	return result;

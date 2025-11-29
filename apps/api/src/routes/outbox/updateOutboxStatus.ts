@@ -22,6 +22,9 @@ export const updateOutboxBodySchema = z
 			promptTokens: z.number(),
 			completionTokens: z.number(),
 			totalTokens: z.number(),
+			inputCost: z.number().optional(),
+			outputCost: z.number().optional(),
+			totalCost: z.number().optional(),
 		}).optional(),
 	})
 	.refine(
@@ -76,13 +79,27 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 					promptTokens: usage.promptTokens,
 					completionTokens: usage.completionTokens,
 					totalTokens: usage.totalTokens,
+					inputCost: usage.inputCost,
+					outputCost: usage.outputCost,
+					totalCost: usage.totalCost,
 				}),
 			}, "Saving CV data to database");
 			
 			await CVDataModel.createCVData(cvDataPayload);
 
 			log.info(
-				{ processId, uploadId: outboxEntry.uploadId },
+				{ 
+					processId, 
+					uploadId: outboxEntry.uploadId,
+					...(usage && {
+						promptTokens: usage.promptTokens,
+						completionTokens: usage.completionTokens,
+						totalTokens: usage.totalTokens,
+						inputCost: usage.inputCost,
+						outputCost: usage.outputCost,
+						totalCost: usage.totalCost,
+					}),
+				},
 				"Created completed outbox entry and saved CV data",
 			);
 		});
@@ -100,6 +117,9 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 				promptTokens: usage.promptTokens,
 				completionTokens: usage.completionTokens,
 				totalTokens: usage.totalTokens,
+				inputCost: usage.inputCost,
+				outputCost: usage.outputCost,
+				totalCost: usage.totalCost,
 			}),
 		}, "Created failed outbox entry");
 	}

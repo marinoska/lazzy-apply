@@ -80,6 +80,18 @@ const outboxSchema = new Schema<
 			type: Number,
 			required: false,
 		},
+		inputCost: {
+			type: Number,
+			required: false,
+		},
+		outputCost: {
+			type: Number,
+			required: false,
+		},
+		totalCost: {
+			type: Number,
+			required: false,
+		},
 	},
 	{ timestamps: true },
 );

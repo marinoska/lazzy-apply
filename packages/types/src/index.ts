@@ -100,6 +100,10 @@ export type TokenUsage = {
 	promptTokens: number;
 	completionTokens: number;
 	totalTokens: number;
+	/** Estimated cost breakdown in USD */
+	inputCost?: number;
+	outputCost?: number;
+	totalCost?: number;
 };
 
 // Add more shared types here

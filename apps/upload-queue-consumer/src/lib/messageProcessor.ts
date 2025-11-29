@@ -149,6 +149,9 @@ async function parseCVFile(
 		promptTokens: result.usage.promptTokens,
 		completionTokens: result.usage.completionTokens,
 		totalTokens: result.usage.totalTokens,
+		inputCost: result.usage.inputCost,
+		outputCost: result.usage.outputCost,
+		totalCost: result.usage.totalCost,
 	});
 
 	return result;
@@ -209,7 +212,7 @@ async function handleProcessingError(
 	logContext: LogContext,
 	startTime: number,
 	span: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>,
-	tokenUsage?: { promptTokens: number; completionTokens: number; totalTokens: number },
+	tokenUsage?: { promptTokens: number; completionTokens: number; totalTokens: number; inputCost?: number; outputCost?: number; totalCost?: number },
 ): Promise<void> {
 	const errorMessage = error instanceof Error ? error.message : String(error);
 	const totalDuration = Date.now() - startTime;
@@ -225,6 +228,9 @@ async function handleProcessingError(
 				promptTokens: tokenUsage.promptTokens,
 				completionTokens: tokenUsage.completionTokens,
 				totalTokens: tokenUsage.totalTokens,
+				inputCost: tokenUsage.inputCost,
+				outputCost: tokenUsage.outputCost,
+				totalCost: tokenUsage.totalCost,
 			}),
 		},
 		error instanceof Error ? error : new Error(String(error)),

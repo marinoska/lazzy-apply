@@ -2,6 +2,40 @@ import { generateObject, zodSchema } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import * as z from "zod";
 import type { ParsedCVData } from "@lazyapply/types";
+import type { Env } from "../types";
+
+/**
+ * Safely get an environment variable
+ */
+function getEnv<K extends keyof Env>(env: Env, key: K): Env[K] {
+	const value = env[key];
+	if (value === undefined || value === null || value === "") {
+		throw new Error(`Environment variable ${String(key)} is required but not set`);
+	}
+	return value;
+}
+
+/**
+ * Get AI model configuration from environment
+ */
+function getAIModelConfig(env: Env) {
+	const modelName = getEnv(env, "AI_MODEL_NAME");
+	const inputPriceStr = getEnv(env, "AI_MODEL_INPUT_PRICE_PER_1M");
+	const outputPriceStr = getEnv(env, "AI_MODEL_OUTPUT_PRICE_PER_1M");
+	
+	const inputPricePer1M = Number.parseFloat(inputPriceStr);
+	const outputPricePer1M = Number.parseFloat(outputPriceStr);
+	
+	if (Number.isNaN(inputPricePer1M)) {
+		throw new Error(`Invalid AI_MODEL_INPUT_PRICE_PER_1M: ${inputPriceStr}`);
+	}
+	
+	if (Number.isNaN(outputPricePer1M)) {
+		throw new Error(`Invalid AI_MODEL_OUTPUT_PRICE_PER_1M: ${outputPriceStr}`);
+	}
+	
+	return { modelName, inputPricePer1M, outputPricePer1M };
+}
 
 // Zod schema matching the ExtractedCVData structure
 // Using .optional() for fields that might not be present in AI response
@@ -160,24 +194,32 @@ export type ExtractCVDataResult = {
 		promptTokens: number;
 		completionTokens: number;
 		totalTokens: number;
+		inputCost: number;
+		outputCost: number;
+		totalCost: number;
 	};
+	finishReason: 'stop' | 'length' | 'content-filter' | 'tool-calls' | 'error' | 'other' | 'unknown';
 };
 
 /**
- * Extract structured CV data from raw text using GPT-4o-mini
+ * Extract structured CV data from raw text using configured AI model
  */
 export async function extractCVData(
 	cvText: string,
-	openaiApiKey: string,
+	env: Env,
 ): Promise<ExtractCVDataResult> {
 	try {
+		// Get AI model configuration
+		const { modelName, inputPricePer1M, outputPricePer1M } = getAIModelConfig(env);
+		const apiKey = getEnv(env, "OPENAI_API_KEY");
+		
 		// Create OpenAI client with API key
 		const openai = createOpenAI({
-			apiKey: openaiApiKey,
+			apiKey,
 		});
 
 		const result = await generateObject({
-			model: openai("gpt-4o-mini"),
+			model: openai(modelName),
 			// @ts-expect-error - Zod v4 type compatibility issue with AI SDK's zodSchema helper
 			schema: zodSchema(extractedCVDataSchema),
 			prompt: `${EXTRACTION_PROMPT}\n\nCV TEXT:\n"""\n${cvText}\n"""`,
@@ -245,13 +287,26 @@ export async function extractCVData(
 			rawText: extractedData.rawText,
 		};
 
+		const promptTokens = result.usage.inputTokens ?? 0;
+		const completionTokens = result.usage.outputTokens ?? 0;
+		const totalTokens = result.usage.totalTokens ?? 0;
+		
+		// Calculate cost breakdown using pricing from environment
+		const inputCost = (promptTokens / 1_000_000) * inputPricePer1M;
+		const outputCost = (completionTokens / 1_000_000) * outputPricePer1M;
+		const totalCost = inputCost + outputCost;
+
 		return {
 			parsedData,
 			usage: {
-				promptTokens: result.usage.inputTokens ?? 0,
-				completionTokens: result.usage.outputTokens ?? 0,
-				totalTokens: result.usage.totalTokens ?? 0,
+				promptTokens,
+				completionTokens,
+				totalTokens,
+				inputCost,
+				outputCost,
+				totalCost,
 			},
+			finishReason: result.finishReason,
 		};
 	} catch (error) {
 		console.error("[extractCVData] Error extracting CV data:", error);
