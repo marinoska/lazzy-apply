@@ -30,7 +30,7 @@ export const deleteUploadController = async (
 	// Find the upload
 	const upload = await FileUploadModel.findOne({
 		fileId,
-		status: { $in: ["uploaded", "deduplicated"] },
+		status: { $in: ["uploaded", "deduplicated", "failed"] },
 	}).setOptions({ userId: user.id });
 
 	if (!upload) {

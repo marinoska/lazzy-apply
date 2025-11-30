@@ -61,6 +61,9 @@ describe("messageProcessor", () => {
 			API_URL: "http://test-api.com",
 			WORKER_SECRET: "test-secret",
 			OPENAI_API_KEY: "test-openai-key",
+			AI_MODEL_NAME: "gpt-4o-mini",
+			AI_MODEL_INPUT_PRICE_PER_1M: "0.15",
+			AI_MODEL_OUTPUT_PRICE_PER_1M: "0.60",
 			ENVIRONMENT: "local",
 			AXIOM_API_TOKEN: "test-axiom-token",
 			AXIOM_OTEL_DATASET: "test-otel-dataset",
@@ -97,7 +100,18 @@ describe("messageProcessor", () => {
 			};
 
 			vi.mocked(downloadFile).mockResolvedValue(mockFileBuffer);
-			vi.mocked(parseCV).mockResolvedValue(mockParsedData);
+			vi.mocked(parseCV).mockResolvedValue({
+				parsedData: mockParsedData,
+				usage: {
+					promptTokens: 100,
+					completionTokens: 50,
+					totalTokens: 150,
+					inputCost: 0.000015,
+					outputCost: 0.00003,
+					totalCost: 0.000045,
+				},
+				finishReason: 'stop' as const,
+			});
 			vi.mocked(updateOutboxStatus).mockResolvedValue(undefined);
 
 			await processMessage(mockPayload, mockEnv);
@@ -114,6 +128,15 @@ describe("messageProcessor", () => {
 				"log-789",
 				"completed",
 				mockParsedData,
+				undefined,
+				{
+					promptTokens: 100,
+					completionTokens: 50,
+					totalTokens: 150,
+					inputCost: 0.000015,
+					outputCost: 0.00003,
+					totalCost: 0.000045,
+				},
 			);
 		});
 
@@ -131,6 +154,7 @@ describe("messageProcessor", () => {
 				"failed",
 				null,
 				"File not found in R2: file-456",
+				undefined,
 			);
 		});
 
@@ -166,6 +190,7 @@ describe("messageProcessor", () => {
 				"failed",
 				null,
 				"Failed to parse CV",
+				undefined,
 			);
 		});
 
@@ -190,7 +215,18 @@ describe("messageProcessor", () => {
 			const outboxError = new Error("Outbox API failed");
 
 			vi.mocked(downloadFile).mockResolvedValue(mockFileBuffer);
-			vi.mocked(parseCV).mockResolvedValue(mockParsedData);
+			vi.mocked(parseCV).mockResolvedValue({
+				parsedData: mockParsedData,
+				usage: {
+					promptTokens: 100,
+					completionTokens: 50,
+					totalTokens: 150,
+					inputCost: 0.000015,
+					outputCost: 0.00003,
+					totalCost: 0.000045,
+				},
+				finishReason: 'stop' as const,
+			});
 			vi.mocked(updateOutboxStatus).mockRejectedValue(outboxError);
 
 			await expect(processMessage(mockPayload, mockEnv)).rejects.toThrow(
@@ -219,7 +255,18 @@ describe("messageProcessor", () => {
 			};
 
 			vi.mocked(downloadFile).mockResolvedValue(mockFileBuffer);
-			vi.mocked(parseCV).mockResolvedValue(mockParsedData);
+			vi.mocked(parseCV).mockResolvedValue({
+				parsedData: mockParsedData,
+				usage: {
+					promptTokens: 200,
+					completionTokens: 100,
+					totalTokens: 300,
+					inputCost: 0.00003,
+					outputCost: 0.00006,
+					totalCost: 0.00009,
+				},
+				finishReason: 'stop' as const,
+			});
 			vi.mocked(updateOutboxStatus).mockResolvedValue(undefined);
 
 			await processMessage(docxPayload, mockEnv);
@@ -247,6 +294,7 @@ describe("messageProcessor", () => {
 				"failed",
 				null,
 				"R2 connection timeout",
+				undefined,
 			);
 		});
 	});

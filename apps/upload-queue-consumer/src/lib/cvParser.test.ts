@@ -26,6 +26,9 @@ describe("cvParser", () => {
 			API_URL: "http://test-api.com",
 			WORKER_SECRET: "test-secret",
 			OPENAI_API_KEY: "test-openai-key",
+			AI_MODEL_NAME: "gpt-4o-mini",
+			AI_MODEL_INPUT_PRICE_PER_1M: "0.15",
+			AI_MODEL_OUTPUT_PRICE_PER_1M: "0.60",
 			ENVIRONMENT: "local",
 			AXIOM_API_TOKEN: "test-axiom-token",
 			AXIOM_OTEL_DATASET: "test-otel-dataset",
@@ -81,7 +84,7 @@ describe("cvParser", () => {
 			const result = await parseCV(mockBuffer, "file-123", "PDF", mockEnv);
 
 			expect(extractText).toHaveBeenCalledWith(mockBuffer, "PDF");
-			expect(extractCVData).toHaveBeenCalledWith(mockText, "test-openai-key");
+			expect(extractCVData).toHaveBeenCalledWith(mockText, mockEnv);
 			expect(result).toEqual(mockParsedData);
 		});
 
@@ -132,7 +135,7 @@ describe("cvParser", () => {
 			const result = await parseCV(mockBuffer, "file-456", "DOCX", mockEnv);
 
 			expect(extractText).toHaveBeenCalledWith(mockBuffer, "DOCX");
-			expect(extractCVData).toHaveBeenCalledWith(mockText, "test-openai-key");
+			expect(extractCVData).toHaveBeenCalledWith(mockText, mockEnv);
 			expect(result).toEqual(mockParsedData);
 		});
 
