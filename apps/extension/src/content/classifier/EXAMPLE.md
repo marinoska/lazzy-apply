@@ -259,7 +259,8 @@ import { classifyDocument } from './jobDescriptionClassifier';
 import { extractTextBlocks } from '../scanner/textBlocksExtractor';
 
 // Extract and classify page
-const paragraphs = extractTextBlocks();
+const blocks = extractTextBlocks();
+const paragraphs = blocks.map(block => block.text);
 const result = classifyDocument(paragraphs);
 
 if (result.isJobDescriptionPage) {

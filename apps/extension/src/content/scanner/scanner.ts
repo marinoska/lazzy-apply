@@ -1,16 +1,18 @@
-import { extractTextBlocks } from "./textBlocksExtractor.js";
+import { extractTextBlocks, type TextBlock } from "./textBlocksExtractor.js";
 import { classifyDocument } from "../classifier/jobDescriptionClassifier.js";
 
 export function scanPage() {
   try {
-    const paragraphs = extractTextBlocks()
-      .filter(t => !isNoise(t));
+    const blocks = extractTextBlocks()
+      .filter(block => !isNoise(block.text));
 
-    if (!paragraphs.length) {
-      console.log('No paragraphs found, content may still be loading');
+    if (!blocks.length) {
+      console.log('No text blocks found, content may still be loading');
       return;
     }
 
+    // Extract text for classification, preserving order
+    const paragraphs = blocks.map(block => block.text);
     const classification = classifyDocument(paragraphs);
     console.log({classification});
     
@@ -19,6 +21,7 @@ export function scanPage() {
         type: "JD_SCAN",
         url: location.href,
         classification,
+        blocks, // Include structured blocks with type information
       });
     } catch (sendError) {
       // Extension context invalidated - extension was reloaded/updated

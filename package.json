@@ -10,7 +10,7 @@
 		"format": "biome format --write .",
 		"check": "biome check --write .",
 		"clean": "turbo run clean && rm -rf node_modules",
-		"test": "vitest",
+		"test": "vitest run",
 		"test:ui": "vitest --ui",
 		"test:coverage": "vitest --coverage",
 		"test:e2e": "playwright test",

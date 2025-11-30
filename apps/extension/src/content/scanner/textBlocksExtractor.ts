@@ -1,9 +1,46 @@
+export interface TextBlock {
+  text: string;
+  type: 'header' | 'paragraph';
+  element?: string; // e.g., 'h1', 'h2', 'p', 'div'
+}
+
 /**
  * Extracts meaningful text blocks from the page.
  * Avoids nested duplicates, layout divs, tiny text, and invisible content.
  */
-export function extractTextBlocks(): string[] {
-  const blocks: string[] = [];
+export function extractTextBlocks(): TextBlock[] {
+  const blocks: TextBlock[] = [];
+
+  // 0. Headers: <h1> through <h6> - job titles, section headers
+  const headers = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6"))
+    .filter(el => {
+      // Skip elements inside style/script tags
+      if (el.closest('style, script, noscript')) return false;
+      
+      // Skip common UI noise elements
+      if (el.closest('nav, header, footer, aside, [role="navigation"], [role="banner"], [role="complementary"]')) return false;
+      
+      // Skip elements with common noise class/id patterns
+      const element = el as HTMLElement;
+      const classAndId = `${element.className} ${element.id}`.toLowerCase();
+      if (/(sidebar|menu|nav|header|footer|cookie|banner|ad|promo|related|recommend|similar)/i.test(classAndId)) {
+        return false;
+      }
+      
+      // Skip hidden elements
+      const style = window.getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      
+      return true;
+    })
+    .map(el => ({
+      text: el.textContent?.trim().replace(/\s+/g, ' ') || "",
+      type: 'header' as const,
+      element: el.tagName.toLowerCase()
+    }))
+    .filter(block => block.text.length > 0);
+
+  blocks.push(...headers);
   // 1. Direct text blocks: <p> and <li>
   const pAndLi = Array.from(document.querySelectorAll("p, li"))
     .filter(el => {
@@ -26,8 +63,12 @@ export function extractTextBlocks(): string[] {
       
       return true;
     })
-    .map(el => el.textContent?.trim() || "")
-    .filter(text => text.length > 25); // Balanced to catch short requirements while avoiding noise
+    .map(el => ({
+      text: el.textContent?.trim().replace(/\s+/g, ' ') || "",
+      type: 'paragraph' as const,
+      element: el.tagName.toLowerCase()
+    }))
+    .filter(block => block.text.length > 25); // Balanced to catch short requirements while avoiding noise
 
   blocks.push(...pAndLi);
 
@@ -55,7 +96,11 @@ export function extractTextBlocks(): string[] {
       if (div.querySelector("p, li")) return false; // avoid nested content
       return true;
     })
-    .map(div => div.textContent?.trim() || "");
+    .map(div => ({
+      text: div.textContent?.trim().replace(/\s+/g, ' ') || "",
+      type: 'paragraph' as const,
+      element: 'div'
+    }));
 
   blocks.push(...leafDivs);
 
@@ -63,15 +108,15 @@ export function extractTextBlocks(): string[] {
 }
 
 // Deduplicate by small fingerprint
-function dedupe(list: string[]): string[] {
+function dedupe(list: TextBlock[]): TextBlock[] {
   const seen = new Set<string>();
-  const out: string[] = [];
+  const out: TextBlock[] = [];
 
-  for (const text of list) {
-    const key = text.slice(0, 80); // perfect for dedupe
+  for (const block of list) {
+    const key = block.text.slice(0, 80); // perfect for dedupe
     if (!seen.has(key)) {
       seen.add(key);
-      out.push(text);
+      out.push(block);
     }
   }
 
