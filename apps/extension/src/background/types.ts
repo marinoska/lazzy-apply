@@ -1,4 +1,5 @@
 import type { StoredSession } from "../lib/supabase";
+import type { ApplicationForm } from "../content/scanner/formDetector.js";
 
 // Message types received by background script
 export type IncomingMessageType =
@@ -6,7 +7,8 @@ export type IncomingMessageType =
 	| "GET_AUTH"
 	| "LOGOUT"
 	| "API_REQUEST"
-	| "UPLOAD_FILE";
+	| "UPLOAD_FILE"
+	| "JD_SCAN";
 
 export interface BackgroundMessage {
 	type: IncomingMessageType;
@@ -18,6 +20,14 @@ export interface ApiRequestMessage extends BackgroundMessage {
 	path: string;
 	body?: unknown;
 	headers?: Record<string, string>;
+}
+
+export interface JdScanMessage extends BackgroundMessage {
+	type: "JD_SCAN";
+	url: string;
+	classification: unknown;
+	blocks: unknown[];
+	applicationForm: ApplicationForm | null;
 }
 
 

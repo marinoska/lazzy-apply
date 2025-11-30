@@ -45,6 +45,29 @@ export function setupShadowDOM(): ShadowDOMSetup {
 			display:
 				'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 		},
+		// Use px instead of rem: Shadow DOM inherits rem from host page's :root, which varies (e.g., LinkedIn uses 10px instead of 16px)
+		fontSize: {
+			xs: "12px",
+			sm: "14px",
+			md: "16px",
+			lg: "18px",
+			xl: "20px",
+			xl2: "24px",
+			xl3: "30px",
+			xl4: "36px",
+		},
+		components: {
+			JoyIconButton: {
+				styleOverrides: {
+					root: ({ ownerState }) => ({
+						// Override rem-based --Icon-fontSize for each size
+						...(ownerState.size === "sm" && { "--Icon-fontSize": "20px" }),
+						...(ownerState.size === "md" && { "--Icon-fontSize": "24px" }),
+						...(ownerState.size === "lg" && { "--Icon-fontSize": "28px" }),
+					}),
+				},
+			},
+		},
 	});
 
 	return { root, theme, emotionCache, shadowRootElement };

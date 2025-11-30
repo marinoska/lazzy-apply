@@ -1,12 +1,8 @@
-/**
- * Get sidebar CSS styles for shadow DOM
- */
 export function getSidebarStyles(): string {
 	return `
     :host {
       display: block;
       font-family: system-ui, -apple-system, sans-serif;
-      /* Ensure Joy radius tokens exist inside the shadow root */
     }
     :host *, :host *::before, :host *::after { 
       box-sizing: border-box;
@@ -14,9 +10,8 @@ export function getSidebarStyles(): string {
     .overlay {
       position: fixed;
       inset: 0 0 0 auto;
-      width: 360px;
-      max-width: calc(100vw - 32px);
-      padding: 16px;
+      width: calc(360px);
+      max-width: calc((100vw - 32px));
       z-index: 2147483647;
       opacity: 0;
       visibility: hidden;
@@ -30,8 +25,8 @@ export function getSidebarStyles(): string {
     }
     .panel {
       background: rgba(255, 255, 255, 0.98);
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(15, 23, 42, 0.2);
+      border-radius: calc(12px);
+      box-shadow: 0 calc(8px) calc(32px) rgba(15, 23, 42, 0.2);
       overflow: auto;
     }
   `;

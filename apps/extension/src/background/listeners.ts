@@ -26,7 +26,7 @@ export function setupListeners(): void {
   chrome.runtime.onMessage.addListener(
     (
       msg: unknown,
-      _sender: chrome.runtime.MessageSender,
+      sender: chrome.runtime.MessageSender,
       sendResponse: (response: MessageResponse) => void
     ) => {
       if (!isValidMessage(msg)) {
@@ -34,7 +34,7 @@ export function setupListeners(): void {
         return false;
       }
 
-      handleMessage(msg, sendResponse);
+      handleMessage(msg, sender, sendResponse);
       return true; // Keep channel open for async response
     }
   );

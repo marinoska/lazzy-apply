@@ -50,7 +50,7 @@ export function SidebarView({
 			aria-hidden={visible ? "false" : "true"}
 		>
 			<Sheet className="panel" variant="soft" color="neutral">
-				<Stack spacing={2} sx={{ p: 2.5 }}>
+				<Stack gap={2} sx={{ p: 2.5 }}>
 					<SidebarHeader
 						onClose={onClose}
 						onSignOut={onSignOut}

@@ -6,7 +6,9 @@ import { getStoredSession } from "./storage.js";
 import type {
 	ApiRequestMessage,
 	BackgroundMessage,
+	JdScanMessage,
 	MessageResponse,
+	ShowModalMessage,
 } from "./types.js";
 
 /**
@@ -51,6 +53,7 @@ export function isValidMessage(msg: unknown): msg is BackgroundMessage {
  */
 export async function handleMessage(
 	msg: BackgroundMessage,
+	sender: chrome.runtime.MessageSender,
 	sendResponse: (response: MessageResponse) => void,
 ): Promise<void> {
 	try {
@@ -111,6 +114,30 @@ export async function handleMessage(
 					console.error("[MessageHandler] API request failed:", error);
 					sendResponse({ ok: false, error: serializeError(error) });
 				}
+				break;
+			}
+
+			case "JD_SCAN": {
+				const scanMsg = msg as JdScanMessage;
+				console.log("[MessageHandler] Handling JD_SCAN:", scanMsg);
+				
+				// Check if an application form was detected
+				if (scanMsg.applicationForm?.formDetected) {
+					console.log("[MessageHandler] Application form detected, showing sidebar");
+					
+					// Send SHOW_MODAL message to the tab that sent the scan
+					if (sender.tab?.id) {
+						const showModalMsg: ShowModalMessage = { type: "SHOW_MODAL" };
+						chrome.tabs.sendMessage(sender.tab.id, showModalMsg, () => {
+							const error = chrome.runtime.lastError;
+							if (error) {
+								console.warn("[MessageHandler] Failed to show sidebar:", error.message);
+							}
+						});
+					}
+				}
+				
+				sendResponse({ ok: true });
 				break;
 			}
 
