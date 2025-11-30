@@ -1,5 +1,6 @@
 import { extractTextBlocks, type TextBlock } from "./textBlocksExtractor.js";
 import { classifyDocument } from "../classifier/jobDescriptionClassifier.js";
+import { detectApplicationForm, type ApplicationForm } from "./formDetector.js";
 
 export function scanPage() {
   try {
@@ -16,12 +17,17 @@ export function scanPage() {
     const classification = classifyDocument(paragraphs);
     console.log({classification});
     
+    // Detect application form
+    const applicationForm = detectApplicationForm();
+    console.log({applicationForm});
+    
     try {
       chrome.runtime.sendMessage({
         type: "JD_SCAN",
         url: location.href,
         classification,
         blocks, // Include structured blocks with type information
+        applicationForm, // Include detected form data
       });
     } catch (sendError) {
       // Extension context invalidated - extension was reloaded/updated
