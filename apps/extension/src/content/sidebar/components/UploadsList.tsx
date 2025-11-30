@@ -1,6 +1,6 @@
 import Stack from "@mui/joy/Stack";
 import { LoadingState, ErrorState } from "@/components/QueryState.js";
-import { useUploadsQuery } from "@/query/useUploadsQuery.js";
+import { useUploadsQuery } from "@/lib/api/query/useUploadsQuery.js";
 import { UploadItem } from "./UploadItem.js";
 
 export function UploadsList() {

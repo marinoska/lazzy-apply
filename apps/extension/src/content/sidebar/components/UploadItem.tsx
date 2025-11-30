@@ -5,7 +5,7 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import CloseIcon from "@mui/icons-material/Close";
 import type { UploadDTO } from "@/lib/api/api.js";
 import { BodyExtraSmall } from "@/components/Typography.js";
-import { useDeleteUploadMutation } from "@/query/useDeleteUploadMutation.js";
+import { useDeleteUploadMutation } from "@/lib/api/query/useDeleteUploadMutation.js";
 
 const getFileIcon = (contentType: UploadDTO["contentType"]) => {
 	switch (contentType) {

@@ -1,5 +1,7 @@
 import type { StoredSession } from "../lib/supabase.js";
 import createSidebar, { type SidebarModule } from "./sidebar/index.js";
+import { scanPage } from "./scanner/scanner.js";
+import { NavigationWatcher } from "./scanner/navigationWatcher.js";
 
 type MessageType = "SHOW_MODAL" | "AUTH_CHANGED";
 
@@ -161,15 +163,36 @@ async function signOut(): Promise<void> {
  */
 function sendRuntimeMessage<T>(message: BackgroundMessage): Promise<T> {
   return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(message, (response: T) => {
-      const error = chrome.runtime.lastError;
-      
-      if (error) {
-        reject(new Error(error.message));
+    try {
+      chrome.runtime.sendMessage(message, (response: T) => {
+        const error = chrome.runtime.lastError;
+        
+        if (error) {
+          // Check for extension context invalidation
+          if (error.message?.includes('Extension context invalidated')) {
+            reject(new Error('Extension was reloaded. Please refresh the page.'));
+            return;
+          }
+          reject(new Error(error.message));
+          return;
+        }
+        
+        resolve(response);
+      });
+    } catch (error) {
+      // Catch synchronous errors (e.g., extension context invalidated)
+      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+        reject(new Error('Extension was reloaded. Please refresh the page.'));
         return;
       }
-      
-      resolve(response);
-    });
+      reject(error);
+    }
   });
 }
+
+/**
+ * Initialize page scanner with navigation detection
+ */
+new NavigationWatcher(() => {
+  scanPage();
+});

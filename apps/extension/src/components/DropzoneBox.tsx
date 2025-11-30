@@ -1,6 +1,6 @@
 import { MAXIMUM_UPLOAD_SIZE_BYTES } from "@/lib/consts.js";
 import { validateFileContent } from "@/lib/files.js";
-import { useUploadMutation } from "@/query/useUploadMutation.js";
+import { useUploadMutation } from "@/lib/api/query/useUploadMutation.js";
 import type { StateSetter } from "@/types.js";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CloseIcon from "@mui/icons-material/Close";
