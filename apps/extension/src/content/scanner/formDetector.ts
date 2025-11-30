@@ -1,20 +1,64 @@
+import { hash } from "ohash";
+
+/**
+ * Extracts SLD.TLD from the current hostname (e.g., "linkedin.com" from "www.linkedin.com")
+ */
+function getDomainPrefix(): string {
+  const hostname = window.location.hostname;
+  const parts = hostname.split(".");
+  // Handle cases like "example.com" (2 parts) or "www.example.com" (3+ parts)
+  if (parts.length >= 2) {
+    return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
+  }
+  return hostname;
+}
+
+/**
+ * Creates a prefixed hash with domain: "[SLD].[TLD]:hash:[hashValue]"
+ */
+function createPrefixedHash(content: Record<string, unknown>): string {
+  const domain = getDomainPrefix();
+  const hashValue = hash(content);
+  return `${domain}:hash:${hashValue}`;
+}
+
+/**
+ * Properties used for field hash calculation
+ */
+const FIELD_HASH_PROPERTIES = [
+  "tag",
+  "type",
+  "name",
+  "label",
+  "placeholder",
+  "description",
+  "isFileUpload",
+] as const;
+
+/**
+ * Creates a hashable object from a field using only the hash-relevant properties
+ */
+function getFieldHashContent(field: Partial<FormField>): Record<string, unknown> {
+  return Object.fromEntries(
+    FIELD_HASH_PROPERTIES.map(prop => [prop, field[prop]])
+  );
+}
+
 export interface FormField {
+  hash: string;
+  id: string | null;
   tag: string;
   type: string;
-  id: string | null;
   name: string | null;
   label: string | null;
   placeholder: string | null;
-  ariaLabel: string | null;
-  ariaDescribedBy: string | null;
   description: string | null;
-  required: boolean;
   isFileUpload: boolean;
   accept?: string | null;
-  options?: Array<{ label: string; value: string }>;
 }
 
 export interface ApplicationForm {
+  formHash: string;
   formDetected: boolean;
   totalFields: number;
   fields: FormField[];
@@ -67,11 +111,14 @@ export function detectApplicationForm(): ApplicationForm | null {
   if (!scanElement) return null;
 
   const fields: FormField[] = [];
-  const inputs = scanElement.querySelectorAll("input, textarea, select");
+  const inputs = scanElement.querySelectorAll("input:not([type='hidden']):not([type='checkbox']):not([type='radio']), textarea");
 
   inputs.forEach(el => {
-    const field = extractFieldInfo(el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, scanElement);
-    fields.push(field);
+    const field = extractFieldInfo(el as HTMLInputElement | HTMLTextAreaElement, scanElement);
+    // Only include fields that have an id
+    if (field.id) {
+      fields.push(field);
+    }
   });
 
   const formElement = scanElement.tagName === "FORM" ? {
@@ -81,7 +128,14 @@ export function detectApplicationForm(): ApplicationForm | null {
     method: (scanElement as HTMLFormElement).method || null,
   } : undefined;
 
+  // Calculate form hash from form action and all fields
+  const formHash = createPrefixedHash({
+    action: formElement?.action,
+    fields: fields.map(getFieldHashContent),
+  });
+
   return {
+    formHash,
     formDetected: true,
     totalFields: fields.length,
     fields,
@@ -149,7 +203,7 @@ function isLikelyApplicationForm(element: Element): boolean {
  * Extracts comprehensive information about a form field.
  */
 function extractFieldInfo(
-  el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+  el: HTMLInputElement | HTMLTextAreaElement,
   form: Element
 ): FormField {
   const field: Partial<FormField> = {};
@@ -160,7 +214,6 @@ function extractFieldInfo(
   field.id = el.id || null;
   field.name = el.name || null;
   field.placeholder = (el as HTMLInputElement).placeholder || null;
-  field.required = el.required || false;
 
   // Find label
   let label: string | null = null;
@@ -183,13 +236,10 @@ function extractFieldInfo(
 
   field.label = label;
 
-  // ARIA labels
-  field.ariaLabel = el.getAttribute("aria-label");
-  field.ariaDescribedBy = el.getAttribute("aria-describedby");
-
-  // Description text
+  // Description text from aria-describedby
   let description: string | null = null;
-  const describedIds = (field.ariaDescribedBy || "").split(" ").filter(x => x);
+  const ariaDescribedBy = el.getAttribute("aria-describedby");
+  const describedIds = (ariaDescribedBy || "").split(" ").filter(x => x);
   if (describedIds.length > 0) {
     description = describedIds
       .map(id => {
@@ -201,14 +251,6 @@ function extractFieldInfo(
   }
   field.description = description;
 
-  // Select options
-  if (el.tagName === "SELECT") {
-    field.options = Array.from((el as HTMLSelectElement).querySelectorAll("option")).map(opt => ({
-      label: opt.textContent?.trim() || "",
-      value: opt.value
-    }));
-  }
-
   // Detect file uploads
   if (field.type === "file") {
     field.isFileUpload = true;
@@ -216,6 +258,9 @@ function extractFieldInfo(
   } else {
     field.isFileUpload = false;
   }
+
+  // Calculate field hash from stable identifying properties
+  field.hash = createPrefixedHash(getFieldHashContent(field));
 
   return field as FormField;
 }
