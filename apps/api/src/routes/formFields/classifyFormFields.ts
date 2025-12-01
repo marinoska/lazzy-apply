@@ -44,6 +44,7 @@ VALID PATHS (use exactly these strings):
 - "personal.nationality" - Nationality or citizenship
 - "personal.rightToWork" - Right to work / visa status
 - "links" - Any URL/link field (LinkedIn, GitHub, portfolio, website, etc.)
+- "headline" - Professional headline/title (e.g., "Senior Software Engineer", "Product Manager")
 - "summary" - Professional summary, about me, bio
 - "experience" - Work experience, job history, responsibilities
 - "education" - Education, degrees, schools

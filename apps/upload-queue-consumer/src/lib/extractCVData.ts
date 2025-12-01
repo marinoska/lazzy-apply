@@ -54,6 +54,7 @@ const extractedCVDataSchema = z.object({
 			url: z.string().nullable().optional(),
 		}),
 	).optional().default([]),
+	headline: z.string().nullable().optional(),
 	summary: z.string().nullable().optional(),
 	experience: z.array(
 		z.object({
@@ -135,6 +136,8 @@ OUTPUT SCHEMA:
       "url": string
     }
   ],
+
+  "headline": string | null,  // Professional headline/title (e.g., "Senior Software Engineer", "Product Manager")
 
   "summary": string | null,
 
@@ -220,7 +223,6 @@ export async function extractCVData(
 
 		const result = await generateObject({
 			model: openai(modelName),
-			// @ts-expect-error - Zod v4 type compatibility issue with AI SDK's zodSchema helper
 			schema: zodSchema(extractedCVDataSchema),
 			prompt: `${EXTRACTION_PROMPT}\n\nCV TEXT:\n"""\n${cvText}\n"""`,
 		});
@@ -251,6 +253,7 @@ export async function extractCVData(
 					type: l.type,
 					url: l.url!,
 				})),
+			headline: extractedData.headline ?? null,
 			summary: extractedData.summary ?? null,
 			experience: experience.map((exp) => ({
 				role: exp.role ?? null,

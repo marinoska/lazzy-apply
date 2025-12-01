@@ -65,7 +65,7 @@ export const registerRoutes = (app: Express) => {
 
 	// Form field classification endpoint (called by Chrome extension)
 	router.post(
-		"/classify-form-fields",
+		"/autofill",
 		authenticateUser,
 		validateRequest({ body: classifyFormFieldsBodySchema }),
 		classifyFormFields,

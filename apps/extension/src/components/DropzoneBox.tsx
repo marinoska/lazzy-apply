@@ -1,19 +1,18 @@
-import { MAXIMUM_UPLOAD_SIZE_BYTES } from "@/lib/consts.js";
-import { validateFileContent } from "@/lib/files.js";
-import { useUploadMutation } from "@/lib/api/query/useUploadMutation.js";
-import type { StateSetter } from "@/types.js";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CloseIcon from "@mui/icons-material/Close";
 import CloudUpload from "@mui/icons-material/CloudUpload";
-import ErrorIcon from "@mui/icons-material/Error";
-import { Alert } from "@mui/joy";
+import Alert from "@mui/joy/Alert";
 import Button from "@mui/joy/Button";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { Snackbar } from "./Snackbar";
+import { useUploadMutation } from "@/lib/api/query/useUploadMutation.js";
+import { MAXIMUM_UPLOAD_SIZE_BYTES } from "@/lib/consts.js";
+import { validateFileContent } from "@/lib/files.js";
+import type { StateSetter } from "@/types.js";
+import { AppAlert } from "./AppAlert.js";
+import { Snackbar } from "./Snackbar.js";
 
 export const DropzoneBox = ({
 	file,
@@ -178,37 +177,15 @@ export const DropzoneBox = ({
 			)}
 
 			{uploadSuccess && (
-				<Alert
-					variant="soft"
-					color="success"
-					startDecorator={<CheckCircleIcon />}
-					sx={{ width: 600 }}
-				>
-					<Typography level="body-sm" color="success">
-						File uploaded successfully!
-					</Typography>
-				</Alert>
+				<AppAlert type="success" message="File uploaded successfully!" />
 			)}
 
 			{error && (
-				<Alert
-					variant="soft"
-					color="danger"
-					startDecorator={<ErrorIcon />}
-					endDecorator={
-						<Button
-							size="sm"
-							variant="plain"
-							color="danger"
-							onClick={() => setError("")}
-						>
-							<CloseIcon />
-						</Button>
-					}
-					sx={{ width: 600 }}
-				>
-					<Typography level="body-sm">{error}</Typography>
-				</Alert>
+				<AppAlert
+					type="error"
+					message={error}
+					onClose={() => setError("")}
+				/>
 			)}
 
 			<Snackbar msg={error} onClose={() => setError("")} />

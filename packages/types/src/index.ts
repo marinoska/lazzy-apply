@@ -57,6 +57,7 @@ export interface ParsedCVData {
 		type: string; // "linkedin", "github", "portfolio", "behance", "other"
 		url: string;
 	}>;
+	headline: string | null;
 	summary: string | null;
 	experience: Array<{
 		role: string | null;
@@ -120,6 +121,8 @@ export const FORM_FIELD_PATHS = [
 	"personal.rightToWork",
 	// Links - type is determined by LLM (linkedin, github, portfolio, behance, etc.)
 	"links",
+	// Headline
+	"headline",
 	// Summary
 	"summary",
 	// Experience

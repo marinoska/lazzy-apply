@@ -65,6 +65,7 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
 			const session = await deps.fetchSession();
 			update({ session, loading: false, status: null });
 		} catch (error) {
+			console.error("Failed to fetch session:", error);
 			update({
 				loading: false,
 				status: formatError("Failed to fetch session", error),
@@ -85,9 +86,10 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
 			const session = await deps.fetchSession();
 			update({ session, loading: false, status: null });
 		} catch (error) {
+			console.error("Sign-in failed:", error);
 			update({
 				loading: false,
-				status: formatError("Sign-in failed", error),
+				status: formatError("Failed to sign in", error),
 			});
 		}
 	};
@@ -98,9 +100,10 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
 			await deps.signOut();
 			update({ session: null, loading: false, status: null });
 		} catch (error) {
+			console.error("Sign-out failed:", error);
 			update({
 				loading: false,
-				status: formatError("Sign-out failed", error),
+				status: formatError("Failed to sign out", error),
 			});
 		}
 	};
@@ -114,6 +117,7 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
 	};
 
 	const showError = (message: string): void => {
+		console.error("Error:", message);
 		update({ loading: false, status: `Error: ${message}` });
 	};
 

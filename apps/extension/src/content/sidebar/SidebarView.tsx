@@ -3,8 +3,10 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import { useState } from "react";
 import { Snackbar } from "../../components/Snackbar.js";
+import { useUploadsQuery } from "@/lib/api/query/useUploadsQuery.js";
 import {
 	ActionButtons,
+	AutofillButton,
 	LoadingIndicator,
 	SidebarHeader,
 	StatusMessage,
@@ -21,9 +23,12 @@ export function SidebarView({
 	onSignOut,
 }: SidebarViewProps) {
 	const { visible, loading, status, session } = state;
+	const { data: uploadsData } = useUploadsQuery({ limit: 5 });
+	const hasUploads = (uploadsData?.uploads?.length ?? 0) > 0;
 	const [showDropzone, setShowDropzone] = useState(false);
 	const [alertMessage, setAlertMessage] = useState("");
 	const [alertType, setAlertType] = useState<"success" | "danger">("success");
+	const statusIsError = status?.startsWith("Failed") || status?.startsWith("Error");
 
 	const handleUploadComplete = (fileId: string, objectKey: string) => {
 		console.log("File uploaded:", fileId, objectKey);
@@ -43,6 +48,11 @@ export function SidebarView({
 		setAlertMessage(error || "Upload failed. Please try again.");
 	};
 
+	const handleAutofillError = (error: string) => {
+		setAlertType("danger");
+		setAlertMessage(error);
+	};
+
 	return (
 		<div
 			className={`overlay${visible ? " visible" : ""}`}
@@ -57,7 +67,7 @@ export function SidebarView({
 						session={session}
 					/>
 					<Divider orientation="horizontal" color="border" />
-					{/* <StatusMessage status={status} /> */}
+					<StatusMessage status={status} />
 
 					<LoadingIndicator loading={loading} />
 
@@ -81,6 +91,12 @@ export function SidebarView({
 							onUploadError={handleUploadError}
 						/>
 					)}
+					{session && hasUploads && (
+						<AutofillButton
+							hasUploads={hasUploads}
+							onError={handleAutofillError}
+						/>
+					)}
 				</Stack>
 				<Snackbar
 					msg={alertMessage}
@@ -88,6 +104,13 @@ export function SidebarView({
 					type={alertType}
 					onClose={() => setAlertMessage("")}
 				/>
+				{statusIsError && (
+					<Snackbar
+						msg={status ?? ""}
+						show={true}
+						type="danger"
+					/>
+				)}
 			</Sheet>
 		</div>
 	);

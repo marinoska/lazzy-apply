@@ -13,5 +13,9 @@ export const useUploadsQuery = (params: GetUploadsParams = {}) => {
 		queryKey: uploadsKeys.list(params),
 		queryFn: async () => getUploads(params),
 		retry: TIMES_THREE,
+		throwOnError: (error) => {
+			console.error("Failed to load uploads:", error);
+			return false;
+		},
 	});
 };

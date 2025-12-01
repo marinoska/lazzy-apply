@@ -1,3 +1,7 @@
+import type {
+	FormFieldClassification,
+	FormFieldInput,
+} from "@lazyapply/types";
 import { sendApiRequest } from "./backgroundClient.js";
 
 export interface UploadSignedUrlResponse {
@@ -121,4 +125,17 @@ export async function deleteUpload(
 	fileId: string,
 ): Promise<DeleteUploadResponse> {
 	return sendApiRequest<DeleteUploadResponse>("DELETE", `/uploads/${fileId}`);
+}
+
+/**
+ * Classify form fields using AI to map them to CV data paths
+ */
+export async function classifyFormFields(
+	fields: FormFieldInput[],
+): Promise<FormFieldClassification[]> {
+	return sendApiRequest<FormFieldClassification[]>(
+		"POST",
+		"/autofill",
+		{ fields },
+	);
 }

@@ -1,5 +1,7 @@
 import Stack from "@mui/joy/Stack";
-import { LoadingState, ErrorState } from "@/components/QueryState.js";
+import { AppAlert } from "@/components/AppAlert.js";
+import { LoadingState } from "@/components/QueryState.js";
+import { Snackbar } from "@/components/Snackbar.js";
 import { useUploadsQuery } from "@/lib/api/query/useUploadsQuery.js";
 import { UploadItem } from "./UploadItem.js";
 
@@ -11,7 +13,16 @@ export function UploadsList() {
 	}
 
 	if (error) {
-		return <ErrorState message="Failed to load uploads" />;
+		return (
+			<>
+				<AppAlert type="error" />
+				<Snackbar
+					msg="Failed to load uploads"
+					show={true}
+					type="danger"
+				/>
+			</>
+		);
 	}
 
 	if (!data?.uploads || data.uploads.length === 0) {

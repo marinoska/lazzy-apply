@@ -120,11 +120,14 @@ describe("formDetector", () => {
 
     it("should extract textarea fields", () => {
       container.innerHTML = `
-        <form>
+        <form action="/apply">
+          <label for="resume">Resume</label>
+          <input type="file" id="resume" name="resume" accept=".pdf" />
+          
           <label for="bio">Tell us about yourself</label>
           <textarea id="bio" name="bio" placeholder="Your background..." required></textarea>
           
-          <button type="submit">Apply</button>
+          <button type="submit">Submit Application</button>
         </form>
       `;
 
@@ -146,7 +149,10 @@ describe("formDetector", () => {
 
     it("should extract aria labels and descriptions", () => {
       container.innerHTML = `
-        <form>
+        <form action="/application">
+          <label for="resume">Resume/CV</label>
+          <input type="file" id="resume" name="resume" accept=".pdf,.doc" />
+          
           <label for="linkedin">LinkedIn Profile</label>
           <input 
             type="url" 
@@ -157,7 +163,7 @@ describe("formDetector", () => {
           />
           <span id="linkedin-help">Enter your full LinkedIn profile URL</span>
           
-          <button type="submit">Apply</button>
+          <button type="submit">Submit Application</button>
         </form>
       `;
 
@@ -195,7 +201,7 @@ describe("formDetector", () => {
 
     it("should handle labels wrapping inputs", () => {
       container.innerHTML = `
-        <form>
+        <form action="/careers/apply">
           <label>
             First Name
             <input type="text" id="firstName" name="firstName" />
@@ -206,7 +212,10 @@ describe("formDetector", () => {
             <input type="email" id="email" name="email" required />
           </label>
           
-          <button type="submit">Submit</button>
+          <label>Resume/CV</label>
+          <input type="file" id="resume" name="resume" accept=".pdf" />
+          
+          <button type="submit">Submit Application</button>
         </form>
       `;
 
@@ -257,10 +266,13 @@ describe("formDetector", () => {
 
     it("should handle fields with no labels", () => {
       container.innerHTML = `
-        <form>
+        <form action="/apply">
+          <label for="resume">Resume</label>
+          <input type="file" id="resume" name="resume" accept=".pdf" />
+          
           <input type="text" id="unlabeled" name="unlabeled" placeholder="Enter text" />
           <input type="email" id="email" name="email" />
-          <button>Submit</button>
+          <button>Submit Application</button>
         </form>
       `;
 
@@ -779,10 +791,13 @@ describe("formDetector", () => {
     describe("hash generation", () => {
       it("should generate hash for each field with domain prefix", () => {
         container.innerHTML = `
-          <form>
+          <form action="/apply">
+            <label for="resume">Resume/CV</label>
+            <input type="file" id="resume" name="resume" accept=".pdf" />
+            
             <label for="email">Email</label>
             <input type="email" id="email" name="email" required />
-            <button type="submit">Submit</button>
+            <button type="submit">Submit Application</button>
           </form>
         `;
 
@@ -799,14 +814,17 @@ describe("formDetector", () => {
 
       it("should generate formHash from all field hashes", () => {
         container.innerHTML = `
-          <form>
+          <form action="/careers/apply">
+            <label for="resume">Resume</label>
+            <input type="file" id="resume" name="resume" accept=".pdf" />
+            
             <label for="firstName">First Name</label>
             <input type="text" id="firstName" name="firstName" />
             
             <label for="email">Email</label>
             <input type="email" id="email" name="email" />
             
-            <button type="submit">Submit</button>
+            <button type="submit">Submit Application</button>
           </form>
         `;
 
@@ -837,14 +855,17 @@ describe("formDetector", () => {
 
       it("should generate different hashes for different fields", () => {
         container.innerHTML = `
-          <form>
+          <form action="/application">
+            <label for="resume">Resume/CV</label>
+            <input type="file" id="resume" name="resume" accept=".pdf" />
+            
             <label for="email">Email</label>
             <input type="email" id="email" name="email" />
             
             <label for="phone">Phone</label>
             <input type="tel" id="phone" name="phone" />
             
-            <button type="submit">Submit</button>
+            <button type="submit">Submit Application</button>
           </form>
         `;
 

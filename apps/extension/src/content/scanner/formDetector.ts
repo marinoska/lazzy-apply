@@ -75,15 +75,11 @@ export interface ApplicationForm {
  * Handles both traditional <form> elements and React-driven forms without form tags.
  */
 export function detectApplicationForm(): ApplicationForm | null {
-  // First try <form> tags
-  let forms = Array.from(document.querySelectorAll("form"));
+  // First try <form> tags - always filter to find application forms
+  let forms = Array.from(document.querySelectorAll("form"))
+    .filter(form => isLikelyApplicationForm(form));
 
-  // Filter forms to find the most likely application form
-  if (forms.length > 1) {
-    forms = forms.filter(form => isLikelyApplicationForm(form));
-  }
-
-  // If no form tags exist, detect container as fallback
+  // If no form tags match, detect container as fallback
   let formContainer: Element | null = null;
   if (forms.length === 0) {
     const containers = Array.from(document.querySelectorAll("div, section"))
@@ -145,58 +141,109 @@ export function detectApplicationForm(): ApplicationForm | null {
 
 /**
  * Determines if an element is likely an application form based on high-confidence signals.
+ * Requires multiple strong signals to avoid false positives on non-job sites.
  */
 function isLikelyApplicationForm(element: Element): boolean {
-  // Check for file upload inputs
-  if (element.querySelector('input[type="file"]')) {
-    return true;
+  let score = 0;
+  const THRESHOLD = 3; // Require multiple signals
+
+  // Strong signal: Resume/CV file upload (score: 3)
+  const fileInputs = element.querySelectorAll('input[type="file"]');
+  for (const fileInput of fileInputs) {
+    const accept = fileInput.getAttribute("accept")?.toLowerCase() ?? "";
+    const name = fileInput.getAttribute("name")?.toLowerCase() ?? "";
+    const label = getAssociatedLabel(fileInput as HTMLInputElement, element)?.toLowerCase() ?? "";
+    
+    if (accept.includes("pdf") || accept.includes("doc") ||
+        name.includes("resume") || name.includes("cv") ||
+        label.includes("resume") || label.includes("cv")) {
+      score += 3;
+      break;
+    }
   }
 
-  // Check for common application form labels
+  // Collect all text content for analysis
   const labels = Array.from(element.querySelectorAll("label")).map(l => 
     l.textContent?.toLowerCase() || ""
   );
-  
-  const applicationKeywords = [
-    "resume", "cv", "cover letter",
-    "first name", "last name", "email", "phone",
-    "linkedin", "github", "portfolio",
-    "salary", "visa", "sponsorship"
-  ];
+  const allLabelText = labels.join(" ");
 
-  if (labels.some(label => 
-    applicationKeywords.some(keyword => label.includes(keyword))
-  )) {
-    return true;
+  // Strong signal: Job application specific labels (score: 2 each)
+  const strongKeywords = [
+    "resume", "cv", "cover letter", "coverletter",
+    "work experience", "years of experience",
+    "salary expectation", "expected salary",
+    "visa status", "work authorization", "sponsorship",
+    "notice period", "start date", "availability"
+  ];
+  
+  for (const keyword of strongKeywords) {
+    if (allLabelText.includes(keyword)) {
+      score += 2;
+    }
   }
 
-  // Check for submit buttons with application-related text
+  // Medium signal: Personal info fields in job context (score: 1 each, max 2)
+  const personalKeywords = ["first name", "last name", "phone number", "linkedin", "portfolio"];
+  let personalCount = 0;
+  for (const keyword of personalKeywords) {
+    if (allLabelText.includes(keyword) && personalCount < 2) {
+      score += 1;
+      personalCount++;
+    }
+  }
+
+  // Check for submit buttons with job-specific text (score: 2)
   const buttons = Array.from(element.querySelectorAll("button, input[type='submit']"));
   const buttonTexts = buttons.map(b => b.textContent?.toLowerCase() || "");
   
-  const submitKeywords = ["apply", "submit application", "continue", "next"];
+  const jobSubmitKeywords = ["submit application", "apply now", "apply for", "send application"];
   if (buttonTexts.some(text => 
-    submitKeywords.some(keyword => text.includes(keyword))
+    jobSubmitKeywords.some(keyword => text.includes(keyword))
   )) {
-    return true;
+    score += 2;
   }
 
-  // Check for common field names
+  // Check form action URL for job-related paths (score: 2)
+  if (element.tagName === "FORM") {
+    const action = (element as HTMLFormElement).action?.toLowerCase() ?? "";
+    const jobPaths = ["/apply", "/application", "/career", "/job", "/recruit", "/talent"];
+    if (jobPaths.some(path => action.includes(path))) {
+      score += 2;
+    }
+  }
+
+  // Check for common job application field names (score: 1 each, max 2)
   const inputs = element.querySelectorAll("input, textarea, select");
   const fieldNames = Array.from(inputs).map(input => 
     (input.getAttribute("name") || "").toLowerCase()
   );
 
-  const commonFieldNames = [
-    "email", "phone", "firstname", "lastname",
-    "resume", "cv", "coverletter"
-  ];
+  const jobFieldNames = ["resume", "cv", "coverletter", "cover_letter", "experience", "salary"];
+  let fieldCount = 0;
+  for (const name of fieldNames) {
+    if (jobFieldNames.some(jf => name.includes(jf)) && fieldCount < 2) {
+      score += 1;
+      fieldCount++;
+    }
+  }
 
-  const matchCount = fieldNames.filter(name => 
-    commonFieldNames.some(common => name.includes(common))
-  ).length;
+  return score >= THRESHOLD;
+}
 
-  return matchCount >= 2;
+/**
+ * Gets the associated label text for an input element
+ */
+function getAssociatedLabel(input: HTMLInputElement, container: Element): string | null {
+  if (input.id) {
+    const label = container.querySelector(`label[for="${input.id}"]`);
+    if (label) return label.textContent?.trim() ?? null;
+  }
+  const closestLabel = input.closest("label");
+  if (closestLabel) {
+    return closestLabel.textContent?.trim() ?? null;
+  }
+  return null;
 }
 
 /**
