@@ -106,4 +106,74 @@ export type TokenUsage = {
 	totalCost?: number;
 };
 
+/**
+ * Form field classification paths matching ParsedCVData structure.
+ * For links, the LLM determines the link type dynamically.
+ */
+export const FORM_FIELD_PATHS = [
+	// Personal info
+	"personal.fullName",
+	"personal.email",
+	"personal.phone",
+	"personal.location",
+	"personal.nationality",
+	"personal.rightToWork",
+	// Links - type is determined by LLM (linkedin, github, portfolio, behance, etc.)
+	"links",
+	// Summary
+	"summary",
+	// Experience
+	"experience",
+	// Education
+	"education",
+	// Certifications
+	"certifications",
+	// Languages
+	"languages",
+	// Extras
+	"extras.drivingLicense",
+	"extras.workPermit",
+	"extras.willingToRelocate",
+	"extras.remotePreference",
+	"extras.noticePeriod",
+	"extras.availability",
+	"extras.salaryExpectation",
+	// Special fields (not in ParsedCVData but needed for forms)
+	"resume_upload",
+	"cover_letter",
+	"motivation_text",
+	// Fallback
+	"unknown",
+] as const;
+
+export type FormFieldPath = (typeof FORM_FIELD_PATHS)[number];
+
+/**
+ * Form field input for classification
+ */
+export interface FormFieldInput {
+	hash: string;
+	id: string;
+	tag: string;
+	type: string;
+	name: string | null;
+	label: string | null;
+	placeholder: string | null;
+	description: string | null;
+	isFileUpload: boolean;
+	accept: string | null;
+}
+
+/**
+ * Form field classification result.
+ * If a field accepts multiple types, multiple entries with the same hash are returned.
+ */
+export interface FormFieldClassification {
+	hash: string;
+	/** Path in ParsedCVData structure */
+	path: FormFieldPath;
+	/** For "links" path, the detected link type */
+	linkType?: string;
+}
+
 // Add more shared types here

@@ -18,6 +18,7 @@ const envSchema = z.object({
 	SUPABASE_JWKS_URL: z.string().url().optional(),
 	SUPABASE_JWT_SECRET: z.string().optional(),
 	WORKER_SECRET: z.string().optional(),
+	OPENAI_API_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

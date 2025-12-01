@@ -29,6 +29,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@ai-sdk/openai':
+        specifier: ^2.0.72
+        version: 2.0.72(zod@3.25.76)
       '@aws-sdk/client-s3':
         specifier: ^3.925.0
         version: 3.925.0
@@ -47,6 +50,9 @@ importers:
       '@lazyapply/types':
         specifier: workspace:*
         version: link:../../packages/types
+      ai:
+        specifier: ^5.0.102
+        version: 5.0.102(zod@3.25.76)
       cors:
         specifier: ^2.8.5
         version: 2.8.5
@@ -5292,6 +5298,13 @@ snapshots:
 
   '@acemir/cssom@0.9.24': {}
 
+  '@ai-sdk/gateway@2.0.15(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0
+      '@ai-sdk/provider-utils': 3.0.17(zod@3.25.76)
+      '@vercel/oidc': 3.0.5
+      zod: 3.25.76
+
   '@ai-sdk/gateway@2.0.15(zod@4.1.13)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
@@ -5299,11 +5312,24 @@ snapshots:
       '@vercel/oidc': 3.0.5
       zod: 4.1.13
 
+  '@ai-sdk/openai@2.0.72(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0
+      '@ai-sdk/provider-utils': 3.0.17(zod@3.25.76)
+      zod: 3.25.76
+
   '@ai-sdk/openai@2.0.72(zod@4.1.13)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
       '@ai-sdk/provider-utils': 3.0.17(zod@4.1.13)
       zod: 4.1.13
+
+  '@ai-sdk/provider-utils@3.0.17(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0
+      '@standard-schema/spec': 1.0.0
+      eventsource-parser: 3.0.6
+      zod: 3.25.76
 
   '@ai-sdk/provider-utils@3.0.17(zod@4.1.13)':
     dependencies:
@@ -8073,6 +8099,14 @@ snapshots:
   adm-zip@0.5.16: {}
 
   agent-base@7.1.4: {}
+
+  ai@5.0.102(zod@3.25.76):
+    dependencies:
+      '@ai-sdk/gateway': 2.0.15(zod@3.25.76)
+      '@ai-sdk/provider': 2.0.0
+      '@ai-sdk/provider-utils': 3.0.17(zod@3.25.76)
+      '@opentelemetry/api': 1.9.0
+      zod: 3.25.76
 
   ai@5.0.102(zod@4.1.13):
     dependencies:

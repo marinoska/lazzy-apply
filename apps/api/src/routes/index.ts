@@ -6,26 +6,30 @@ import { authenticateUser } from "@/app/middleware/authenticateUser.js";
 import { authenticateWorker } from "@/app/middleware/authenticateWorker.js";
 import { validateRequest } from "@/app/middleware/validateRequest.js";
 import {
+	classifyFormFields,
+	classifyFormFieldsBodySchema,
+} from "./formFields/classifyFormFields.js";
+import {
 	updateOutboxBodySchema,
 	updateOutboxParamsSchema,
 	updateOutboxStatus,
 } from "./outbox/updateOutboxStatus.js";
 import {
+	deleteUploadController,
+	deleteUploadParamsSchema,
+} from "./uploads/deleteUpload.js";
+import {
 	uploadLinkController,
 	uploadRequestSchema,
 } from "./uploads/getUploadLink.js";
-import {
-	completeUploadController,
-	completeUploadRequestSchema,
-} from "./uploads/setUploadStatus.js";
 import {
 	getUploadsController,
 	getUploadsQuerySchema,
 } from "./uploads/getUploads.js";
 import {
-	deleteUploadController,
-	deleteUploadParamsSchema,
-} from "./uploads/deleteUpload.js";
+	completeUploadController,
+	completeUploadRequestSchema,
+} from "./uploads/setUploadStatus.js";
 
 export const registerRoutes = (app: Express) => {
 	const router = Router();
@@ -57,6 +61,14 @@ export const registerRoutes = (app: Express) => {
 		authenticateUser,
 		validateRequest({ params: deleteUploadParamsSchema }),
 		deleteUploadController,
+	);
+
+	// Form field classification endpoint (called by Chrome extension)
+	router.post(
+		"/classify-form-fields",
+		authenticateUser,
+		validateRequest({ body: classifyFormFieldsBodySchema }),
+		classifyFormFields,
 	);
 
 	// Outbox status update endpoint (called by queue consumer worker)
