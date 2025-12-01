@@ -44,6 +44,16 @@ function getFieldHashContent(field: Partial<FormField>): Record<string, unknown>
   );
 }
 
+/**
+ * Calculates the application form hash from all field hashes.
+ * The form hash is derived from the sorted list of individual field hashes
+ * to ensure consistent ordering regardless of field detection order.
+ */
+function calculateFormHash(fields: FormField[]): string {
+  const fieldHashes = fields.map(field => field.hash).sort();
+  return createPrefixedHash({ fieldHashes });
+}
+
 export interface FormField {
   hash: string;
   id: string | null;
@@ -124,11 +134,8 @@ export function detectApplicationForm(): ApplicationForm | null {
     method: (scanElement as HTMLFormElement).method || null,
   } : undefined;
 
-  // Calculate form hash from form action and all fields
-  const formHash = createPrefixedHash({
-    action: formElement?.action,
-    fields: fields.map(getFieldHashContent),
-  });
+  // Calculate form hash from all field hashes
+  const formHash = calculateFormHash(fields);
 
   return {
     formHash,

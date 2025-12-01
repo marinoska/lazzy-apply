@@ -9,8 +9,8 @@ export function getSidebarStyles(): string {
     }
     .overlay {
       position: fixed;
-      inset: 0 0 0 auto;
-      width: calc(360px);
+      inset: 10px 10px 0 auto;
+      width: calc(380px);
       max-width: calc((100vw - 32px));
       z-index: 2147483647;
       opacity: 0;

@@ -877,6 +877,49 @@ describe("formDetector", () => {
         
         expect(emailField?.hash).not.toBe(phoneField?.hash);
       });
+
+      it("should generate same formHash regardless of field order in DOM", () => {
+        // First form with fields in order: email, phone
+        container.innerHTML = `
+          <form action="/apply">
+            <label for="resume">Resume</label>
+            <input type="file" id="resume" name="resume" accept=".pdf" />
+            
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" />
+            
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" name="phone" />
+            
+            <button type="submit">Submit Application</button>
+          </form>
+        `;
+
+        const result1 = detectApplicationForm();
+
+        // Second form with fields in order: phone, email (reversed)
+        container.innerHTML = `
+          <form action="/apply">
+            <label for="resume">Resume</label>
+            <input type="file" id="resume" name="resume" accept=".pdf" />
+            
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" name="phone" />
+            
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" />
+            
+            <button type="submit">Submit Application</button>
+          </form>
+        `;
+
+        const result2 = detectApplicationForm();
+
+        expect(result1).not.toBeNull();
+        expect(result2).not.toBeNull();
+        // formHash should be the same because it's derived from sorted field hashes
+        expect(result1?.formHash).toBe(result2?.formHash);
+      });
     });
   });
 });
