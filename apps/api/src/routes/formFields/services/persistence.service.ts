@@ -1,27 +1,30 @@
-import mongoose from "mongoose";
-import { FormFieldModel, FormModel, UsageModel } from "@/formFields/index.js";
-import type { CreateFormFieldParams, CreateFormParams, CreateUsageParams, TForm } from "@/formFields/index.js";
 import type {
-	Field,
-	FormFieldClassification,
 	FormFieldRef,
 	FormInput,
 	TokenUsage,
 } from "@lazyapply/types";
-
-export interface ClassifiedField {
-	hash: string;
-	classification: FormFieldClassification;
-	paths: string[];
-}
+import mongoose from "mongoose";
+import { FormModel } from "@/formFields/form.model.js";
+import {
+	type CreateFormFieldParams,
+	type CreateFormParams,
+	type CreateUsageParams,
+	FormFieldModel,
+	type TFormField,
+	UsageModel,
+} from "@/formFields/index.js";
+import type { EnrichedClassifiedField } from "./classifier.service.js";
 
 /**
  * Builds form field references from classified fields
  */
-function buildFormFieldRefs(classifiedFields: ClassifiedField[]): FormFieldRef[] {
-	return classifiedFields.map(({ hash, paths }) => ({
+function buildFormFieldRefs(
+	classifiedFields: (EnrichedClassifiedField | TFormField)[],
+): FormFieldRef[] {
+	return classifiedFields.map(({ hash, classification, linkType }) => ({
 		hash,
-		path: paths.length === 1 ? paths[0] : paths,
+		classification,
+		...(linkType && { linkType }),
 	}));
 }
 
@@ -29,24 +32,25 @@ function buildFormFieldRefs(classifiedFields: ClassifiedField[]): FormFieldRef[]
  * Builds form field documents from classified fields
  */
 function buildFormFieldDocuments(
-	classifiedFields: ClassifiedField[],
-	fieldsMap: Map<string, Field>,
+	classifiedFields: EnrichedClassifiedField[],
 ): CreateFormFieldParams[] {
 	const fieldDocs: CreateFormFieldParams[] = [];
 
-	for (const { hash, classification, paths } of classifiedFields) {
-		const originalField = fieldsMap.get(hash);
-		if (!originalField) continue;
-
-		const { tag, type, name, label, placeholder, description, isFileUpload, accept } =
-			originalField.field;
-
+	for (const { hash, classification, linkType, field } of classifiedFields) {
 		fieldDocs.push({
-			fieldHash: hash,
-			field: { tag, type, name, label, placeholder, description, isFileUpload, accept },
-			path: paths.length === 1 ? paths[0] : paths,
-			classification: classification.classification,
-			linkType: classification.linkType,
+			hash: hash,
+			field: {
+				tag: field.tag,
+				type: field.type,
+				name: field.name,
+				label: field.label,
+				placeholder: field.placeholder,
+				description: field.description,
+				isFileUpload: field.isFileUpload,
+				accept: field.accept,
+			},
+			classification,
+			linkType,
 		});
 	}
 
@@ -60,9 +64,8 @@ function buildFormFieldDocuments(
  */
 export async function persistNewFormAndFields(
 	formInput: FormInput,
-	allClassifiedFields: ClassifiedField[],
-	newlyClassifiedFields: ClassifiedField[],
-	fieldsMap: Map<string, Field>,
+	allClassifiedFields: (TFormField | EnrichedClassifiedField)[],
+	newlyClassifiedFields: EnrichedClassifiedField[],
 	tokenUsage: TokenUsage,
 ): Promise<void> {
 	const session = await mongoose.startSession();
@@ -80,8 +83,8 @@ export async function persistNewFormAndFields(
 
 			const [savedForm] = await FormModel.create([formData], { session });
 
-			// Only insert newly classified fields (not cached ones)
-			const fieldDocs = buildFormFieldDocuments(newlyClassifiedFields, fieldsMap);
+			// Only_savedFormewly classified fields (not cached ones)
+			const fieldDocs = buildFormFieldDocuments(newlyClassifiedFields);
 			if (fieldDocs.length > 0) {
 				await FormFieldModel.insertMany(fieldDocs, { session, ordered: false });
 			}
@@ -103,27 +106,3 @@ export async function persistNewFormAndFields(
 		await session.endSession();
 	}
 }
-
-/**
- * Updates an existing form with new pageUrl/action if not already present
- */
-export async function updateFormUrlsIfNeeded(
-	existingForm: TForm,
-	pageUrl: string,
-	action: string | null,
-): Promise<void> {
-	const updates: Record<string, unknown> = {};
-
-	if (!existingForm.pageUrls.includes(pageUrl)) {
-		updates.$addToSet = { ...((updates.$addToSet as Record<string, unknown>) ?? {}), pageUrls: pageUrl };
-	}
-
-	if (action && !existingForm.actions.includes(action)) {
-		updates.$addToSet = { ...((updates.$addToSet as Record<string, unknown>) ?? {}), actions: action };
-	}
-
-	if (Object.keys(updates).length > 0) {
-		await FormModel.findOneAndUpdate({ formHash: existingForm.formHash }, updates);
-	}
-}
-

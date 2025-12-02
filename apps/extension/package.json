@@ -13,20 +13,20 @@
 	},
 	"dependencies": {
 		"@emotion/cache": "^11.14.0",
-		"@emotion/react": "^11.13.5",
-		"@emotion/styled": "^11.13.5",
+		"@emotion/react": "^11.14.0",
+		"@emotion/styled": "^11.14.1",
 		"@lazyapply/types": "workspace:*",
 		"@lazyapply/utils": "workspace:*",
-		"@mui/icons-material": "^6.0.0",
-		"@mui/joy": "^5.0.0-beta.52",
+		"@mui/icons-material": "^6.5.0",
+		"@mui/joy": "5.0.0-beta.52",
 		"@supabase/supabase-js": "^2.78.0",
 		"@tanstack/react-query": "^5.90.11",
 		"compromise": "^14.14.4",
 		"ohash": "^2.0.11",
-		"qs": "^6.11.0",
+		"qs": "^6.13.0",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0",
-		"react-dropzone": "^14.2.0"
+		"react-dropzone": "^14.3.8"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
@@ -36,10 +36,10 @@
 		"@types/react": "^19.2.2",
 		"@types/react-dom": "^19.2.2",
 		"@vitejs/plugin-react": "^5.1.0",
-		"concurrently": "^9.1.0",
+		"concurrently": "^9.2.1",
 		"jsdom": "^27.2.0",
 		"typescript": "^5.9.3",
 		"vite": "^7.1.12",
-		"web-ext": "^8.3.0"
+		"web-ext": "^8.10.0"
 	}
 }

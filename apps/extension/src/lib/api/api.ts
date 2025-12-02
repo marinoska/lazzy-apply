@@ -1,7 +1,4 @@
-import type {
-	AutofillRequest,
-	FormFieldClassification,
-} from "@lazyapply/types";
+import type { AutofillRequest, ClassifiedField } from "@lazyapply/types";
 import { sendApiRequest } from "./backgroundClient.js";
 
 export interface UploadSignedUrlResponse {
@@ -52,9 +49,7 @@ export async function uploadFileToSignedUrl(
 	});
 
 	if (!response.ok) {
-		throw new Error(
-			`Upload failed: ${response.status} ${response.statusText}`,
-		);
+		throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
 	}
 }
 
@@ -132,10 +127,6 @@ export async function deleteUpload(
  */
 export async function classifyFormFields(
 	request: AutofillRequest,
-): Promise<FormFieldClassification[]> {
-	return sendApiRequest<FormFieldClassification[]>(
-		"POST",
-		"/autofill",
-		request,
-	);
+): Promise<ClassifiedField[]> {
+	return sendApiRequest<ClassifiedField[]>("POST", "/autofill", request);
 }

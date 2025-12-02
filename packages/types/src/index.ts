@@ -178,7 +178,7 @@ export interface FieldData extends ClassificationFieldData {
  */
 export interface Field {
 	/** Unique field hash */
-	fieldHash: string;
+	hash: string;
 	/** Field metadata */
 	field: FieldData;
 }
@@ -189,8 +189,10 @@ export interface Field {
 export interface FormFieldRef {
 	/** Field hash */
 	hash: string;
-	/** DOM path or array of paths where this field appears, null if unknown */
-	path: string | string[] | null;
+	/** Classification path in ParsedCVData structure */
+	classification: FormFieldPath;
+	/** Link type for the field (e.g., LinkedIn, GitHub) */
+	linkType?: string;
 }
 
 /**
@@ -249,7 +251,7 @@ export interface AutofillRequest {
  * Form field classification result.
  * If a field accepts multiple types, multiple entries with the same hash are returned.
  */
-export interface FormFieldClassification {
+export interface ClassifiedField {
 	hash: string;
 	/** Path in ParsedCVData structure */
 	classification: FormFieldPath;
@@ -258,16 +260,7 @@ export interface FormFieldClassification {
 }
 
 /**
- * Normalized classification result with deduped hashes.
- * Maps hash to field with aggregated paths.
- */
-export type NormalizedClassificationResult = Record<string, {
-	field: FormFieldClassification;
-	paths: string[];
-}>;
-
-/**
- * Autofill response item returned to the client
+ * Autofill response item returned to the client (keyed by field hash)
  */
 export interface AutofillResponseItem {
 	/** Original field ID from DOM */
@@ -282,15 +275,16 @@ export interface AutofillResponseItem {
 
 /**
  * Autofill response returned to the client
+ * Record keyed by field hash
  */
-export type AutofillResponse = AutofillResponseItem[];
+export type AutofillResponse = Record<string, AutofillResponseItem>;
 
 /**
  * Stored field document in the database
  */
 export interface StoredField {
 	/** Unique field hash */
-	fieldHash: string;
+	hash: string;
 	/** Field metadata */
 	field: FieldData;
 	/** Classification path in ParsedCVData structure */

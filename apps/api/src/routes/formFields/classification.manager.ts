@@ -1,130 +1,49 @@
-import { createLogger } from "@/app/logger.js";
-import { FormModel, type TForm, type TFormField } from "@/formFields/index.js";
 import type {
 	AutofillResponse,
-	AutofillResponseItem,
 	Field,
-	FormFieldClassification,
-	FormFieldPath,
+	FormFieldRef,
 	FormInput,
 } from "@lazyapply/types";
+import { createLogger } from "@/app/logger.js";
+import {
+	FormFieldModel,
+	FormModel,
+	type TForm,
+	type TFormField,
+} from "@/formFields/index.js";
 
 import {
 	classifyFieldsWithAI,
-	findFieldsByHashes,
 	persistNewFormAndFields,
-	updateFormUrlsIfNeeded,
-	type ClassifiedField,
 } from "./services/index.js";
 
 const logger = createLogger("classification.manager");
 
 /**
- * Builds autofill response from stored form data, merging fieldId/fieldName from input
- */
-function buildResponseFromStoredForm(
-	storedForm: TForm,
-	inputFields: Field[],
-): AutofillResponse {
-	const fieldsMap = new Map(inputFields.map((f) => [f.fieldHash, f]));
-
-	return storedForm.fields.map((fieldRef) => {
-		const inputField = fieldsMap.get(fieldRef.hash);
-		return {
-			fieldId: inputField?.field.id ?? "",
-			fieldName: inputField?.field.name ?? null,
-			path: (Array.isArray(fieldRef.path) ? fieldRef.path[0] : fieldRef.path) as FormFieldPath,
-		};
-	});
-}
-
-/**
  * Builds autofill response from stored fields
  */
-function buildResponseFromStoredFields(
-	storedFields: Map<string, TFormField>,
+function buildResponseFromFields(
+	fields: (TFormField | FormFieldRef)[],
 	inputFields: Field[],
 ): AutofillResponse {
-	const response: AutofillResponse = [];
+	const fieldsMap = new Map(fields.map((f) => [f.hash, f]));
+	const response: AutofillResponse = {};
 
 	for (const inputField of inputFields) {
-		const storedField = storedFields.get(inputField.fieldHash);
-		if (storedField) {
-			const item: AutofillResponseItem = {
+		const field = fieldsMap.get(inputField.hash);
+		if (field) {
+			response[inputField.hash] = {
 				fieldId: inputField.field.id,
 				fieldName: inputField.field.name,
-				path: storedField.classification,
+				path: field.classification,
+				...(field.linkType && { linkType: field.linkType }),
 			};
-			if (storedField.linkType) {
-				item.linkType = storedField.linkType;
-			}
-			response.push(item);
-		}
-	}
-
-	return response;
-}
-
-/**
- * Builds autofill response from classified fields
- */
-function buildResponseFromClassifiedFields(
-	classifiedFields: ClassifiedField[],
-	fieldsMap: Map<string, Field>,
-): AutofillResponse {
-	const response: AutofillResponse = [];
-
-	for (const classified of classifiedFields) {
-		const inputField = fieldsMap.get(classified.hash);
-		if (inputField) {
-			const item: AutofillResponseItem = {
-				fieldId: inputField.field.id,
-				fieldName: inputField.field.name,
-				path: classified.classification.classification,
-			};
-			if (classified.classification.linkType) {
-				item.linkType = classified.classification.linkType;
-			}
-			response.push(item);
-		}
-	}
-
-	return response;
-}
-
-/**
- * Converts classifications to ClassifiedField format with paths
- */
-function toClassifiedFields(
-	classifications: FormFieldClassification[],
-	pathsMap: Map<string, string | string[] | null>,
-): ClassifiedField[] {
-	const byHash = new Map<string, ClassifiedField>();
-
-	for (const classification of classifications) {
-		const { hash } = classification;
-		const fieldPath = pathsMap.get(hash);
-		const paths: string[] = fieldPath
-			? (Array.isArray(fieldPath) ? fieldPath : [fieldPath])
-			: [];
-
-		const existing = byHash.get(hash);
-		if (existing) {
-			for (const p of paths) {
-				if (!existing.paths.includes(p)) {
-					existing.paths.push(p);
-				}
-			}
 		} else {
-			byHash.set(hash, {
-				hash,
-				classification,
-				paths: [...paths],
-			});
+			logger.error({ hash: inputField.hash }, "Field hash not found");
 		}
 	}
 
-	return Array.from(byHash.values());
+	return response;
 }
 
 export interface AutofillResult {
@@ -141,79 +60,116 @@ export interface AutofillResult {
  * 3. Merge cached + newly classified fields
  * 4. Persist new data
  */
-export async function processAutofillRequest(
-	formInput: FormInput,
-	inputFields: Field[],
-): Promise<AutofillResult> {
-	const fieldsMap = new Map(inputFields.map((f) => [f.fieldHash, f]));
-	const fieldHashes = inputFields.map((f) => f.fieldHash);
-	// Build pathsMap from formInput.fields (FormFieldRef[]) - this is where paths come from
-	const pathsMap = new Map(formInput.fields.map((ref) => [ref.hash, ref.path]));
+export class ClassificationManager {
+	private existingForm?: TForm;
+	private inputFieldsMap: Map<string, Field>;
+	private existingFields: TFormField[] = [];
+	private fieldsToClassify: Field[] = [];
 
-	// Step 1: Check if form exists
-	const existingForm = await FormModel.findByHash(formInput.formHash);
+	constructor(
+		readonly formInput: FormInput,
+		inputFields: Field[],
+	) {
+		this.inputFieldsMap = new Map(inputFields.map((f) => [f.hash, f]));
+	}
 
-	if (existingForm) {
-		logger.info("Form found in DB, returning cached data");
+	private async loadForm() {
+		// Step 1: Check if form exists
+		const existingForm = await FormModel.findByHash(this.formInput.formHash);
 
-		// Update URLs if changed
-		await updateFormUrlsIfNeeded(existingForm, formInput.pageUrl, formInput.action);
+		if (existingForm) {
+			if (!existingForm.pageUrls.includes(this.formInput.pageUrl)) {
+				existingForm.pageUrls.push(this.formInput.pageUrl);
+			}
+			if (
+				this.formInput.action &&
+				!existingForm.actions.includes(this.formInput.action)
+			) {
+				existingForm.actions.push(this.formInput.action);
+			}
+			if (existingForm.isModified(["pageUrls", "actions"])) {
+				await existingForm.save();
+			}
+
+			this.existingForm = existingForm;
+		}
+	}
+
+	private async loadFields() {
+		const hashes = Array.from(this.inputFieldsMap.keys());
+		this.existingFields = await FormFieldModel.findByHashes(hashes);
+
+		const existingFieldHashes = this.existingFields.map((f) => f.hash);
+
+		const missingHashes = hashes.filter(
+			(hash) => !existingFieldHashes.includes(hash),
+		);
+
+		for (const hash of missingHashes) {
+			const field = this.inputFieldsMap.get(hash);
+			if (field) {
+				this.fieldsToClassify.push(field);
+			}
+		}
+	}
+
+	public async process() {
+		await this.loadForm();
+		if (this.existingForm) {
+			logger.info("Form found in DB, returning cached data");
+
+			return {
+				response: buildResponseFromFields(
+					this.existingForm.fields,
+					Array.from(this.inputFieldsMap.values()),
+				),
+				fromCache: true,
+			};
+		}
+
+		// Step 2: No form found - look up fields by hash
+		logger.debug("Form not found, looking up fields by hash");
+
+		await this.loadFields();
+
+		if (!this.fieldsToClassify.length) {
+			logger.info("All fields found in cache");
+			return {
+				response: buildResponseFromFields(
+					this.existingFields,
+					Array.from(this.inputFieldsMap.values()),
+				),
+				fromCache: true,
+			};
+		}
+
+		// Step 3: Classify only missing fields
+		logger.debug(
+			{ count: this.fieldsToClassify.length },
+			"Classifying missing fields",
+		);
+
+		const { classifiedFields, usage } = await classifyFieldsWithAI(
+			this.fieldsToClassify,
+		);
+
+		const result = buildResponseFromFields(
+			[...this.existingFields, ...classifiedFields],
+			Array.from(this.inputFieldsMap.values()),
+		);
+
+		// Persist form with all field refs, but only insert newly classified fields
+		await persistNewFormAndFields(
+			this.formInput,
+			[...this.existingFields, ...classifiedFields],
+			classifiedFields,
+			usage,
+		);
 
 		return {
-			response: buildResponseFromStoredForm(existingForm, inputFields),
-			fromCache: true,
+			response: result,
+			fromCache: false,
+			usage,
 		};
 	}
-
-	// Step 2: No form found - look up fields by hash
-	logger.info("Form not found, looking up fields by hash");
-	const { found: cachedFields, missing: missingHashes } = await findFieldsByHashes(fieldHashes);
-
-	// Step 3: Classify only missing fields
-	let newlyClassified: ClassifiedField[] = [];
-	let tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
-
-	if (missingHashes.length > 0) {
-		logger.info({ count: missingHashes.length }, "Classifying missing fields");
-		const fieldsToClassify = inputFields.filter((f) => missingHashes.includes(f.fieldHash));
-		const { classifications, usage } = await classifyFieldsWithAI(fieldsToClassify);
-		tokenUsage = usage;
-		newlyClassified = toClassifiedFields(classifications, pathsMap);
-	} else {
-		logger.info("All fields found in cache");
-	}
-
-	// Step 4: Build merged response
-	const cachedResponse = buildResponseFromStoredFields(cachedFields, inputFields);
-	const newResponse = buildResponseFromClassifiedFields(newlyClassified, fieldsMap);
-	const mergedResponse = [...cachedResponse, ...newResponse];
-
-	// Step 5: Build all field refs for the form (cached + new)
-	const allClassifiedFields: ClassifiedField[] = [
-		// Convert cached fields to ClassifiedField format (for form refs only)
-		...Array.from(cachedFields.entries()).map(([hash, stored]) => {
-			const fieldPath = pathsMap.get(hash);
-			const paths: string[] = fieldPath
-				? (Array.isArray(fieldPath) ? fieldPath : [fieldPath])
-				: [];
-			return {
-				hash,
-				classification: {
-					hash,
-					classification: stored.classification,
-					linkType: stored.linkType,
-				},
-				paths,
-			};
-		}),
-		...newlyClassified,
-	];
-
-	// Persist form with all field refs, but only insert newly classified fields
-	await persistNewFormAndFields(formInput, allClassifiedFields, newlyClassified, fieldsMap, tokenUsage);
-
-	return {
-		response: mergedResponse,
-		fromCache: false,
-	};
 }

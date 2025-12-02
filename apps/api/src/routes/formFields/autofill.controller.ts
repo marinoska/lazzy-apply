@@ -1,11 +1,9 @@
 import type { Request, Response } from "express";
 
-import { env } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
-import { HttpError } from "@/app/errors.js";
 import type { AutofillRequest, AutofillResponse } from "@lazyapply/types";
 import { autofillRequestSchema } from "@lazyapply/schemas";
-import { processAutofillRequest } from "./classification.manager.js";
+import { ClassificationManager } from "./classification.manager.js";
 
 const logger = createLogger("autofill");
 
@@ -19,7 +17,8 @@ export async function autofill(
 
 	logger.info({ formHash: form.formHash }, "Processing form");
 
-	const { response, fromCache } = await processAutofillRequest(form, fields);
+	const classificationManager = new ClassificationManager(form, fields);
+	const { response, fromCache } = await classificationManager.process();
 
 	if (fromCache) {
 		logger.info("Returned from DB - no classification needed");

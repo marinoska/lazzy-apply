@@ -1,9 +1,9 @@
+import type { AutofillRequest, Field, FormInput } from "@lazyapply/types";
 import Alert from "@mui/joy/Alert";
 import Button from "@mui/joy/Button";
 import Divider from "@mui/joy/Divider";
 import Stack from "@mui/joy/Stack";
 import { useEffect, useState } from "react";
-import type { AutofillRequest, Field, FormInput } from "@lazyapply/types";
 import { classifyFormFields } from "@/lib/api/api.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
 
@@ -39,7 +39,7 @@ export function AutofillButton({ hasUploads, onError }: AutofillButtonProps) {
 			}
 
 			const fields: Field[] = applicationForm.fields.map((field) => ({
-				fieldHash: field.hash,
+				hash: field.hash,
 				field: {
 					id: field.id ?? "",
 					tag: field.tag,
@@ -55,7 +55,7 @@ export function AutofillButton({ hasUploads, onError }: AutofillButtonProps) {
 
 			const form: FormInput = {
 				formHash: applicationForm.formHash,
-				fields: fields.map((f) => ({ hash: f.fieldHash, path: null })),
+				fields: fields.map((f) => ({ hash: f.hash, path: null })),
 				pageUrl: window.location.href,
 				action: applicationForm.formElement?.action ?? null,
 			};

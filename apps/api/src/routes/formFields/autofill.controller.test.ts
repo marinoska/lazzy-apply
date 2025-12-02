@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { FormFieldModel } from "@/formFields/formField.model.js";
+import type { Field } from "@lazyapply/types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FormModel } from "@/formFields/form.model.js";
+import { FormFieldModel } from "@/formFields/formField.model.js";
 import { autofill } from "./autofill.controller.js";
+import type { EnrichedClassifiedField } from "./services/classifier.service.js";
 
 // Mock env to have OPENAI_API_KEY and LOG_LEVEL
 vi.mock("@/app/env.js", () => ({
@@ -17,15 +19,22 @@ vi.mock("@/app/env.js", () => ({
 
 // Mock the classifier service to avoid actual AI calls
 vi.mock("./services/classifier.service.js", () => ({
-	classifyFieldsWithAI: vi.fn().mockResolvedValue({
-		classifications: [
-			{ hash: "hash-1", classification: "personal.email" },
-		],
-		usage: {
-			promptTokens: 100,
-			completionTokens: 50,
-			totalTokens: 150,
-		},
+	classifyFieldsWithAI: vi.fn().mockImplementation((fields: Field[]) => {
+		const classifiedFields: EnrichedClassifiedField[] = fields.map((f) => ({
+			...f,
+			classification: "personal.email" as const,
+		}));
+		return Promise.resolve({
+			classifiedFields,
+			usage: {
+				promptTokens: 100,
+				completionTokens: 50,
+				totalTokens: 150,
+				inputCost: 0.0001,
+				outputCost: 0.00005,
+				totalCost: 0.00015,
+			},
+		});
 	}),
 }));
 
@@ -34,12 +43,12 @@ describe("autofill.controller", () => {
 		body: {
 			form: {
 				formHash: string;
-				fields: Array<{ hash: string; path: string | null }>;
+				fields: Array<{ hash: string; classification: string }>;
 				pageUrl: string;
 				action: string | null;
 			};
 			fields: Array<{
-				fieldHash: string;
+				hash: string;
 				field: {
 					id: string;
 					tag: string;
@@ -71,15 +80,13 @@ describe("autofill.controller", () => {
 			body: {
 				form: {
 					formHash: "test-form-hash",
-					fields: [
-						{ hash: "hash-1", path: null },
-					],
+					fields: [{ hash: "hash-1", classification: "personal.email" }],
 					pageUrl: "https://example.com/apply",
 					action: "https://example.com/submit",
 				},
 				fields: [
 					{
-						fieldHash: "hash-1",
+						hash: "hash-1",
 						field: {
 							id: "email-field",
 							tag: "input",
@@ -105,7 +112,7 @@ describe("autofill.controller", () => {
 				fields: [
 					{
 						hash: "hash-1",
-						path: "personal.email",
+						classification: "personal.email",
 					},
 				],
 				pageUrls: ["https://example.com/apply"],
@@ -114,13 +121,13 @@ describe("autofill.controller", () => {
 
 			await autofill(mockReq as never, mockRes as never);
 
-			expect(mockRes.json).toHaveBeenCalledWith([
-				{
+			expect(mockRes.json).toHaveBeenCalledWith({
+				"hash-1": {
 					fieldId: "email-field",
 					fieldName: "email",
 					path: "personal.email",
 				},
-			]);
+			});
 		});
 
 		it("should classify and return response when form does not exist", async () => {
@@ -128,8 +135,8 @@ describe("autofill.controller", () => {
 
 			expect(mockRes.json).toHaveBeenCalled();
 			const response = mockRes.json.mock.calls[0][0];
-			expect(Array.isArray(response)).toBe(true);
-			expect(response.length).toBeGreaterThanOrEqual(1);
+			expect(typeof response).toBe("object");
+			expect(Object.keys(response).length).toBeGreaterThanOrEqual(1);
 		});
 
 		it("should persist form after classification", async () => {

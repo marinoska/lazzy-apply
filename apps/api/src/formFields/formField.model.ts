@@ -1,9 +1,8 @@
-import { Schema, model } from "mongoose";
 import { FORM_FIELD_PATHS } from "@lazyapply/types";
+import { model, Schema } from "mongoose";
 
 import {
 	FORM_FIELD_MODEL_NAME,
-	type FormFieldDocument,
 	type FormFieldMethods,
 	type FormFieldModelWithStatics,
 	type TFormField,
@@ -11,9 +10,13 @@ import {
 
 export type FormFieldModel = FormFieldModelWithStatics;
 
-const formFieldSchema = new Schema<TFormField, FormFieldModel, FormFieldMethods>(
+const formFieldSchema = new Schema<
+	TFormField,
+	FormFieldModel,
+	FormFieldMethods
+>(
 	{
-		fieldHash: {
+		hash: {
 			type: String,
 			required: true,
 			unique: true,
@@ -30,10 +33,6 @@ const formFieldSchema = new Schema<TFormField, FormFieldModel, FormFieldMethods>
 			isFileUpload: { type: Boolean, required: true, immutable: true },
 			accept: { type: String, default: null, immutable: true },
 		},
-		path: {
-			type: Schema.Types.Mixed, // string | string[]
-			required: true,
-		},
 		classification: {
 			type: String,
 			required: true,
@@ -49,16 +48,16 @@ const formFieldSchema = new Schema<TFormField, FormFieldModel, FormFieldMethods>
 
 formFieldSchema.statics.findByHash = async function (
 	this: FormFieldModelWithStatics,
-	fieldHash: string,
+	hash: string,
 ) {
-	return this.findOne({ fieldHash });
+	return this.findOne({ hash });
 };
 
 formFieldSchema.statics.findByHashes = async function (
 	this: FormFieldModelWithStatics,
-	fieldHashes: string[],
+	hashes: string[],
 ) {
-	return this.find({ fieldHash: { $in: fieldHashes } }).lean();
+	return this.find({ hash: { $in: hashes } }).lean();
 };
 
 export type { FormFieldDocument } from "./formField.types.js";

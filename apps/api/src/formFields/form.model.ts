@@ -1,8 +1,7 @@
-import { Schema, model } from "mongoose";
+import { model, Schema } from "mongoose";
 
 import {
 	FORM_MODEL_NAME,
-	type FormDocument,
 	type FormMethods,
 	type FormModelWithStatics,
 	type TForm,
@@ -23,7 +22,8 @@ const formSchema = new Schema<TForm, FormModel, FormMethods>(
 			type: [
 				{
 					hash: { type: String, required: true },
-					path: { type: Schema.Types.Mixed, default: null }, // string | string[] | null
+					classification: { type: String, required: true },
+					linkType: { type: String, default: undefined },
 				},
 			],
 			immutable: true,

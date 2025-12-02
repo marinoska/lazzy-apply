@@ -1,5 +1,9 @@
+import type {
+	ClassificationFieldData,
+	FormFieldPath,
+	FormFieldRef,
+} from "@lazyapply/types";
 import type { Document, Model } from "mongoose";
-import type { ClassificationFieldData, FormFieldPath, FormFieldRef } from "@lazyapply/types";
 
 export const FORM_FIELD_MODEL_NAME = "form_fields" as const;
 export const FORM_MODEL_NAME = "forms" as const;
@@ -9,11 +13,9 @@ export const FORM_MODEL_NAME = "forms" as const;
  * Only stores data needed for classification (no id, path is separate)
  */
 export type TFormField = {
-	fieldHash: string;
+	hash: string;
 	/** Classification-relevant field data (immutable) */
 	field: ClassificationFieldData;
-	/** DOM path(s) where this field appears */
-	path: string | string[];
 	classification: FormFieldPath;
 	linkType?: string;
 	createdAt: Date;
@@ -27,11 +29,11 @@ export type FormFieldMethods = Record<string, never>;
 export type FormFieldStatics = {
 	findByHash(
 		this: FormFieldModelWithStatics,
-		fieldHash: string,
+		hash: string,
 	): Promise<FormFieldDocument | null>;
 	findByHashes(
 		this: FormFieldModelWithStatics,
-		fieldHashes: string[],
+		hashes: string[],
 	): Promise<TFormField[]>;
 };
 

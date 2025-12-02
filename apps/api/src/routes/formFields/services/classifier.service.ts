@@ -1,15 +1,14 @@
 import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
-
-import { env } from "@/app/env.js";
-import { createLogger } from "@/app/logger.js";
 import {
-	FORM_FIELD_PATHS,
+	type ClassifiedField,
 	type Field,
-	type FormFieldClassification,
+	FORM_FIELD_PATHS,
 	type FormFieldPath,
 	type TokenUsage,
 } from "@lazyapply/types";
+import { generateText } from "ai";
+import { env } from "@/app/env.js";
+import { createLogger } from "@/app/logger.js";
 
 const CLASSIFICATION_PROMPT = `You are a strict classifier for job application form fields.
 
@@ -93,8 +92,10 @@ interface RawClassificationItem {
 	linkType?: string;
 }
 
+export type EnrichedClassifiedField = ClassifiedField & Field;
+
 export interface ClassificationResult {
-	classifications: FormFieldClassification[];
+	classifiedFields: EnrichedClassifiedField[];
 	usage: TokenUsage;
 }
 
@@ -102,8 +103,8 @@ export interface ClassificationResult {
  * Builds the prompt for field classification
  */
 function buildClassificationPrompt(fields: Field[]): string {
-	const fieldsForPrompt = fields.map(({ fieldHash, field }) => ({
-		hash: fieldHash,
+	const fieldsForPrompt = fields.map(({ hash, field }) => ({
+		hash: hash,
 		tag: field.tag,
 		type: field.type,
 		name: field.name,
@@ -120,7 +121,9 @@ function buildClassificationPrompt(fields: Field[]): string {
 /**
  * Calls the AI model to classify form fields
  */
-async function callClassificationModel(prompt: string): Promise<{ text: string; usage: TokenUsage }> {
+async function callClassificationModel(
+	prompt: string,
+): Promise<{ text: string; usage: TokenUsage }> {
 	const result = await generateText({
 		model: openai(env.OPENAI_MODEL),
 		prompt,
@@ -129,8 +132,10 @@ async function callClassificationModel(prompt: string): Promise<{ text: string; 
 	const promptTokens = result.usage.inputTokens ?? 0;
 	const completionTokens = result.usage.outputTokens ?? 0;
 	const totalTokens = result.usage.totalTokens ?? 0;
-	const inputCost = (promptTokens / 1_000_000) * env.OPENAI_MODEL_INPUT_PRICE_PER_1M;
-	const outputCost = (completionTokens / 1_000_000) * env.OPENAI_MODEL_OUTPUT_PRICE_PER_1M;
+	const inputCost =
+		(promptTokens / 1_000_000) * env.OPENAI_MODEL_INPUT_PRICE_PER_1M;
+	const outputCost =
+		(completionTokens / 1_000_000) * env.OPENAI_MODEL_OUTPUT_PRICE_PER_1M;
 	const totalCost = inputCost + outputCost;
 
 	return {
@@ -147,12 +152,13 @@ async function callClassificationModel(prompt: string): Promise<{ text: string; 
 }
 
 /**
- * Parses the LLM response into structured classifications
+ * Parses the LLM response into structured classifications enriched with field data
  */
 function parseClassificationResponse(
 	text: string,
-	inputHashes: Set<string>,
-): FormFieldClassification[] {
+	fields: Field[],
+): EnrichedClassifiedField[] {
+	const fieldsByHash = new Map(fields.map((f) => [f.hash, f]));
 	let jsonText = text.trim();
 	if (jsonText.startsWith("```")) {
 		const lines = jsonText.split("\n");
@@ -169,7 +175,7 @@ function parseClassificationResponse(
 		throw new Error("LLM response is not an array");
 	}
 
-	const results: FormFieldClassification[] = [];
+	const results: EnrichedClassifiedField[] = [];
 
 	for (const item of parsed as RawClassificationItem[]) {
 		if (
@@ -181,7 +187,8 @@ function parseClassificationResponse(
 			continue;
 		}
 
-		if (!inputHashes.has(item.hash)) {
+		const originalField = fieldsByHash.get(item.hash);
+		if (!originalField) {
 			continue;
 		}
 
@@ -189,7 +196,10 @@ function parseClassificationResponse(
 			? (item.path as FormFieldPath)
 			: "unknown";
 
-		const result: FormFieldClassification = { hash: item.hash, classification };
+		const result: EnrichedClassifiedField = {
+			...originalField,
+			classification,
+		};
 
 		if (classification === "links" && typeof item.linkType === "string") {
 			result.linkType = item.linkType;
@@ -204,14 +214,15 @@ function parseClassificationResponse(
 /**
  * Classifies form fields using AI
  */
-export async function classifyFieldsWithAI(fields: Field[]): Promise<ClassificationResult> {
+export async function classifyFieldsWithAI(
+	fields: Field[],
+): Promise<ClassificationResult> {
 	const prompt = buildClassificationPrompt(fields);
 	const { text, usage } = await callClassificationModel(prompt);
 
 	logger.info({ usage }, "Token usage");
 
-	const inputHashes = new Set(fields.map((f) => f.fieldHash));
-	const classifications = parseClassificationResponse(text, inputHashes);
+	const classifiedFields = parseClassificationResponse(text, fields);
 
-	return { classifications, usage };
+	return { classifiedFields, usage };
 }
