@@ -152,7 +152,63 @@ export const FORM_FIELD_PATHS = [
 export type FormFieldPath = (typeof FORM_FIELD_PATHS)[number];
 
 /**
- * Form field input for classification
+ * Field data used for classification (stored in DB)
+ * Does not include id or path - only data needed for AI classification
+ */
+export interface ClassificationFieldData {
+	tag: string;
+	type: string;
+	name: string | null;
+	label: string | null;
+	placeholder: string | null;
+	description: string | null;
+	isFileUpload: boolean;
+	accept: string | null;
+}
+
+/**
+ * Field data object containing all field metadata
+ */
+export interface FieldData extends ClassificationFieldData {
+	id: string;
+}
+
+/**
+ * Field collection document - stored per unique field hash
+ */
+export interface Field {
+	/** Unique field hash */
+	fieldHash: string;
+	/** Field metadata */
+	field: FieldData;
+}
+
+/**
+ * Form field reference with hash and path(s)
+ */
+export interface FormFieldRef {
+	/** Field hash */
+	hash: string;
+	/** DOM path or array of paths where this field appears, null if unknown */
+	path: string | string[] | null;
+}
+
+/**
+ * Form collection document - stored per unique form hash
+ */
+export interface Form {
+	/** Unique form hash */
+	formHash: string;
+	/** Array of field references with hash and path(s) */
+	fields: FormFieldRef[];
+	/** Page URLs where the form was detected */
+	pageUrls: string[];
+	/** Form action URLs (if available) */
+	actions: string[];
+}
+
+/**
+ * Form field input for classification (legacy, kept for compatibility)
  */
 export interface FormFieldInput {
 	hash: string;
@@ -168,15 +224,93 @@ export interface FormFieldInput {
 }
 
 /**
+ * Form input from client (single pageUrl/action)
+ */
+export interface FormInput {
+	/** Unique form hash */
+	formHash: string;
+	/** Array of field references with hash and path(s) */
+	fields: FormFieldRef[];
+	/** Page URL where the form was detected */
+	pageUrl: string;
+	/** Form action URL (if available) */
+	action: string | null;
+}
+
+/**
+ * Autofill request payload with form and fields
+ */
+export interface AutofillRequest {
+	form: FormInput;
+	fields: Field[];
+}
+
+/**
  * Form field classification result.
  * If a field accepts multiple types, multiple entries with the same hash are returned.
  */
 export interface FormFieldClassification {
 	hash: string;
 	/** Path in ParsedCVData structure */
-	path: FormFieldPath;
+	classification: FormFieldPath;
 	/** For "links" path, the detected link type */
 	linkType?: string;
+}
+
+/**
+ * Normalized classification result with deduped hashes.
+ * Maps hash to field with aggregated paths.
+ */
+export type NormalizedClassificationResult = Record<string, {
+	field: FormFieldClassification;
+	paths: string[];
+}>;
+
+/**
+ * Autofill response item returned to the client
+ */
+export interface AutofillResponseItem {
+	/** Original field ID from DOM */
+	fieldId: string;
+	/** Original field name from DOM */
+	fieldName: string | null;
+	/** Classification path in ParsedCVData structure */
+	path: FormFieldPath;
+	/** For "links" classification, the detected link type */
+	linkType?: string;
+}
+
+/**
+ * Autofill response returned to the client
+ */
+export type AutofillResponse = AutofillResponseItem[];
+
+/**
+ * Stored field document in the database
+ */
+export interface StoredField {
+	/** Unique field hash */
+	fieldHash: string;
+	/** Field metadata */
+	field: FieldData;
+	/** Classification path in ParsedCVData structure */
+	classification: FormFieldPath;
+	/** For "links" classification, the detected link type */
+	linkType?: string;
+}
+
+/**
+ * Stored form document in the database
+ */
+export interface StoredForm {
+	/** Unique form hash */
+	formHash: string;
+	/** Array of field references with hash and path(s) */
+	fields: FormFieldRef[];
+	/** Page URLs where the form was detected */
+	pageUrls: string[];
+	/** Form action URLs (if available) */
+	actions: string[];
 }
 
 // Add more shared types here

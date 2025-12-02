@@ -1,4 +1,4 @@
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import { beforeAll, afterAll, afterEach } from "vitest";
 
@@ -8,13 +8,15 @@ process.env.HOST = "localhost";
 process.env.MONGO_CONNECTION = "mongodb://localhost:27017/test";
 process.env.LOG_LEVEL = "silent";
 
-let mongoServer: MongoMemoryServer;
+let mongoServer: MongoMemoryReplSet;
 
 beforeAll(async () => {
-	mongoServer = await MongoMemoryServer.create();
+	mongoServer = await MongoMemoryReplSet.create({
+		replSet: { count: 1 },
+	});
 	const mongoUri = mongoServer.getUri();
 	await mongoose.connect(mongoUri);
-});
+}, 60000);
 
 afterAll(async () => {
 	await mongoose.disconnect();

@@ -1,34 +1,15 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
-import type { Request, Response } from "express";
-import { z } from "zod";
 
 import { env } from "@/app/env.js";
-import { HttpError } from "@/app/errors.js";
+import { createLogger } from "@/app/logger.js";
 import {
 	FORM_FIELD_PATHS,
+	type Field,
 	type FormFieldClassification,
 	type FormFieldPath,
+	type TokenUsage,
 } from "@lazyapply/types";
-
-const formFieldInputSchema = z.object({
-	hash: z.string(),
-	id: z.string(),
-	tag: z.string(),
-	type: z.string(),
-	name: z.string().nullable(),
-	label: z.string().nullable(),
-	placeholder: z.string().nullable(),
-	description: z.string().nullable(),
-	isFileUpload: z.boolean(),
-	accept: z.string().nullable(),
-});
-
-export const classifyFormFieldsBodySchema = z.object({
-	fields: z.array(formFieldInputSchema).min(1).max(100),
-});
-
-type ClassifyFormFieldsBody = z.infer<typeof classifyFormFieldsBodySchema>;
 
 const CLASSIFICATION_PROMPT = `You are a strict classifier for job application form fields.
 
@@ -98,13 +79,76 @@ If a field accepts multiple types, return MULTIPLE objects with the SAME hash:
 [
   { "hash": "abc", "path": "resume_upload" },
   { "hash": "abc", "path": "cover_letter" },
-  { "hash": "abc", "path": "certifications" }
 ]
 
 CLASSIFY THE FOLLOWING FIELDS:`;
 
 const VALID_PATHS = new Set<string>(FORM_FIELD_PATHS);
 
+const logger = createLogger("classifier.service");
+
+interface RawClassificationItem {
+	hash: string;
+	path: string;
+	linkType?: string;
+}
+
+export interface ClassificationResult {
+	classifications: FormFieldClassification[];
+	usage: TokenUsage;
+}
+
+/**
+ * Builds the prompt for field classification
+ */
+function buildClassificationPrompt(fields: Field[]): string {
+	const fieldsForPrompt = fields.map(({ fieldHash, field }) => ({
+		hash: fieldHash,
+		tag: field.tag,
+		type: field.type,
+		name: field.name,
+		label: field.label,
+		placeholder: field.placeholder,
+		description: field.description,
+		isFileUpload: field.isFileUpload,
+		accept: field.accept,
+	}));
+
+	return `${CLASSIFICATION_PROMPT}\n${JSON.stringify(fieldsForPrompt, null, 2)}`;
+}
+
+/**
+ * Calls the AI model to classify form fields
+ */
+async function callClassificationModel(prompt: string): Promise<{ text: string; usage: TokenUsage }> {
+	const result = await generateText({
+		model: openai(env.OPENAI_MODEL),
+		prompt,
+	});
+
+	const promptTokens = result.usage.inputTokens ?? 0;
+	const completionTokens = result.usage.outputTokens ?? 0;
+	const totalTokens = result.usage.totalTokens ?? 0;
+	const inputCost = (promptTokens / 1_000_000) * env.OPENAI_MODEL_INPUT_PRICE_PER_1M;
+	const outputCost = (completionTokens / 1_000_000) * env.OPENAI_MODEL_OUTPUT_PRICE_PER_1M;
+	const totalCost = inputCost + outputCost;
+
+	return {
+		text: result.text,
+		usage: {
+			promptTokens,
+			completionTokens,
+			totalTokens,
+			inputCost,
+			outputCost,
+			totalCost,
+		},
+	};
+}
+
+/**
+ * Parses the LLM response into structured classifications
+ */
 function parseClassificationResponse(
 	text: string,
 	inputHashes: Set<string>,
@@ -127,7 +171,7 @@ function parseClassificationResponse(
 
 	const results: FormFieldClassification[] = [];
 
-	for (const item of parsed) {
+	for (const item of parsed as RawClassificationItem[]) {
 		if (
 			typeof item !== "object" ||
 			item === null ||
@@ -141,13 +185,13 @@ function parseClassificationResponse(
 			continue;
 		}
 
-		const path: FormFieldPath = VALID_PATHS.has(item.path)
+		const classification: FormFieldPath = VALID_PATHS.has(item.path)
 			? (item.path as FormFieldPath)
 			: "unknown";
 
-		const result: FormFieldClassification = { hash: item.hash, path };
+		const result: FormFieldClassification = { hash: item.hash, classification };
 
-		if (path === "links" && typeof item.linkType === "string") {
+		if (classification === "links" && typeof item.linkType === "string") {
 			result.linkType = item.linkType;
 		}
 
@@ -157,52 +201,17 @@ function parseClassificationResponse(
 	return results;
 }
 
-export async function classifyFormFields(
-	req: Request<unknown, FormFieldClassification[], ClassifyFormFieldsBody>,
-	res: Response<FormFieldClassification[]>,
-): Promise<void> {
-	const { fields } = req.body;
+/**
+ * Classifies form fields using AI
+ */
+export async function classifyFieldsWithAI(fields: Field[]): Promise<ClassificationResult> {
+	const prompt = buildClassificationPrompt(fields);
+	const { text, usage } = await callClassificationModel(prompt);
 
-	if (!env.OPENAI_API_KEY) {
-		throw new HttpError(
-			"OpenAI API key not configured",
-			new Error("OPENAI_API_KEY is required"),
-		);
-	}
+	logger.info({ usage }, "Token usage");
 
-	const fieldsForPrompt = fields.map(
-		({
-			hash,
-			tag,
-			type,
-			name,
-			label,
-			placeholder,
-			description,
-			isFileUpload,
-			accept,
-		}) => ({
-			hash,
-			tag,
-			type,
-			name,
-			label,
-			placeholder,
-			description,
-			isFileUpload,
-			accept,
-		}),
-	);
+	const inputHashes = new Set(fields.map((f) => f.fieldHash));
+	const classifications = parseClassificationResponse(text, inputHashes);
 
-	const prompt = `${CLASSIFICATION_PROMPT}\n${JSON.stringify(fieldsForPrompt, null, 2)}`;
-
-	const result = await generateText({
-		model: openai("gpt-4o-mini"),
-		prompt,
-	});
-
-	const inputHashes = new Set(fields.map((f) => f.hash));
-	const classifications = parseClassificationResponse(result.text, inputHashes);
-
-	res.json(classifications);
+	return { classifications, usage };
 }

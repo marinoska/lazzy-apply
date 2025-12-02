@@ -1,4 +1,4 @@
-import type { ParseCVQueueMessage } from "@lazyapply/types";
+import type { ParseCVQueueMessage, TokenUsage } from "@lazyapply/types";
 import { MAXIMUM_UPLOAD_SIZE_BYTES } from "@lazyapply/types";
 import { trace, context } from "@opentelemetry/api";
 import type { Env } from "../types";
@@ -33,7 +33,7 @@ export async function processMessage(
 	setSpanAttributes(span, payload);
 
 	const startTime = Date.now();
-	let tokenUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | undefined;
+	let tokenUsage: TokenUsage | undefined;
 
 	try {
 		// 1. Download and validate file
@@ -212,7 +212,7 @@ async function handleProcessingError(
 	logContext: LogContext,
 	startTime: number,
 	span: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>,
-	tokenUsage?: { promptTokens: number; completionTokens: number; totalTokens: number; inputCost?: number; outputCost?: number; totalCost?: number },
+	tokenUsage?: TokenUsage,
 ): Promise<void> {
 	const errorMessage = error instanceof Error ? error.message : String(error);
 	const totalDuration = Date.now() - startTime;

@@ -6,30 +6,30 @@ import { authenticateUser } from "@/app/middleware/authenticateUser.js";
 import { authenticateWorker } from "@/app/middleware/authenticateWorker.js";
 import { validateRequest } from "@/app/middleware/validateRequest.js";
 import {
-	classifyFormFields,
+	autofill,
 	classifyFormFieldsBodySchema,
-} from "./formFields/classifyFormFields.js";
+} from "./formFields/autofill.controller.js";
 import {
 	updateOutboxBodySchema,
 	updateOutboxParamsSchema,
 	updateOutboxStatus,
-} from "./outbox/updateOutboxStatus.js";
+} from "./outbox/updateOutboxStatus.controller.js";
 import {
 	deleteUploadController,
 	deleteUploadParamsSchema,
-} from "./uploads/deleteUpload.js";
+} from "./uploads/deleteUpload.controller.js";
 import {
 	uploadLinkController,
 	uploadRequestSchema,
-} from "./uploads/getUploadLink.js";
+} from "./uploads/getUploadLink.controller.js";
 import {
 	getUploadsController,
 	getUploadsQuerySchema,
-} from "./uploads/getUploads.js";
+} from "./uploads/getUploads.controller.js";
 import {
 	completeUploadController,
 	completeUploadRequestSchema,
-} from "./uploads/setUploadStatus.js";
+} from "./uploads/setUploadStatus.controller.js";
 
 export const registerRoutes = (app: Express) => {
 	const router = Router();
@@ -68,7 +68,7 @@ export const registerRoutes = (app: Express) => {
 		"/autofill",
 		authenticateUser,
 		validateRequest({ body: classifyFormFieldsBodySchema }),
-		classifyFormFields,
+		autofill,
 	);
 
 	// Outbox status update endpoint (called by queue consumer worker)

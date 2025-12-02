@@ -1,7 +1,7 @@
 import { generateObject, zodSchema } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import * as z from "zod";
-import type { ParsedCVData } from "@lazyapply/types";
+import type { ParsedCVData, TokenUsage } from "@lazyapply/types";
 import type { Env } from "../types";
 
 /**
@@ -193,14 +193,7 @@ NOW EXTRACT THE DATA.`;
 
 export type ExtractCVDataResult = {
 	parsedData: ParsedCVData;
-	usage: {
-		promptTokens: number;
-		completionTokens: number;
-		totalTokens: number;
-		inputCost: number;
-		outputCost: number;
-		totalCost: number;
-	};
+	usage: TokenUsage;
 	finishReason: 'stop' | 'length' | 'content-filter' | 'tool-calls' | 'error' | 'other' | 'unknown';
 };
 

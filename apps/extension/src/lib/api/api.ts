@@ -1,6 +1,6 @@
 import type {
+	AutofillRequest,
 	FormFieldClassification,
-	FormFieldInput,
 } from "@lazyapply/types";
 import { sendApiRequest } from "./backgroundClient.js";
 
@@ -131,11 +131,11 @@ export async function deleteUpload(
  * Classify form fields using AI to map them to CV data paths
  */
 export async function classifyFormFields(
-	fields: FormFieldInput[],
+	request: AutofillRequest,
 ): Promise<FormFieldClassification[]> {
 	return sendApiRequest<FormFieldClassification[]>(
 		"POST",
 		"/autofill",
-		{ fields },
+		request,
 	);
 }

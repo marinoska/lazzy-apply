@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { FileUploadModel } from "@/uploads/fileUpload.model.js";
-import { deleteUploadController } from "./deleteUpload.js";
+import { deleteUploadController } from "./deleteUpload.controller.js";
 import type { FileUploadContentType } from "@lazyapply/types";
 
 describe("Delete Upload", () => {

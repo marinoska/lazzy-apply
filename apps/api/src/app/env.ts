@@ -13,12 +13,17 @@ const envSchema = z.object({
 	LOG_LEVEL: z
 		.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
 		.default("info"),
-	ALLOWED_ORIGINS: z.string().optional(),
+	ALLOWED_ORIGINS: z.string(),
 	MONGO_CONNECTION: z.string(),
-	SUPABASE_JWKS_URL: z.string().url().optional(),
-	SUPABASE_JWT_SECRET: z.string().optional(),
-	WORKER_SECRET: z.string().optional(),
-	OPENAI_API_KEY: z.string().optional(),
+	SUPABASE_JWKS_URL: z.string().url(),
+	SUPABASE_JWT_SECRET: z.string(),
+	WORKER_SECRET: z.string(),
+	OPENAI_API_KEY: z.string(),
+	OPENAI_MODEL: z.string(),
+	/** Price per 1M input tokens in USD */
+	OPENAI_MODEL_INPUT_PRICE_PER_1M: z.coerce.number(),
+	/** Price per 1M output tokens in USD */
+	OPENAI_MODEL_OUTPUT_PRICE_PER_1M: z.coerce.number(),
 });
 
 const parsed = envSchema.safeParse(process.env);

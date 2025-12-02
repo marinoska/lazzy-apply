@@ -2,6 +2,7 @@
   "name": "@lazyapply/schemas",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
@@ -13,6 +14,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@lazyapply/config": "workspace:*",
     "typescript": "^5.9.3"
   }
 }

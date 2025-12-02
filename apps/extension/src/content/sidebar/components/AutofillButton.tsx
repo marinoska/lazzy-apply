@@ -3,7 +3,7 @@ import Button from "@mui/joy/Button";
 import Divider from "@mui/joy/Divider";
 import Stack from "@mui/joy/Stack";
 import { useEffect, useState } from "react";
-import type { FormFieldInput } from "@lazyapply/types";
+import type { AutofillRequest, Field, FormInput } from "@lazyapply/types";
 import { classifyFormFields } from "@/lib/api/api.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
 
@@ -38,9 +38,9 @@ export function AutofillButton({ hasUploads, onError }: AutofillButtonProps) {
 				return;
 			}
 
-			const fieldsInput: FormFieldInput[] = applicationForm.fields.map(
-				(field) => ({
-					hash: field.hash,
+			const fields: Field[] = applicationForm.fields.map((field) => ({
+				fieldHash: field.hash,
+				field: {
 					id: field.id ?? "",
 					tag: field.tag,
 					type: field.type,
@@ -50,12 +50,21 @@ export function AutofillButton({ hasUploads, onError }: AutofillButtonProps) {
 					description: field.description,
 					isFileUpload: field.isFileUpload,
 					accept: field.accept ?? null,
-				}),
-			);
+				},
+			}));
 
-			console.log("[AutofillButton] Sending fields for classification:", fieldsInput);
+			const form: FormInput = {
+				formHash: applicationForm.formHash,
+				fields: fields.map((f) => ({ hash: f.fieldHash, path: null })),
+				pageUrl: window.location.href,
+				action: applicationForm.formElement?.action ?? null,
+			};
 
-			const classifications = await classifyFormFields(fieldsInput);
+			const request: AutofillRequest = { form, fields };
+
+			console.log("[AutofillButton] Sending autofill request:", request);
+
+			const classifications = await classifyFormFields(request);
 
 			console.log("[AutofillButton] Classification results:", classifications);
 		} catch (error) {
