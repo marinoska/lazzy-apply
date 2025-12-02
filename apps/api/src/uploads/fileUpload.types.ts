@@ -1,5 +1,5 @@
-import type { Document, Model } from "mongoose";
 import type { FileUploadContentType } from "@lazyapply/types";
+import type { Document, Model } from "mongoose";
 
 export type FileUploadStatus =
 	| "pending"

@@ -1,18 +1,14 @@
+import { FILE_UPLOAD_CONTENT_TYPES } from "@lazyapply/types";
+import { model, Schema } from "mongoose";
 import { createLogger } from "@/app/logger.js";
 import { applyOwnershipEnforcement } from "@/app/middleware/mongoOwnershipEnforcement.middleware.js";
-import { Schema, model } from "mongoose";
-import { FILE_UPLOAD_CONTENT_TYPES } from "@lazyapply/types";
 
 import { registerFileUploadMethods } from "./fileUpload.methods.js";
 import {
 	type FileUploadModelWithStatics,
 	registerFileUploadStatics,
 } from "./fileUpload.statics.js";
-import type {
-	FileUploadDocument,
-	FileUploadMethods,
-	TFileUpload,
-} from "./fileUpload.types.js";
+import type { FileUploadMethods, TFileUpload } from "./fileUpload.types.js";
 import { FILE_UPLOAD_MODEL_NAME } from "./fileUpload.types.js";
 
 const log = createLogger("FileUploadModel");
@@ -72,7 +68,13 @@ const fileUploadSchema = new Schema<
 		},
 		status: {
 			type: String,
-			enum: ["pending", "uploaded", "failed", "deduplicated", "deleted-by-user"],
+			enum: [
+				"pending",
+				"uploaded",
+				"failed",
+				"deduplicated",
+				"deleted-by-user",
+			],
 			default: "pending",
 		},
 		deduplicatedFrom: {

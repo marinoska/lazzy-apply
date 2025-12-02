@@ -1,8 +1,9 @@
+export { ActionButtons } from "./ActionButtons.js";
+export { AutofillButton } from "./AutofillButton.js";
+export { CVSelector } from "./CVSelector.js";
+export { LoadingIndicator } from "./LoadingIndicator.js";
 export { SidebarHeader } from "./SidebarHeader.js";
 export { StatusMessage } from "./StatusMessage.js";
-export { LoadingIndicator } from "./LoadingIndicator.js";
-export { UserInfo } from "./UserInfo.js";
-export { ActionButtons } from "./ActionButtons.js";
 export { UploadSection } from "./UploadSection.js";
 export { UploadsList } from "./UploadsList.js";
-export { AutofillButton } from "./AutofillButton.js";
+export { UserInfo } from "./UserInfo.js";

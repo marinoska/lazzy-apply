@@ -66,6 +66,8 @@ export async function completeUpload(
 	});
 }
 
+export type ParseStatus = "pending" | "processing" | "completed" | "failed";
+
 export type UploadDTO = {
 	fileId: string;
 	originalFilename: string;
@@ -74,6 +76,7 @@ export type UploadDTO = {
 	size?: number;
 	createdAt: string;
 	updatedAt: string;
+	parseStatus: ParseStatus;
 };
 
 export interface GetUploadsResponse {

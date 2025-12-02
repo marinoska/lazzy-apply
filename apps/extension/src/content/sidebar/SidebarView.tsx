@@ -2,17 +2,16 @@ import Divider from "@mui/joy/Divider";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import { useState } from "react";
-import { Snackbar } from "../../components/Snackbar.js";
 import { useUploadsQuery } from "@/lib/api/query/useUploadsQuery.js";
+import { Snackbar } from "../../components/Snackbar.js";
 import {
 	ActionButtons,
 	AutofillButton,
+	CVSelector,
 	LoadingIndicator,
 	SidebarHeader,
 	StatusMessage,
 	UploadSection,
-	UploadsList,
-	UserInfo,
 } from "./components/index.js";
 import type { SidebarViewProps } from "./types.js";
 
@@ -26,9 +25,11 @@ export function SidebarView({
 	const { data: uploadsData } = useUploadsQuery({ limit: 5 });
 	const hasUploads = (uploadsData?.uploads?.length ?? 0) > 0;
 	const [showDropzone, setShowDropzone] = useState(false);
+	const [activeFileId, setActiveFileId] = useState<string | null>(null);
 	const [alertMessage, setAlertMessage] = useState("");
 	const [alertType, setAlertType] = useState<"success" | "danger">("success");
-	const statusIsError = status?.startsWith("Failed") || status?.startsWith("Error");
+	const statusIsError =
+		status?.startsWith("Failed") || status?.startsWith("Error");
 
 	const handleUploadComplete = (fileId: string, objectKey: string) => {
 		console.log("File uploaded:", fileId, objectKey);
@@ -73,7 +74,12 @@ export function SidebarView({
 
 					{/* <UserInfo session={session} loading={loading} /> */}
 
-					{session && <UploadsList />}
+					{session && (
+						<CVSelector
+							activeFileId={activeFileId}
+							onActiveChange={setActiveFileId}
+						/>
+					)}
 
 					{!showDropzone && (
 						<ActionButtons
@@ -105,11 +111,7 @@ export function SidebarView({
 					onClose={() => setAlertMessage("")}
 				/>
 				{statusIsError && (
-					<Snackbar
-						msg={status ?? ""}
-						show={true}
-						type="danger"
-					/>
+					<Snackbar msg={status ?? ""} show={true} type="danger" />
 				)}
 			</Sheet>
 		</div>

@@ -4,7 +4,7 @@ import type { Schema } from "mongoose";
 import mongoose from "mongoose";
 
 import { createLogger } from "@/app/logger.js";
-import { type OutboxDocument, OutboxModel } from "@/outbox/outbox.model.js";
+import { OutboxModel } from "@/outbox/outbox.model.js";
 import { MUTABLE_STATUS } from "./fileUpload.model.js";
 import type { FileUploadModelWithStatics } from "./fileUpload.statics.js";
 import type {

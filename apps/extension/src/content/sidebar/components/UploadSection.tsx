@@ -5,7 +5,7 @@ import { DropzoneBox } from "@/components/DropzoneBox.js";
 
 interface UploadSectionProps {
 	visible: boolean;
-	onCancel: () => void;	
+	onCancel: () => void;
 	onUploadComplete: (fileId: string, objectKey: string) => void;
 	onUploadError: (error: string) => void;
 }
@@ -39,7 +39,7 @@ export function UploadSection({
 				size="sm"
 				onClick={handleCancel}
 			>
-				Cancel
+				Close
 			</Button>
 		</Stack>
 	);
