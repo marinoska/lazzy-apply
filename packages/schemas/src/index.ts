@@ -51,11 +51,18 @@ export const formFieldRefSchema = z.object({
 });
 
 /**
+ * Form field reference input schema - hash only (classification is determined by API)
+ */
+export const formFieldRefInputSchema = z.object({
+	hash: z.string().min(1),
+});
+
+/**
  * Form input schema - from client (single pageUrl/action)
  */
 export const formInputSchema = z.object({
 	formHash: z.string().min(1),
-	fields: z.array(formFieldRefSchema).min(1),
+	fields: z.array(formFieldRefInputSchema).min(1),
 	pageUrl: z.string().url(),
 	action: z.string().nullable(),
 });
@@ -68,6 +75,16 @@ export const formSchema = z.object({
 	fields: z.array(formFieldRefSchema).min(1),
 	pageUrls: z.array(z.string().url()).min(1),
 	actions: z.array(z.string()),
+});
+
+/**
+ * Form input schema with full field refs (for storage/retrieval)
+ */
+export const formInputWithClassificationSchema = z.object({
+	formHash: z.string().min(1),
+	fields: z.array(formFieldRefSchema).min(1),
+	pageUrl: z.string().url(),
+	action: z.string().nullable(),
 });
 
 /**

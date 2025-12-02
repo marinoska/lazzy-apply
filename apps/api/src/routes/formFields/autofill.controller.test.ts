@@ -43,7 +43,7 @@ describe("autofill.controller", () => {
 		body: {
 			form: {
 				formHash: string;
-				fields: Array<{ hash: string; classification: string }>;
+				fields: Array<{ hash: string }>;
 				pageUrl: string;
 				action: string | null;
 			};
@@ -80,7 +80,7 @@ describe("autofill.controller", () => {
 			body: {
 				form: {
 					formHash: "test-form-hash",
-					fields: [{ hash: "hash-1", classification: "personal.email" }],
+					fields: [{ hash: "hash-1" }],
 					pageUrl: "https://example.com/apply",
 					action: "https://example.com/submit",
 				},

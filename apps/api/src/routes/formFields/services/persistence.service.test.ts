@@ -28,7 +28,7 @@ describe("persistence.service", () => {
 
 	const createTestFormInput = (): FormInput => ({
 		formHash: "test-form-hash",
-		fields: [{ hash: "hash-1", classification: "personal.email" }],
+		fields: [{ hash: "hash-1" }],
 		pageUrl: "https://example.com/apply",
 		action: "https://example.com/submit",
 	});
@@ -136,10 +136,7 @@ describe("persistence.service", () => {
 		it("should only insert new fields while referencing all fields in form", async () => {
 			const formInput: FormInput = {
 				formHash: "test-form-mixed",
-				fields: [
-					{ hash: "hash-cached", classification: "personal.email" },
-					{ hash: "hash-new", classification: "personal.phone" },
-				],
+				fields: [{ hash: "hash-cached" }, { hash: "hash-new" }],
 				pageUrl: "https://example.com/apply",
 				action: null,
 			};

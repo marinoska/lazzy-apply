@@ -55,7 +55,7 @@ export function AutofillButton({ hasUploads, onError }: AutofillButtonProps) {
 
 			const form: FormInput = {
 				formHash: applicationForm.formHash,
-				fields: fields.map((f) => ({ hash: f.hash, path: null })),
+				fields: fields.map((f) => ({ hash: f.hash })),
 				pageUrl: window.location.href,
 				action: applicationForm.formElement?.action ?? null,
 			};

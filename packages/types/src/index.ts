@@ -196,6 +196,14 @@ export interface FormFieldRef {
 }
 
 /**
+ * Form field reference input - hash only (classification is determined by API)
+ */
+export interface FormFieldRefInput {
+	/** Field hash */
+	hash: string;
+}
+
+/**
  * Form collection document - stored per unique form hash
  */
 export interface Form {
@@ -231,7 +239,21 @@ export interface FormFieldInput {
 export interface FormInput {
 	/** Unique form hash */
 	formHash: string;
-	/** Array of field references with hash and path(s) */
+	/** Array of field references with hash only (classification is determined by API) */
+	fields: FormFieldRefInput[];
+	/** Page URL where the form was detected */
+	pageUrl: string;
+	/** Form action URL (if available) */
+	action: string | null;
+}
+
+/**
+ * Form input with full field refs (for storage/retrieval)
+ */
+export interface FormInputWithClassification {
+	/** Unique form hash */
+	formHash: string;
+	/** Array of field references with hash and classification */
 	fields: FormFieldRef[];
 	/** Page URL where the form was detected */
 	pageUrl: string;

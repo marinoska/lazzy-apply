@@ -50,7 +50,7 @@ describe("classification.manager", () => {
 
 	const createTestFormInput = (): FormInput => ({
 		formHash: "test-form-hash",
-		fields: [{ hash: "hash-1", path: "test.email" }],
+		fields: [{ hash: "hash-1" }],
 		pageUrl: "https://example.com/apply",
 		action: "https://example.com/submit",
 	});
@@ -130,10 +130,7 @@ describe("classification.manager", () => {
 			});
 
 			const formInput = createTestFormInput();
-			formInput.fields = [
-				{ hash: "hash-1", path: "test.email" },
-				{ hash: "hash-2", path: "test.phone" },
-			];
+			formInput.fields = [{ hash: "hash-1" }, { hash: "hash-2" }];
 
 			const fields = [
 				createTestField("hash-1", "field-1", "email"),

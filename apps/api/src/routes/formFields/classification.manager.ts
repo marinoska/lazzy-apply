@@ -128,7 +128,7 @@ export class ClassificationManager {
 		}
 
 		// Step 2: No form found - look up fields by hash
-		logger.debug("Form not found, looking up fields by hash");
+		logger.info("Form not found, looking up fields by hash");
 
 		await this.loadFields();
 
@@ -144,7 +144,7 @@ export class ClassificationManager {
 		}
 
 		// Step 3: Classify only missing fields
-		logger.debug(
+		logger.info(
 			{ count: this.fieldsToClassify.length },
 			"Classifying missing fields",
 		);
