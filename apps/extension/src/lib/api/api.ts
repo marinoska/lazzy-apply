@@ -1,72 +1,31 @@
-import type { AutofillRequest, ClassifiedField } from "@lazyapply/types";
-import { sendApiRequest } from "./backgroundClient.js";
-
-export interface UploadSignedUrlResponse {
-	uploadUrl: string;
-	objectKey: string;
-	fileId: string;
-	expiresIn: number;
-}
+import type {
+	AutofillRequest,
+	ClassifiedField,
+	FileUploadContentType,
+} from "@lazyapply/types";
+import { sendApiRequest, sendUploadRequest } from "./backgroundClient.js";
 
 export type UploadStatus = "uploaded" | "failed" | "deduplicated";
 
-export interface CompleteUploadResponse {
+export interface UploadResponse {
 	fileId: string;
-	status: UploadStatus;
+	objectKey: string;
+	size: number;
+	contentType: FileUploadContentType;
 }
 
 /**
- * Get a signed URL for uploading a file
+ * Upload a file to the Edge Function
+ * This is the single entry point for all file uploads
  */
-export async function getUploadSignedUrl(
-	filename: string,
-	contentType: string,
-	fileSize: number,
-): Promise<UploadSignedUrlResponse> {
-	return sendApiRequest<UploadSignedUrlResponse>("POST", "/uploads/sign", {
-		filename,
-		contentType,
-		fileSize,
-	});
-}
-
-/**
- * Upload a file to a signed URL using PUT request (Cloudflare R2 compatible)
- * Uses direct fetch since R2 presigned URLs have CORS configured
- */
-export async function uploadFileToSignedUrl(
-	file: File,
-	uploadDetails: UploadSignedUrlResponse,
-): Promise<void> {
-	// Upload directly to R2 using the presigned URL
-	// No need to route through background script since R2 CORS allows all origins
-	const response = await fetch(uploadDetails.uploadUrl, {
-		method: "PUT",
-		body: file,
-		headers: {
-			"Content-Type": file.type,
-		},
-	});
-
-	if (!response.ok) {
-		throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
-	}
-}
-
-/**
- * Signal that upload is complete and trigger server-side validation
- * Server will validate the file in quarantine and promote it to healthy directory
- * Throws error if file is not ready - client should retry after a delay
- */
-export async function completeUpload(
-	fileId: string,
-): Promise<CompleteUploadResponse> {
-	return sendApiRequest<CompleteUploadResponse>("POST", "/uploads/complete", {
-		fileId,
-	});
+export async function uploadFile(file: File): Promise<UploadResponse> {
+	return sendUploadRequest(file);
 }
 
 export type ParseStatus = "pending" | "processing" | "completed" | "failed";
+
+// Re-export for backward compatibility
+export type { UploadResponse as CompleteUploadResponse };
 
 export type UploadDTO = {
 	fileId: string;

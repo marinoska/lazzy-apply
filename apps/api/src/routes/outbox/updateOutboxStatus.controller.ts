@@ -1,11 +1,11 @@
-import { NotFound, ValidationError } from "@/app/errors.js";
-import { createLogger } from "@/app/logger.js";
-import { OutboxModel } from "@/outbox/outbox.model.js";
-import { CVDataModel } from "@/cvData/cvData.model.js";
 import type { ParsedCVData } from "@lazyapply/types";
 import type { Request, Response } from "express";
-import { z } from "zod";
 import mongoose from "mongoose";
+import { z } from "zod";
+import { NotFound, ValidationError } from "@/app/errors.js";
+import { createLogger } from "@/app/logger.js";
+import { CVDataModel } from "@/cvData/cvData.model.js";
+import { OutboxModel } from "@/outbox/outbox.model.js";
 
 const log = createLogger("update-outbox-status");
 
@@ -18,14 +18,16 @@ export const updateOutboxBodySchema = z
 		status: z.enum(["completed", "failed"]),
 		data: z.any().nullable().optional(), // ParsedCVData
 		error: z.string().optional(),
-		usage: z.object({
-			promptTokens: z.number(),
-			completionTokens: z.number(),
-			totalTokens: z.number(),
-			inputCost: z.number().optional(),
-			outputCost: z.number().optional(),
-			totalCost: z.number().optional(),
-		}).optional(),
+		usage: z
+			.object({
+				promptTokens: z.number(),
+				completionTokens: z.number(),
+				totalTokens: z.number(),
+				inputCost: z.number().optional(),
+				outputCost: z.number().optional(),
+				totalCost: z.number().optional(),
+			})
+			.optional(),
 	})
 	.refine(
 		(body) => {
@@ -44,6 +46,9 @@ export const updateOutboxBodySchema = z
 /**
  * Update outbox entry status
  * Called by the queue consumer worker after processing
+ *
+ * Idempotency: If the latest outbox entry for this processId is already
+ * completed/failed, we return success without reprocessing (duplicate delivery).
  */
 export async function updateOutboxStatus(req: Request, res: Response) {
 	const { processId } = req.params;
@@ -51,9 +56,40 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 
 	log.info({ processId, status }, "Updating outbox status");
 
-	const outboxEntry = await OutboxModel.findOne({ processId });
-	if (!outboxEntry) {
+	// Find the latest outbox entry for this processId (sorted by createdAt desc)
+	const outboxEntries = await OutboxModel.find({ processId })
+		.sort({ createdAt: -1 })
+		.limit(1);
+
+	if (outboxEntries.length === 0) {
 		throw new NotFound(`Outbox entry not found: ${processId}`);
+	}
+
+	const latestEntry = outboxEntries[0];
+
+	// Idempotency check: if already completed or failed, return success
+	// This handles duplicate message delivery from Cloudflare Queues
+	if (latestEntry.status === "completed" || latestEntry.status === "failed") {
+		log.warn(
+			{ processId, currentStatus: latestEntry.status, requestedStatus: status },
+			"Outbox entry already in terminal state - duplicate delivery detected",
+		);
+		return res.status(200).json({
+			processId,
+			status: latestEntry.status,
+			duplicate: true,
+		});
+	}
+
+	// Verify entry is in expected state (processing or sending)
+	if (latestEntry.status !== "processing" && latestEntry.status !== "sending") {
+		log.warn(
+			{ processId, currentStatus: latestEntry.status, requestedStatus: status },
+			"Outbox entry in unexpected state",
+		);
+		throw new ValidationError(
+			`Cannot update outbox entry in state '${latestEntry.status}' to '${status}'`,
+		);
 	}
 
 	if (status === "completed") {
@@ -61,36 +97,39 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 		const session = await mongoose.startSession();
 		await session.withTransaction(async () => {
 			// 1. Create new outbox entry with completed status
-			await OutboxModel.markAsCompleted(outboxEntry, usage);
+			await OutboxModel.markAsCompleted(latestEntry, usage);
 
 			// 2. Save parsed CV data (guaranteed to exist due to schema validation)
 			const cvDataPayload = {
-				uploadId: outboxEntry.uploadId,
-				userId: outboxEntry.userId,
+				uploadId: latestEntry.uploadId,
+				userId: latestEntry.userId,
 				...(data satisfies ParsedCVData),
 			};
-			
-			log.info({ 
+
+			log.info(
+				{
 					processId,
-				personal: cvDataPayload.personal,
-				linksCount: cvDataPayload.links?.length,
-				languagesCount: cvDataPayload.languages?.length,
-				...(usage && {
-					promptTokens: usage.promptTokens,
-					completionTokens: usage.completionTokens,
-					totalTokens: usage.totalTokens,
-					inputCost: usage.inputCost,
-					outputCost: usage.outputCost,
-					totalCost: usage.totalCost,
-				}),
-			}, "Saving CV data to database");
-			
+					personal: cvDataPayload.personal,
+					linksCount: cvDataPayload.links?.length,
+					languagesCount: cvDataPayload.languages?.length,
+					...(usage && {
+						promptTokens: usage.promptTokens,
+						completionTokens: usage.completionTokens,
+						totalTokens: usage.totalTokens,
+						inputCost: usage.inputCost,
+						outputCost: usage.outputCost,
+						totalCost: usage.totalCost,
+					}),
+				},
+				"Saving CV data to database",
+			);
+
 			await CVDataModel.createCVData(cvDataPayload);
 
 			log.info(
-				{ 
-					processId, 
-					uploadId: outboxEntry.uploadId,
+				{
+					processId,
+					uploadId: latestEntry.uploadId,
 					...(usage && {
 						promptTokens: usage.promptTokens,
 						completionTokens: usage.completionTokens,
@@ -106,26 +145,28 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 		await session.endSession();
 	} else if (status === "failed") {
 		await OutboxModel.markAsFailed(
-			outboxEntry,
+			latestEntry,
 			error || "Processing failed",
 			usage,
 		);
-		log.error({ 
-			processId, 
-			error,
-			...(usage && {
-				promptTokens: usage.promptTokens,
-				completionTokens: usage.completionTokens,
-				totalTokens: usage.totalTokens,
-				inputCost: usage.inputCost,
-				outputCost: usage.outputCost,
-				totalCost: usage.totalCost,
-			}),
-		}, "Created failed outbox entry");
+		log.error(
+			{
+				processId,
+				error,
+				...(usage && {
+					promptTokens: usage.promptTokens,
+					completionTokens: usage.completionTokens,
+					totalTokens: usage.totalTokens,
+					inputCost: usage.inputCost,
+					outputCost: usage.outputCost,
+					totalCost: usage.totalCost,
+				}),
+			},
+			"Created failed outbox entry",
+		);
 	}
 
 	return res.status(200).json({
-		success: true,
 		processId,
 		status,
 	});

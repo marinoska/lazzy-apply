@@ -1,16 +1,17 @@
 import type { ParseCVQueueMessage } from "@lazyapply/types";
 import { instrument, type ResolveConfigFn } from "@microlabs/otel-cf-workers";
-import type { Env } from "./types";
 import { Logger } from "./lib/logger";
 import { processMessage } from "./lib/messageProcessor";
 import { handleQueueBatch } from "./lib/queueHandler";
+import { handleUpload } from "./lib/uploadHandler";
+import type { Env } from "./types";
 
 // Re-export Env type for backward compatibility
 export type { Env };
 
 /**
- * Queue consumer handler
- * This function is invoked when messages are delivered from the parse-cv queue
+ * Cloudflare Worker entry point
+ * Handles file uploads (POST /upload) and queue message processing (parse-cv)
  */
 const handler = {
 	async fetch(request: Request, env: Env): Promise<Response> {
@@ -21,12 +22,29 @@ const handler = {
 			path: url.pathname,
 			method: request.method,
 		});
-		
-		// Local test endpoint
-		if (request.method === "POST" && url.pathname === "/") {
+
+		// Upload endpoint - single entry point for all file uploads
+		if (request.method === "POST" && url.pathname === "/upload") {
+			return handleUpload(request, env);
+		}
+
+		// Local test endpoint for queue processing (dev only)
+		if (
+			env.ENVIRONMENT === "local" &&
+			request.method === "POST" &&
+			url.pathname === "/test-process"
+		) {
 			const payload = (await request.json()) as ParseCVQueueMessage;
 			await processMessage(payload, env);
 			return new Response("Processed test message\n", { status: 200 });
+		}
+
+		// Health check
+		if (request.method === "GET" && url.pathname === "/health") {
+			return new Response(JSON.stringify({ status: "ok" }), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			});
 		}
 
 		return new Response("upload-queue-consumer OK\n", { status: 200 });

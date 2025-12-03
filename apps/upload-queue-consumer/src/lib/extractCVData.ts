@@ -1,7 +1,7 @@
-import { generateObject, zodSchema } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import * as z from "zod";
 import type { ParsedCVData, TokenUsage } from "@lazyapply/types";
+import { generateObject, zodSchema } from "ai";
+import * as z from "zod";
 import type { Env } from "../types";
 
 /**
@@ -10,7 +10,9 @@ import type { Env } from "../types";
 function getEnv<K extends keyof Env>(env: Env, key: K): Env[K] {
 	const value = env[key];
 	if (value === undefined || value === null || value === "") {
-		throw new Error(`Environment variable ${String(key)} is required but not set`);
+		throw new Error(
+			`Environment variable ${String(key)} is required but not set`,
+		);
 	}
 	return value;
 }
@@ -22,80 +24,99 @@ function getAIModelConfig(env: Env) {
 	const modelName = getEnv(env, "AI_MODEL_NAME");
 	const inputPriceStr = getEnv(env, "AI_MODEL_INPUT_PRICE_PER_1M");
 	const outputPriceStr = getEnv(env, "AI_MODEL_OUTPUT_PRICE_PER_1M");
-	
+
 	const inputPricePer1M = Number.parseFloat(inputPriceStr);
 	const outputPricePer1M = Number.parseFloat(outputPriceStr);
-	
+
 	if (Number.isNaN(inputPricePer1M)) {
 		throw new Error(`Invalid AI_MODEL_INPUT_PRICE_PER_1M: ${inputPriceStr}`);
 	}
-	
+
 	if (Number.isNaN(outputPricePer1M)) {
 		throw new Error(`Invalid AI_MODEL_OUTPUT_PRICE_PER_1M: ${outputPriceStr}`);
 	}
-	
+
 	return { modelName, inputPricePer1M, outputPricePer1M };
 }
 
 // Zod schema matching the ExtractedCVData structure
 // Using .optional() for fields that might not be present in AI response
 const extractedCVDataSchema = z.object({
-	personal: z.object({
-		fullName: z.string().nullable().optional(),
-		email: z.string().nullable().optional(),
-		phone: z.string().nullable().optional(),
-		location: z.string().nullable().optional(),
-		nationality: z.string().nullable().optional(),
-		rightToWork: z.string().nullable().optional(),
-	}).optional(),
-	links: z.array(
-		z.object({
-			type: z.string(),
-			url: z.string().nullable().optional(),
-		}),
-	).optional().default([]),
+	personal: z
+		.object({
+			fullName: z.string().nullable().optional(),
+			email: z.string().nullable().optional(),
+			phone: z.string().nullable().optional(),
+			location: z.string().nullable().optional(),
+			nationality: z.string().nullable().optional(),
+			rightToWork: z.string().nullable().optional(),
+		})
+		.optional(),
+	links: z
+		.array(
+			z.object({
+				type: z.string(),
+				url: z.string().nullable().optional(),
+			}),
+		)
+		.optional()
+		.default([]),
 	headline: z.string().nullable().optional(),
 	summary: z.string().nullable().optional(),
-	experience: z.array(
-		z.object({
-			role: z.string().nullable().optional(),
-			company: z.string().nullable().optional(),
-			startDate: z.string().nullable().optional(),
-			endDate: z.string().nullable().optional(),
-			description: z.string().nullable().optional(),
-		}),
-	).optional().default([]),
-	education: z.array(
-		z.object({
-			degree: z.string().nullable().optional(),
-			field: z.string().nullable().optional(),
-			institution: z.string().nullable().optional(),
-			startDate: z.string().nullable().optional(),
-			endDate: z.string().nullable().optional(),
-		}),
-	).optional().default([]),
-	certifications: z.array(
-		z.object({
-			name: z.string(),
-			issuer: z.string().nullable().optional(),
-			date: z.string().nullable().optional(),
-		}),
-	).optional().default([]),
-	languages: z.array(
-		z.object({
-			language: z.string(),
-			level: z.string().nullable().optional(),
-		}),
-	).optional().default([]),
-	extras: z.object({
-		drivingLicense: z.string().nullable().optional(),
-		workPermit: z.string().nullable().optional(),
-		willingToRelocate: z.boolean().nullable().optional(),
-		remotePreference: z.string().nullable().optional(),
-		noticePeriod: z.string().nullable().optional(),
-		availability: z.string().nullable().optional(),
-		salaryExpectation: z.string().nullable().optional(),
-	}).optional(),
+	experience: z
+		.array(
+			z.object({
+				role: z.string().nullable().optional(),
+				company: z.string().nullable().optional(),
+				startDate: z.string().nullable().optional(),
+				endDate: z.string().nullable().optional(),
+				description: z.string().nullable().optional(),
+			}),
+		)
+		.optional()
+		.default([]),
+	education: z
+		.array(
+			z.object({
+				degree: z.string().nullable().optional(),
+				field: z.string().nullable().optional(),
+				institution: z.string().nullable().optional(),
+				startDate: z.string().nullable().optional(),
+				endDate: z.string().nullable().optional(),
+			}),
+		)
+		.optional()
+		.default([]),
+	certifications: z
+		.array(
+			z.object({
+				name: z.string(),
+				issuer: z.string().nullable().optional(),
+				date: z.string().nullable().optional(),
+			}),
+		)
+		.optional()
+		.default([]),
+	languages: z
+		.array(
+			z.object({
+				language: z.string(),
+				level: z.string().nullable().optional(),
+			}),
+		)
+		.optional()
+		.default([]),
+	extras: z
+		.object({
+			drivingLicense: z.string().nullable().optional(),
+			workPermit: z.string().nullable().optional(),
+			willingToRelocate: z.boolean().nullable().optional(),
+			remotePreference: z.string().nullable().optional(),
+			noticePeriod: z.string().nullable().optional(),
+			availability: z.string().nullable().optional(),
+			salaryExpectation: z.string().nullable().optional(),
+		})
+		.optional(),
 	rawText: z.string(),
 });
 
@@ -194,7 +215,14 @@ NOW EXTRACT THE DATA.`;
 export type ExtractCVDataResult = {
 	parsedData: ParsedCVData;
 	usage: TokenUsage;
-	finishReason: 'stop' | 'length' | 'content-filter' | 'tool-calls' | 'error' | 'other' | 'unknown';
+	finishReason:
+		| "stop"
+		| "length"
+		| "content-filter"
+		| "tool-calls"
+		| "error"
+		| "other"
+		| "unknown";
 };
 
 /**
@@ -206,9 +234,10 @@ export async function extractCVData(
 ): Promise<ExtractCVDataResult> {
 	try {
 		// Get AI model configuration
-		const { modelName, inputPricePer1M, outputPricePer1M } = getAIModelConfig(env);
+		const { modelName, inputPricePer1M, outputPricePer1M } =
+			getAIModelConfig(env);
 		const apiKey = getEnv(env, "OPENAI_API_KEY");
-		
+
 		// Create OpenAI client with API key
 		const openai = createOpenAI({
 			apiKey,
@@ -219,7 +248,7 @@ export async function extractCVData(
 			schema: zodSchema(extractedCVDataSchema),
 			prompt: `${EXTRACTION_PROMPT}\n\nCV TEXT:\n"""\n${cvText}\n"""`,
 		});
-		
+
 		// Extract and cast to our inferred type
 		const extractedData = result.object as ExtractedCVData;
 
@@ -230,7 +259,7 @@ export async function extractCVData(
 		const education = extractedData.education ?? [];
 		const certifications = extractedData.certifications ?? [];
 		const languages = extractedData.languages ?? [];
-		
+
 		const parsedData: ParsedCVData = {
 			personal: {
 				fullName: personal.fullName ?? null,
@@ -286,7 +315,7 @@ export async function extractCVData(
 		const promptTokens = result.usage.inputTokens ?? 0;
 		const completionTokens = result.usage.outputTokens ?? 0;
 		const totalTokens = result.usage.totalTokens ?? 0;
-		
+
 		// Calculate cost breakdown using pricing from environment
 		const inputCost = (promptTokens / 1_000_000) * inputPricePer1M;
 		const outputCost = (completionTokens / 1_000_000) * outputPricePer1M;
@@ -305,25 +334,23 @@ export async function extractCVData(
 			finishReason: result.finishReason,
 		};
 	} catch (error) {
-		console.error("[extractCVData] Error extracting CV data:", error);
-		
-		// Log additional details for debugging
-		if (error instanceof Error) {
-			console.error("[extractCVData] Error name:", error.name);
-			console.error("[extractCVData] Error message:", error.message);
-			console.error("[extractCVData] Error stack:", error.stack);
-		}
-		
-		// Check if it's a schema validation error
+		// Log error details without exposing CV content (PII)
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		if (errorMessage.includes("response did not match schema")) {
-			console.error("[extractCVData] Schema validation failed - the AI response structure doesn't match expected format");
-			console.error("[extractCVData] CV text length:", cvText.length);
-			console.error("[extractCVData] CV text preview:", cvText.substring(0, 200));
-		}
-		
-		throw new Error(
-			`Failed to extract CV data: ${errorMessage}`,
+		const isSchemaError = errorMessage.includes(
+			"response did not match schema",
 		);
+
+		// Only log safe metadata, never CV content
+		const errorContext = {
+			errorName: error instanceof Error ? error.name : "Unknown",
+			isSchemaValidationError: isSchemaError,
+			cvTextLength: cvText.length,
+		};
+
+		// Note: In production, use structured logging instead of console.error
+		// This is kept minimal to avoid leaking PII from CV content
+		console.error("[extractCVData] Error extracting CV data:", errorContext);
+
+		throw new Error(`Failed to extract CV data: ${errorMessage}`);
 	}
 }

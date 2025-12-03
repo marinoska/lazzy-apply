@@ -193,7 +193,7 @@ describe("getUploadsController", () => {
 	});
 
 	describe("filtering", () => {
-		it("should only return uploaded and deduplicated files", async () => {
+		it("should return uploaded, deduplicated, and pending files but not failed", async () => {
 			await createUpload("file-uploaded", "uploaded");
 			await createUpload("file-dedup", "deduplicated");
 			await createUpload("file-pending", "pending");
@@ -206,7 +206,7 @@ describe("getUploadsController", () => {
 
 			expect(fileIds).toContain("file-uploaded");
 			expect(fileIds).toContain("file-dedup");
-			expect(fileIds).not.toContain("file-pending");
+			expect(fileIds).toContain("file-pending");
 			expect(fileIds).not.toContain("file-failed");
 		});
 	});

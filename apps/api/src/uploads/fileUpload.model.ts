@@ -72,6 +72,7 @@ const fileUploadSchema = new Schema<
 				"pending",
 				"uploaded",
 				"failed",
+				"rejected",
 				"deduplicated",
 				"deleted-by-user",
 			],
@@ -81,12 +82,11 @@ const fileUploadSchema = new Schema<
 			type: String,
 			index: true,
 		},
-		uploadUrlExpiresAt: {
-			type: Date,
-			required: true,
+		size: {
+			type: Number,
 			immutable: true,
 		},
-		size: {
+		rawTextSize: {
 			type: Number,
 			immutable: true,
 		},
@@ -94,6 +94,14 @@ const fileUploadSchema = new Schema<
 			type: String,
 			unique: true,
 			sparse: true,
+		},
+		rawText: {
+			type: String,
+			immutable: true,
+		},
+		rejectionReason: {
+			type: String,
+			immutable: true,
 		},
 	},
 	{ timestamps: true },

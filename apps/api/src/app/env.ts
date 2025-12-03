@@ -16,8 +16,6 @@ const envSchema = z.object({
 	ALLOWED_ORIGINS: z.string(),
 	MONGO_CONNECTION: z.string(),
 	SUPABASE_JWKS_URL: z.string().url(),
-	// TODO check we dont need it
-	// SUPABASE_JWT_SECRET: z.string().optional(),
 	WORKER_SECRET: z.string(),
 	OPENAI_API_KEY: z.string(),
 	OPENAI_MODEL: z.string(),

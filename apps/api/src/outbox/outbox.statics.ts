@@ -1,8 +1,6 @@
 import type { Schema } from "mongoose";
 
 import type {
-	CreateOutboxParams,
-	OutboxDocument,
 	OutboxMethods,
 	OutboxModelWithStatics,
 	TOutbox,
@@ -18,7 +16,12 @@ export const registerOutboxStatics = (
 		});
 	};
 
-	schema.statics.createWithStatus = async function (original, status, error, usage) {
+	schema.statics.createWithStatus = async function (
+		original,
+		status,
+		error,
+		usage,
+	) {
 		const newEntry: Partial<TOutbox> = {
 			processId: original.processId,
 			type: original.type,
@@ -53,6 +56,25 @@ export const registerOutboxStatics = (
 		}
 
 		return await this.create(newEntry);
+	};
+
+	// Atomically find pending entry and create new "sending" entry
+	// Returns null if no pending entry exists (already locked/processed)
+	schema.statics.markAsSending = async function (processId) {
+		// Find the latest pending entry for this processId
+		const pendingEntry = await this.findOne({
+			processId,
+			status: "pending",
+		})
+			.sort({ createdAt: -1 })
+			.exec();
+
+		if (!pendingEntry) {
+			return null;
+		}
+
+		// Create new "sending" entry (event-sourcing pattern)
+		return await this.createWithStatus(pendingEntry, "sending");
 	};
 
 	schema.statics.markAsProcessing = async function (original) {
@@ -102,7 +124,6 @@ export const registerOutboxStatics = (
 	schema.statics.findByFileId = async function (fileId) {
 		return await this.findOne({ fileId }).sort({ createdAt: -1 }).exec();
 	};
-	
 
 	schema.statics.findByProcessId = async function (processId) {
 		return await this.find({ processId }).sort({ createdAt: -1 }).exec();

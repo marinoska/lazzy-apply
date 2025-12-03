@@ -5,6 +5,7 @@ export type FileUploadStatus =
 	| "pending"
 	| "uploaded"
 	| "failed"
+	| "rejected"
 	| "deduplicated"
 	| "deleted-by-user";
 
@@ -26,9 +27,14 @@ export type TFileUpload = {
 	userEmail?: string;
 	status: FileUploadStatus;
 	deduplicatedFrom?: string;
-	uploadUrlExpiresAt: Date;
 	size?: number;
+	/** Raw text size in bytes */
+	rawTextSize?: number;
 	fileHash?: string;
+	/** Raw text extracted from the CV at upload time */
+	rawText?: string;
+	/** Rejection reason if status is 'rejected' */
+	rejectionReason?: string;
 	createdAt: Date;
 	updatedAt: Date;
 };
@@ -43,7 +49,6 @@ export type CreatePendingUploadParams = Pick<
 	| "bucket"
 	| "userId"
 	| "userEmail"
-	| "uploadUrlExpiresAt"
 >;
 
 export type FindExistingUploadByHashParams = {

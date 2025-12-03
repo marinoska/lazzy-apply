@@ -27,6 +27,7 @@
 		"@hapi/boom": "^10.0.1",
 		"@lazyapply/schemas": "workspace:*",
 		"@lazyapply/types": "workspace:*",
+		"@lazyapply/utils": "workspace:*",
 		"ai": "^5.0.102",
 		"cors": "^2.8.5",
 		"dotenv": "^16.6.1",

@@ -16,7 +16,7 @@ export async function extractTextFromPDF(
 
 		return text;
 	} catch (error) {
-		console.error("Error extracting text from PDF:", error);
+		// Re-throw with context - logging handled by caller
 		throw new Error(
 			`Failed to extract text from PDF: ${error instanceof Error ? error.message : String(error)}`,
 		);

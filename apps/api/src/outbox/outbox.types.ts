@@ -1,7 +1,12 @@
-import type { Document, Model } from "mongoose";
 import type { FileUploadContentType, TokenUsage } from "@lazyapply/types";
+import type { Document, Model } from "mongoose";
 
-export type OutboxStatus = "pending" | "processing" | "completed" | "failed";
+export type OutboxStatus =
+	| "pending"
+	| "sending"
+	| "processing"
+	| "completed"
+	| "failed";
 
 export type OutboxType = "file_upload";
 
@@ -28,7 +33,10 @@ export type TOutbox = {
 	updatedAt: Date;
 };
 
-export type CreateOutboxParams = Pick<TOutbox, "processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType">;
+export type CreateOutboxParams = Pick<
+	TOutbox,
+	"processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType"
+>;
 
 export type OutboxMethods = Record<string, never>;
 
@@ -39,23 +47,39 @@ export type OutboxStatics = {
 	): Promise<OutboxDocument>;
 	createWithStatus(
 		this: OutboxModelWithStatics,
-		original: Pick<TOutbox, "processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType">,
+		original: Pick<
+			TOutbox,
+			"processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType"
+		>,
 		status: OutboxStatus,
 		error?: string,
 		usage?: TokenUsage,
 	): Promise<OutboxDocument>;
+	markAsSending(
+		this: OutboxModelWithStatics,
+		processId: string,
+	): Promise<OutboxDocument | null>;
 	markAsProcessing(
 		this: OutboxModelWithStatics,
-		original: Pick<TOutbox, "processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType">,
+		original: Pick<
+			TOutbox,
+			"processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType"
+		>,
 	): Promise<OutboxDocument>;
 	markAsCompleted(
 		this: OutboxModelWithStatics,
-		original: Pick<TOutbox, "processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType">,
+		original: Pick<
+			TOutbox,
+			"processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType"
+		>,
 		usage?: TokenUsage,
 	): Promise<OutboxDocument>;
 	markAsFailed(
 		this: OutboxModelWithStatics,
-		original: Pick<TOutbox, "processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType">,
+		original: Pick<
+			TOutbox,
+			"processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType"
+		>,
 		error: string,
 		usage?: TokenUsage,
 	): Promise<OutboxDocument>;

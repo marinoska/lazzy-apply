@@ -5,10 +5,9 @@ import { env } from "./app/env.js";
 import { createLogger } from "./app/logger.js";
 import { connectToMongo, stopMongoClient } from "./app/mongo.js";
 import {
-	startPendingUploadMonitor,
-	stopPendingUploadMonitor,
-} from "./workers/pendingUploadsMonitor.js";
-import { startOutboxProcessor, stopOutboxProcessor } from "./workers/outboxProcessor.js";
+	startOutboxProcessor,
+	stopOutboxProcessor,
+} from "./workers/outboxProcessor.js";
 
 const log = createLogger("server");
 
@@ -17,7 +16,6 @@ const startServer = async () => {
 		await connectToMongo();
 
 		// Start background jobs after DB is connected
-		startPendingUploadMonitor();
 		startOutboxProcessor();
 
 		// Create and start the HTTP server
@@ -36,9 +34,8 @@ const startServer = async () => {
 
 const server = await startServer();
 
-const shutdown = (signal: NodeJS.Signals) => {
+const _shutdown = (signal: NodeJS.Signals) => {
 	log.info({ signal }, "Received shutdown signal");
-	stopPendingUploadMonitor();
 	stopOutboxProcessor();
 	void stopMongoClient();
 
@@ -55,7 +52,6 @@ const shutdown = (signal: NodeJS.Signals) => {
 
 const gracefulExit = () => {
 	log.info("Application is being terminated");
-	stopPendingUploadMonitor();
 	stopOutboxProcessor();
 	// If the Node process ends, close the Mongoose connection
 	void stopMongoClient();

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { downloadFile, deleteFile } from "./r2";
 import type { Env } from "../types";
+import { deleteFile, downloadFile } from "./r2";
 
 describe("r2", () => {
 	let mockEnv: Env;
@@ -22,6 +22,7 @@ describe("r2", () => {
 			PARSE_CV_DLQ: {} as Queue,
 			API_URL: "http://test-api.com",
 			WORKER_SECRET: "test-secret",
+			EXTENSION_SECRET: "test-extension-secret",
 			OPENAI_API_KEY: "test-openai-key",
 			AI_MODEL_NAME: "gpt-4o-mini",
 			AI_MODEL_INPUT_PRICE_PER_1M: "0.15",
@@ -40,7 +41,9 @@ describe("r2", () => {
 				arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
 			};
 
-			vi.mocked(mockBucket.get).mockResolvedValue(mockObject as unknown as R2ObjectBody);
+			vi.mocked(mockBucket.get).mockResolvedValue(
+				mockObject as unknown as R2ObjectBody,
+			);
 
 			const result = await downloadFile(mockEnv, "test-file-id");
 
@@ -70,7 +73,9 @@ describe("r2", () => {
 			const mockObject = {
 				arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(50)),
 			};
-			vi.mocked(mockBucket.get).mockResolvedValue(mockObject as unknown as R2ObjectBody);
+			vi.mocked(mockBucket.get).mockResolvedValue(
+				mockObject as unknown as R2ObjectBody,
+			);
 
 			await downloadFile(mockEnv, "my-file-123");
 

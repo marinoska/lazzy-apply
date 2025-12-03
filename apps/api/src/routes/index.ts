@@ -1,7 +1,6 @@
 import type { Express } from "express";
 import { Router } from "express";
 
-import { env } from "@/app/env.js";
 import { authenticateUser } from "@/app/middleware/authenticateUser.js";
 import { authenticateWorker } from "@/app/middleware/authenticateWorker.js";
 import { validateRequest } from "@/app/middleware/validateRequest.js";
@@ -19,62 +18,61 @@ import {
 	deleteUploadParamsSchema,
 } from "./uploads/deleteUpload.controller.js";
 import {
-	uploadLinkController,
-	uploadRequestSchema,
-} from "./uploads/getUploadLink.controller.js";
+	finalizeUploadController,
+	finalizeUploadRequestSchema,
+} from "./uploads/finalizeUpload.controller.js";
+import {
+	getRawTextController,
+	getRawTextParamsSchema,
+} from "./uploads/getRawText.controller.js";
 import {
 	getUploadsController,
 	getUploadsQuerySchema,
 } from "./uploads/getUploads.controller.js";
 import {
-	completeUploadController,
-	completeUploadRequestSchema,
-} from "./uploads/setUploadStatus.controller.js";
+	initUploadController,
+	initUploadRequestSchema,
+} from "./uploads/initUpload.controller.js";
 
 export const registerRoutes = (app: Express) => {
-	const router = Router();
+	const publicRouter = Router();
+	const workerRouter = Router();
+	const userRouter = Router();
 
-	router.get("/health", (_req, res) => {
+	// ─────────────────────────────────────────────────────────────────────────────
+	// Public routes
+	// ─────────────────────────────────────────────────────────────────────────────
+
+	publicRouter.get("/health", (_req, res) => {
 		res.json({ status: "ok" });
 	});
 
-	router.post(
-		"/uploads/sign",
-		authenticateUser,
-		validateRequest({ body: uploadRequestSchema }),
-		uploadLinkController,
-	);
-	router.post(
-		"/uploads/complete",
-		authenticateUser,
-		validateRequest({ body: completeUploadRequestSchema }),
-		completeUploadController,
-	);
-	router.get(
-		"/uploads",
-		authenticateUser,
-		validateRequest({ query: getUploadsQuerySchema }),
-		getUploadsController,
-	);
-	router.delete(
-		"/uploads/:fileId",
-		authenticateUser,
-		validateRequest({ params: deleteUploadParamsSchema }),
-		deleteUploadController,
+	// ─────────────────────────────────────────────────────────────────────────────
+	// Worker-authenticated routes (called by Edge Function / Queue Consumer)
+	// ─────────────────────────────────────────────────────────────────────────────
+
+	workerRouter.use(authenticateWorker);
+
+	workerRouter.post(
+		"/uploads/init",
+		validateRequest({ body: initUploadRequestSchema }),
+		initUploadController,
 	);
 
-	// Form field classification endpoint (called by Chrome extension)
-	router.post(
-		"/autofill",
-		authenticateUser,
-		validateRequest({ body: classifyFormFieldsBodySchema }),
-		autofill,
+	workerRouter.post(
+		"/uploads/finalize",
+		validateRequest({ body: finalizeUploadRequestSchema }),
+		finalizeUploadController,
 	);
 
-	// Outbox status update endpoint (called by queue consumer worker)
-	router.patch(
+	workerRouter.get(
+		"/uploads/:uploadId/raw-text",
+		validateRequest({ params: getRawTextParamsSchema }),
+		getRawTextController,
+	);
+
+	workerRouter.patch(
 		"/outbox/:processId",
-		authenticateWorker,
 		validateRequest({
 			params: updateOutboxParamsSchema,
 			body: updateOutboxBodySchema,
@@ -82,5 +80,31 @@ export const registerRoutes = (app: Express) => {
 		updateOutboxStatus,
 	);
 
-	app.use(env.API_PREFIX, router);
+	// ─────────────────────────────────────────────────────────────────────────────
+	// User-authenticated routes (called by Chrome Extension)
+	// ─────────────────────────────────────────────────────────────────────────────
+
+	userRouter.use(authenticateUser);
+
+	userRouter.get(
+		"/uploads",
+		validateRequest({ query: getUploadsQuerySchema }),
+		getUploadsController,
+	);
+
+	userRouter.delete(
+		"/uploads/:fileId",
+		validateRequest({ params: deleteUploadParamsSchema }),
+		deleteUploadController,
+	);
+
+	userRouter.post(
+		"/autofill",
+		validateRequest({ body: classifyFormFieldsBodySchema }),
+		autofill,
+	);
+
+	app.use("/api", publicRouter);
+	app.use("/api", userRouter);
+	app.use("/worker", workerRouter);
 };

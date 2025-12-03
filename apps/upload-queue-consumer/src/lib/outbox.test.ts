@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { updateOutboxStatus } from "./outbox";
 import type { ParsedCVData } from "@lazyapply/types";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../types";
+import { updateOutboxStatus } from "./outbox";
 
 describe("outbox", () => {
 	let mockEnv: Env;
@@ -16,6 +16,7 @@ describe("outbox", () => {
 			PARSE_CV_DLQ: {} as Queue,
 			API_URL: "http://test-api.com",
 			WORKER_SECRET: "test-secret",
+			EXTENSION_SECRET: "test-extension-secret",
 			OPENAI_API_KEY: "test-openai-key",
 			AI_MODEL_NAME: "gpt-4o-mini",
 			AI_MODEL_INPUT_PRICE_PER_1M: "0.15",
@@ -59,7 +60,7 @@ describe("outbox", () => {
 			await updateOutboxStatus(mockEnv, "log-123", "completed", mockParsedData);
 
 			expect(mockFetch).toHaveBeenCalledWith(
-				"http://test-api.com/api/outbox/log-123",
+				"http://test-api.com/worker/outbox/log-123",
 				{
 					method: "PATCH",
 					headers: {
@@ -90,7 +91,7 @@ describe("outbox", () => {
 			);
 
 			expect(mockFetch).toHaveBeenCalledWith(
-				"http://test-api.com/api/outbox/log-123",
+				"http://test-api.com/worker/outbox/log-123",
 				{
 					method: "PATCH",
 					headers: {
@@ -157,7 +158,7 @@ describe("outbox", () => {
 			await updateOutboxStatus(mockEnv, "log-456", "completed", mockParsedData);
 
 			const callArgs = mockFetch.mock.calls[0];
-			expect(callArgs[0]).toBe("http://test-api.com/api/outbox/log-456");
+			expect(callArgs[0]).toBe("http://test-api.com/worker/outbox/log-456");
 			expect(callArgs[1].headers["X-Worker-Secret"]).toBe("test-secret");
 		});
 	});

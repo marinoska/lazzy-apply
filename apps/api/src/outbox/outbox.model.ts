@@ -1,22 +1,23 @@
-import { Schema, model } from "mongoose";
 import { FILE_UPLOAD_CONTENT_TYPES } from "@lazyapply/types";
-
+import { model, Schema } from "mongoose";
+import { registerOutboxStatics } from "./outbox.statics.js";
 import type {
-	OutboxDocument,
 	OutboxMethods,
 	OutboxModelWithStatics,
 	TOutbox,
 } from "./outbox.types.js";
 import { OUTBOX_MODEL_NAME } from "./outbox.types.js";
-import { registerOutboxStatics } from "./outbox.statics.js";
 
 export type OutboxModel = OutboxModelWithStatics;
 
-const outboxSchema = new Schema<
-	TOutbox,
-	OutboxModel,
-	OutboxMethods
->(
+/**
+ * Outbox collection uses event-sourcing pattern:
+ * - Documents are NEVER updated, only new documents are created
+ * - All fields are immutable
+ * - Status transitions create new documents (pending → sending → processing → completed/failed)
+ * - Unique index on (fileId, processId, status) prevents duplicate status entries
+ */
+const outboxSchema = new Schema<TOutbox, OutboxModel, OutboxMethods>(
 	{
 		processId: {
 			type: String,
@@ -26,9 +27,10 @@ const outboxSchema = new Schema<
 		},
 		status: {
 			type: String,
-			enum: ["pending", "processing", "completed", "failed"],
+			enum: ["pending", "sending", "processing", "completed", "failed"],
 			default: "pending",
 			index: true,
+			immutable: true,
 		},
 		type: {
 			type: String,
@@ -100,22 +102,25 @@ const outboxSchema = new Schema<
 outboxSchema.index({ processId: 1, createdAt: -1 });
 outboxSchema.index({ status: 1, createdAt: 1 });
 
-// Make collection immutable - prevent all updates
-outboxSchema.pre('findOneAndUpdate', function() {
-	throw new Error('Updates not allowed on immutable outbox collection');
+// Unique index to prevent duplicate status entries for the same file/process
+outboxSchema.index({ fileId: 1, processId: 1, status: 1 }, { unique: true });
+
+// Block all updates - event-sourcing pattern requires creating new documents
+outboxSchema.pre("findOneAndUpdate", () => {
+	throw new Error("Updates not allowed on immutable outbox collection");
 });
 
-outboxSchema.pre('updateOne', function() {
-	throw new Error('Updates not allowed on immutable outbox collection');
+outboxSchema.pre("updateOne", () => {
+	throw new Error("Updates not allowed on immutable outbox collection");
 });
 
-outboxSchema.pre('updateMany', function() {
-	throw new Error('Updates not allowed on immutable outbox collection');
+outboxSchema.pre("updateMany", () => {
+	throw new Error("Updates not allowed on immutable outbox collection");
 });
 
-outboxSchema.pre('save', function() {
+outboxSchema.pre("save", function () {
 	if (!this.isNew) {
-		throw new Error('Updates not allowed on immutable outbox collection');
+		throw new Error("Updates not allowed on immutable outbox collection");
 	}
 });
 

@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useUploadMutation } from "@/lib/api/query/useUploadMutation.js";
 import { MAXIMUM_UPLOAD_SIZE_BYTES } from "@/lib/consts.js";
+import { getUserFriendlyMessage } from "@/lib/errorUtils.js";
 import { validateFileContent } from "@/lib/files.js";
 import type { StateSetter } from "@/types.js";
 import { AppAlert } from "./AppAlert.js";
@@ -74,13 +75,14 @@ export const DropzoneBox = ({
 					setFile(null);
 				},
 				onError: (err) => {
-					const errorMessage =
-						err instanceof Error ? err.message : "Upload failed";
-					setError(errorMessage);
+					// Log detailed error to console for debugging
+					console.error("[DropzoneBox] Upload error:", err);
+					// Show user-friendly message in UI
+					const userMessage = getUserFriendlyMessage(err);
+					setError(userMessage);
 					setUploadSuccess(false);
-					// Call error callback
-					onUploadError?.(errorMessage);
-					// Note: Worker will clean up failed uploads from quarantine after timeout
+					// Call error callback with user-friendly message
+					onUploadError?.(userMessage);
 				},
 			},
 		);
@@ -181,11 +183,7 @@ export const DropzoneBox = ({
 			)}
 
 			{error && (
-				<AppAlert
-					type="error"
-					message={error}
-					onClose={() => setError("")}
-				/>
+				<AppAlert type="error" message={error} onClose={() => setError("")} />
 			)}
 
 			<Snackbar msg={error} onClose={() => setError("")} />

@@ -22,7 +22,7 @@ export async function updateOutboxStatus(
 			operation: "outbox_update",
 		});
 
-		const response = await fetch(`${env.API_URL}/api/outbox/${processId}`, {
+		const response = await fetch(`${env.API_URL}/worker/outbox/${processId}`, {
 			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
@@ -45,7 +45,7 @@ export async function updateOutboxStatus(
 				responseText,
 				operation: "outbox_update",
 			});
-			
+
 			// For status updates to "completed", we want to ensure the update succeeds
 			// If it fails, we should retry the entire message processing
 			if (status === "completed") {
@@ -53,7 +53,7 @@ export async function updateOutboxStatus(
 					`Failed to update outbox status to completed: ${response.status} ${responseText}`,
 				);
 			}
-			
+
 			// For "failed" status updates, log but don't throw
 			// We don't want to retry a message that already failed
 			logger.warn("Could not mark outbox as failed, but continuing", {
@@ -74,12 +74,12 @@ export async function updateOutboxStatus(
 			{ processId, status, operation: "outbox_update" },
 			error instanceof Error ? error : new Error(String(error)),
 		);
-		
+
 		// Re-throw for "completed" status - we need the update to succeed
 		if (status === "completed") {
 			throw error;
 		}
-		
+
 		// For "failed" status, log but don't throw
 		// The message processing already failed, no need to retry
 		logger.warn("Swallowing error for failed status update", {

@@ -10,8 +10,11 @@ R2_ACCESS_KEY_ID=your-r2-access-key-id
 R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
 R2_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
 
-# Worker authentication secret (must match the API's expected secret)
+# Worker authentication secret (for API calls)
 WORKER_SECRET=your-worker-secret-here
+
+# Extension authentication secret (for upload endpoint - must match extension's VITE_EXTENSION_SECRET)
+EXTENSION_SECRET=your-extension-secret-here
 
 # OpenAI API Key for CV extraction (get from https://platform.openai.com/api-keys)
 OPENAI_API_KEY=your-openai-api-key-here

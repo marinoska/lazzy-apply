@@ -1,4 +1,5 @@
 import { createLogger } from "@/app/logger.js";
+import { OutboxEntryAlreadyProcessingError } from "@/outbox/outbox.errors.js";
 import { OutboxModel } from "@/outbox/outbox.model.js";
 import { sendToParseQueue } from "@/workers/queue/index.js";
 
@@ -49,7 +50,7 @@ const processOutboxEntries = async () => {
 							userId: entry.userId,
 							fileType: entry.fileType,
 						},
-						entry,
+						{ idempotencyKey: entry.processId },
 					);
 
 					log.info(
@@ -67,6 +68,15 @@ const processOutboxEntries = async () => {
 					);
 				}
 			} catch (error) {
+				// If entry was already locked/processing, skip without marking as failed
+				if (error instanceof OutboxEntryAlreadyProcessingError) {
+					log.debug(
+						{ processId: entry.processId, fileId: entry.fileId },
+						"Outbox entry already being processed, skipping",
+					);
+					continue;
+				}
+
 				const errorMessage =
 					error instanceof Error ? error.message : String(error);
 

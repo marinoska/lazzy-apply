@@ -1,9 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { OutboxModel } from "@/outbox/outbox.model.js";
-import { CVDataModel } from "@/cvData/cvData.model.js";
-import { updateOutboxStatus, updateOutboxBodySchema } from "@/routes/outbox/updateOutboxStatus.js";
+import type { FileUploadContentType, ParsedCVData } from "@lazyapply/types";
 import type { Request, Response } from "express";
-import type { ParsedCVData, FileUploadContentType } from "@lazyapply/types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CVDataModel } from "@/cvData/cvData.model.js";
+import { OutboxModel } from "@/outbox/outbox.model.js";
+import {
+	updateOutboxBodySchema,
+	updateOutboxStatus,
+} from "@/routes/outbox/updateOutboxStatus.controller.js";
 
 describe("Update Outbox Status", () => {
 	let mockReq: Partial<Request>;
@@ -22,10 +25,10 @@ describe("Update Outbox Status", () => {
 	describe("Completed Status with Transaction", () => {
 		it("should create completed outbox entry and save CV data in transaction", async () => {
 			// Create outbox entry
-			const outbox = await OutboxModel.create({
+			const _outbox = await OutboxModel.create({
 				processId: "test-process-txn-1",
 				type: "file_upload",
-				status: "pending",
+				status: "processing",
 				uploadId: "upload-id-txn-1",
 				fileId: "test-file-txn-1",
 				userId: "test-user-txn-1",
@@ -40,6 +43,7 @@ describe("Update Outbox Status", () => {
 					location: null,
 				},
 				links: [],
+				headline: null,
 				summary: "Test summary",
 				experience: [],
 				education: [],
@@ -60,7 +64,9 @@ describe("Update Outbox Status", () => {
 			await updateOutboxStatus(mockReq, mockRes);
 
 			// Verify new completed entry was created
-			const allEntries = await OutboxModel.find({ processId: "test-process-txn-1" }).sort({ createdAt: -1 });
+			const allEntries = await OutboxModel.find({
+				processId: "test-process-txn-1",
+			}).sort({ createdAt: -1 });
 			expect(allEntries).toHaveLength(2); // Original + completed
 			const latestEntry = allEntries[0];
 			expect(latestEntry.status).toBe("completed");
@@ -82,7 +88,6 @@ describe("Update Outbox Status", () => {
 			// Verify response
 			expect(statusMock).toHaveBeenCalledWith(200);
 			expect(jsonMock).toHaveBeenCalledWith({
-				success: true,
 				processId: "test-process-txn-1",
 				status: "completed",
 			});
@@ -114,7 +119,9 @@ describe("Update Outbox Status", () => {
 			}
 
 			// Verify no new entry was created
-			const entries = await OutboxModel.find({ processId: "test-process-no-data" });
+			const entries = await OutboxModel.find({
+				processId: "test-process-no-data",
+			});
 			expect(entries).toHaveLength(1); // Only original entry
 			expect(entries[0].status).toBe("pending");
 		});
@@ -123,7 +130,7 @@ describe("Update Outbox Status", () => {
 			await OutboxModel.create({
 				processId: "test-process-full-data",
 				type: "file_upload",
-				status: "pending",
+				status: "processing",
 				uploadId: "upload-id-full",
 				fileId: "test-file-full",
 				userId: "test-user-full",
@@ -143,6 +150,7 @@ describe("Update Outbox Status", () => {
 					{ type: "linkedin", url: "https://linkedin.com/test" },
 					{ type: "github", url: "https://github.com/test" },
 				],
+				headline: "Senior Software Engineer",
 				summary: "Comprehensive test summary",
 				experience: [
 					{
@@ -218,7 +226,7 @@ describe("Update Outbox Status", () => {
 			await OutboxModel.create({
 				processId: "test-process-failed",
 				type: "file_upload",
-				status: "pending",
+				status: "processing",
 				uploadId: "upload-id-failed",
 				fileId: "test-file-failed",
 				userId: "test-user-failed",
@@ -236,7 +244,9 @@ describe("Update Outbox Status", () => {
 			await updateOutboxStatus(mockReq, mockRes);
 
 			// Verify new failed entry was created
-			const allEntries = await OutboxModel.find({ processId: "test-process-failed" }).sort({ createdAt: -1 });
+			const allEntries = await OutboxModel.find({
+				processId: "test-process-failed",
+			}).sort({ createdAt: -1 });
 			expect(allEntries).toHaveLength(2); // Original + failed
 			const latestEntry = allEntries[0];
 			expect(latestEntry.status).toBe("failed");
@@ -262,9 +272,9 @@ describe("Update Outbox Status", () => {
 				},
 			};
 
-			await expect(
-				updateOutboxStatus(mockReq, mockRes),
-			).rejects.toThrow("Outbox entry not found");
+			await expect(updateOutboxStatus(mockReq, mockRes)).rejects.toThrow(
+				"Outbox entry not found",
+			);
 		});
 	});
 });

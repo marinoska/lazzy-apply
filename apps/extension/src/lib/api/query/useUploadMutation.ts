@@ -1,10 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-	completeUpload,
-	getUploadSignedUrl,
-	uploadFileToSignedUrl,
-	type CompleteUploadResponse,
-} from "../api.js";
+import { type UploadResponse, uploadFile } from "../api.js";
 import { uploadsKeys } from "../queryKeys.js";
 
 interface UploadParams {
@@ -14,20 +9,10 @@ interface UploadParams {
 export const useUploadMutation = () => {
 	const queryClient = useQueryClient();
 
-	return useMutation<CompleteUploadResponse, Error, UploadParams>({
+	return useMutation<UploadResponse, Error, UploadParams>({
 		mutationFn: async ({ file }: UploadParams) => {
-			// Get signed URL from API
-			const uploadDetails = await getUploadSignedUrl(
-				file.name,
-				file.type,
-				file.size,
-			);
-
-			// Upload file to signed URL
-			await uploadFileToSignedUrl(file, uploadDetails);
-
-			// Signal completion - server validates and promotes from quarantine
-			return completeUpload(uploadDetails.fileId);
+			// Single upload call - Edge Function handles everything
+			return uploadFile(file);
 		},
 		onSuccess: () => {
 			// Invalidate uploads query to refetch the list

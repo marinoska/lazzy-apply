@@ -13,7 +13,12 @@ export const getUploadsQuerySchema = z.object({
 
 type GetUploadsQuery = z.infer<typeof getUploadsQuerySchema>;
 
-export type ParseStatus = "pending" | "processing" | "completed" | "failed";
+export type ParseStatus =
+	| "pending"
+	| "sending"
+	| "processing"
+	| "completed"
+	| "failed";
 
 export type UploadDTO = Pick<
 	TFileUpload,

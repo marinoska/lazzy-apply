@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { OutboxModel } from "@/outbox/outbox.model.js";
 import type { FileUploadContentType } from "@lazyapply/types";
+import { describe, expect, it } from "vitest";
+import { OutboxModel } from "@/outbox/outbox.model.js";
 
 describe("Outbox Model", () => {
 	describe("File Type Field", () => {
@@ -129,7 +129,9 @@ describe("Outbox Model", () => {
 				processedAt: new Date(),
 			});
 
-			const entries = await OutboxModel.find({ processId }).sort({ createdAt: 1 });
+			const entries = await OutboxModel.find({ processId }).sort({
+				createdAt: 1,
+			});
 			expect(entries).toHaveLength(3);
 			expect(entries[0].status).toBe("pending");
 			expect(entries[1].status).toBe("processing");
@@ -176,7 +178,9 @@ describe("Outbox Model", () => {
 				expect(processing.processedAt).toBeUndefined();
 
 				// Verify both entries exist
-				const allEntries = await OutboxModel.find({ processId: original.processId });
+				const allEntries = await OutboxModel.find({
+					processId: original.processId,
+				});
 				expect(allEntries).toHaveLength(2);
 			});
 
@@ -199,7 +203,9 @@ describe("Outbox Model", () => {
 				expect(completed.processedAt).toBeDefined();
 
 				// Verify both entries exist
-				const allEntries = await OutboxModel.find({ processId: original.processId });
+				const allEntries = await OutboxModel.find({
+					processId: original.processId,
+				});
 				expect(allEntries).toHaveLength(2);
 			});
 
@@ -223,7 +229,9 @@ describe("Outbox Model", () => {
 				expect(failed.processedAt).toBeDefined();
 
 				// Verify both entries exist
-				const allEntries = await OutboxModel.find({ processId: original.processId });
+				const allEntries = await OutboxModel.find({
+					processId: original.processId,
+				});
 				expect(allEntries).toHaveLength(2);
 			});
 		});
@@ -381,7 +389,7 @@ describe("Outbox Model", () => {
 
 			it("should return oldest pending entries first", async () => {
 				// Create entries with delays to ensure different timestamps
-				const process1 = await OutboxModel.create({
+				await OutboxModel.create({
 					processId: "process-order-1",
 					type: "file_upload",
 					status: "pending",
@@ -393,7 +401,7 @@ describe("Outbox Model", () => {
 
 				await new Promise((resolve) => setTimeout(resolve, 10));
 
-				const process2 = await OutboxModel.create({
+				await OutboxModel.create({
 					processId: "process-order-2",
 					type: "file_upload",
 					status: "pending",
@@ -405,10 +413,77 @@ describe("Outbox Model", () => {
 
 				const pending = await OutboxModel.findPendingLogs(10);
 
-				const idx1 = pending.findIndex((p: any) => p.processId === "process-order-1");
-				const idx2 = pending.findIndex((p: any) => p.processId === "process-order-2");
+				const idx1 = pending.findIndex(
+					(p) => p.processId === "process-order-1",
+				);
+				const idx2 = pending.findIndex(
+					(p) => p.processId === "process-order-2",
+				);
 
 				expect(idx1).toBeLessThan(idx2);
+			});
+		});
+
+		describe("markAsSending", () => {
+			it("should find pending entry and create new sending entry", async () => {
+				const processId = "test-mark-sending-1";
+
+				await OutboxModel.create({
+					processId,
+					type: "file_upload",
+					status: "pending",
+					uploadId: "upload-sending-1",
+					fileId: "file-sending-1",
+					userId: "user-sending-1",
+					fileType: "PDF",
+				});
+
+				const sendingEntry = await OutboxModel.markAsSending(processId);
+
+				expect(sendingEntry).not.toBeNull();
+				expect(sendingEntry?.status).toBe("sending");
+				expect(sendingEntry?.processId).toBe(processId);
+
+				// Verify both entries exist (event-sourcing)
+				const allEntries = await OutboxModel.find({ processId });
+				expect(allEntries).toHaveLength(2);
+				expect(allEntries.map((e) => e.status).sort()).toEqual([
+					"pending",
+					"sending",
+				]);
+			});
+
+			it("should return null if no pending entry exists", async () => {
+				const result = await OutboxModel.markAsSending("non-existent-process");
+				expect(result).toBeNull();
+			});
+
+			it("should return null if entry is already processing", async () => {
+				const processId = "test-mark-sending-2";
+
+				// Create pending then processing (simulating already locked)
+				await OutboxModel.create({
+					processId,
+					type: "file_upload",
+					status: "pending",
+					uploadId: "upload-sending-2",
+					fileId: "file-sending-2",
+					userId: "user-sending-2",
+					fileType: "PDF",
+				});
+				await OutboxModel.create({
+					processId,
+					type: "file_upload",
+					status: "processing",
+					uploadId: "upload-sending-2",
+					fileId: "file-sending-2",
+					userId: "user-sending-2",
+					fileType: "PDF",
+				});
+
+				// findPendingLogs should not return this process
+				const pending = await OutboxModel.findPendingLogs(10);
+				expect(pending.find((p) => p.processId === processId)).toBeUndefined();
 			});
 		});
 
@@ -416,7 +491,7 @@ describe("Outbox Model", () => {
 			it("should return all entries for a processId sorted by createdAt desc", async () => {
 				const processId = "test-process-find";
 
-				const entry1 = await OutboxModel.create({
+				await OutboxModel.create({
 					processId,
 					type: "file_upload",
 					status: "pending",
@@ -428,7 +503,7 @@ describe("Outbox Model", () => {
 
 				await new Promise((resolve) => setTimeout(resolve, 10));
 
-				const entry2 = await OutboxModel.create({
+				await OutboxModel.create({
 					processId,
 					type: "file_upload",
 					status: "processing",
@@ -440,7 +515,7 @@ describe("Outbox Model", () => {
 
 				await new Promise((resolve) => setTimeout(resolve, 10));
 
-				const entry3 = await OutboxModel.create({
+				await OutboxModel.create({
 					processId,
 					type: "file_upload",
 					status: "completed",
@@ -464,6 +539,207 @@ describe("Outbox Model", () => {
 				const entries = await OutboxModel.findByProcessId("non-existent");
 				expect(entries).toHaveLength(0);
 			});
+		});
+	});
+
+	describe("Event-Sourcing Pattern", () => {
+		it("should block findOneAndUpdate", async () => {
+			await OutboxModel.create({
+				processId: "test-block-update-1",
+				type: "file_upload",
+				status: "pending",
+				uploadId: "upload-block-1",
+				fileId: "file-block-1",
+				userId: "user-block-1",
+				fileType: "PDF",
+			});
+
+			await expect(
+				OutboxModel.findOneAndUpdate(
+					{ processId: "test-block-update-1" },
+					{ $set: { status: "processing" } },
+				),
+			).rejects.toThrow("Updates not allowed on immutable outbox collection");
+		});
+
+		it("should block updateOne", async () => {
+			await OutboxModel.create({
+				processId: "test-block-update-2",
+				type: "file_upload",
+				status: "pending",
+				uploadId: "upload-block-2",
+				fileId: "file-block-2",
+				userId: "user-block-2",
+				fileType: "PDF",
+			});
+
+			await expect(
+				OutboxModel.updateOne(
+					{ processId: "test-block-update-2" },
+					{ $set: { status: "processing" } },
+				),
+			).rejects.toThrow("Updates not allowed on immutable outbox collection");
+		});
+
+		it("should block updateMany", async () => {
+			await expect(
+				OutboxModel.updateMany(
+					{ status: "pending" },
+					{ $set: { status: "failed" } },
+				),
+			).rejects.toThrow("Updates not allowed on immutable outbox collection");
+		});
+
+		it("should prevent duplicate status entries via unique index", async () => {
+			const processId = "test-unique-index";
+			const fileId = "file-unique-index";
+
+			// Create first pending entry
+			await OutboxModel.create({
+				processId,
+				type: "file_upload",
+				status: "pending",
+				uploadId: "upload-unique",
+				fileId,
+				userId: "user-unique",
+				fileType: "PDF",
+			});
+
+			// Attempt to create duplicate pending entry should fail
+			await expect(
+				OutboxModel.create({
+					processId,
+					type: "file_upload",
+					status: "pending",
+					uploadId: "upload-unique",
+					fileId,
+					userId: "user-unique",
+					fileType: "PDF",
+				}),
+			).rejects.toThrow(/duplicate key/i);
+		});
+
+		it("should allow different statuses for same fileId+processId", async () => {
+			const processId = "test-multi-status";
+			const fileId = "file-multi-status";
+
+			// Create entries with different statuses - should all succeed
+			await OutboxModel.create({
+				processId,
+				type: "file_upload",
+				status: "pending",
+				uploadId: "upload-multi",
+				fileId,
+				userId: "user-multi",
+				fileType: "PDF",
+			});
+
+			await OutboxModel.create({
+				processId,
+				type: "file_upload",
+				status: "sending",
+				uploadId: "upload-multi",
+				fileId,
+				userId: "user-multi",
+				fileType: "PDF",
+			});
+
+			await OutboxModel.create({
+				processId,
+				type: "file_upload",
+				status: "processing",
+				uploadId: "upload-multi",
+				fileId,
+				userId: "user-multi",
+				fileType: "PDF",
+			});
+
+			await OutboxModel.create({
+				processId,
+				type: "file_upload",
+				status: "completed",
+				uploadId: "upload-multi",
+				fileId,
+				userId: "user-multi",
+				fileType: "PDF",
+				processedAt: new Date(),
+			});
+
+			const entries = await OutboxModel.find({ processId });
+			expect(entries).toHaveLength(4);
+		});
+
+		it("should complete full event-sourcing flow using static methods", async () => {
+			const processId = "test-full-flow";
+
+			// Step 1: Create initial pending entry
+			const pending = await OutboxModel.createOutbox({
+				processId,
+				type: "file_upload",
+				uploadId: "upload-flow",
+				fileId: "file-flow",
+				userId: "user-flow",
+				fileType: "PDF",
+			});
+			expect(pending.status).toBe("pending");
+
+			// Step 2: Mark as sending
+			const sending = await OutboxModel.markAsSending(processId);
+			expect(sending).not.toBeNull();
+			expect(sending?.status).toBe("sending");
+
+			// Step 3: Mark as processing
+			if (!sending) throw new Error("Expected sending entry");
+			const processing = await OutboxModel.markAsProcessing(sending);
+			expect(processing.status).toBe("processing");
+
+			// Step 4: Mark as completed
+			const completed = await OutboxModel.markAsCompleted(processing);
+			expect(completed.status).toBe("completed");
+			expect(completed.processedAt).toBeDefined();
+
+			// Verify full audit trail
+			const allEntries = await OutboxModel.findByProcessId(processId);
+			expect(allEntries).toHaveLength(4);
+			expect(allEntries.map((e) => e.status).sort()).toEqual([
+				"completed",
+				"pending",
+				"processing",
+				"sending",
+			]);
+		});
+
+		it("should preserve all fields across status transitions", async () => {
+			const processId = "test-preserve-fields";
+			const uploadId = "upload-preserve";
+			const fileId = "file-preserve";
+			const userId = "user-preserve";
+			const fileType = "PDF";
+
+			await OutboxModel.createOutbox({
+				processId,
+				type: "file_upload",
+				uploadId,
+				fileId,
+				userId,
+				fileType,
+			});
+
+			const sending = await OutboxModel.markAsSending(processId);
+			if (!sending) throw new Error("Expected sending entry");
+			const processing = await OutboxModel.markAsProcessing(sending);
+			await OutboxModel.markAsCompleted(processing);
+
+			// All entries should have same immutable fields
+			const allEntries = await OutboxModel.find({ processId });
+			for (const entry of allEntries) {
+				expect(entry.processId).toBe(processId);
+				expect(entry.uploadId).toBe(uploadId);
+				expect(entry.fileId).toBe(fileId);
+				expect(entry.userId).toBe(userId);
+				expect(entry.fileType).toBe(fileType);
+				expect(entry.type).toBe("file_upload");
+			}
 		});
 	});
 });

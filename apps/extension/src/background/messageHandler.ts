@@ -9,6 +9,7 @@ import type {
 	JdScanMessage,
 	MessageResponse,
 	ShowModalMessage,
+	UploadFileMessage,
 } from "./types.js";
 
 /**
@@ -120,29 +121,103 @@ export async function handleMessage(
 			case "JD_SCAN": {
 				const scanMsg = msg as JdScanMessage;
 				console.log("[MessageHandler] Handling JD_SCAN:", scanMsg);
-				
+
 				// Check if an application form was detected
 				if (scanMsg.applicationForm?.formDetected) {
-					console.log("[MessageHandler] Application form detected, showing sidebar");
-					
+					console.log(
+						"[MessageHandler] Application form detected, showing sidebar",
+					);
+
 					// Send SHOW_MODAL message to the tab that sent the scan
 					if (sender.tab?.id) {
 						const showModalMsg: ShowModalMessage = { type: "SHOW_MODAL" };
 						chrome.tabs.sendMessage(sender.tab.id, showModalMsg, () => {
 							const error = chrome.runtime.lastError;
 							if (error) {
-								console.warn("[MessageHandler] Failed to show sidebar:", error.message);
+								console.warn(
+									"[MessageHandler] Failed to show sidebar:",
+									error.message,
+								);
 							}
 						});
 					}
 				}
-				
+
 				sendResponse({ ok: true });
 				break;
 			}
 
+			case "UPLOAD_FILE": {
+				const uploadMsg = msg as UploadFileMessage;
+				console.log("[MessageHandler] Handling UPLOAD_FILE:", {
+					filename: uploadMsg.filename,
+					contentType: uploadMsg.contentType,
+					size: uploadMsg.fileData.byteLength,
+				});
+
+				try {
+					// Get upload URL and secret from environment
+					const uploadUrl = import.meta.env.VITE_UPLOAD_URL as
+						| string
+						| undefined;
+					if (!uploadUrl) {
+						throw new Error("VITE_UPLOAD_URL is not configured");
+					}
+
+					// SECURITY: VITE_EXTENSION_SECRET must ONLY be used in the background script.
+					// Background scripts run in an isolated context inaccessible to web pages.
+					// Never import or use this secret in content scripts or UI components.
+					const extensionSecret = import.meta.env.VITE_EXTENSION_SECRET as
+						| string
+						| undefined;
+					if (!extensionSecret) {
+						throw new Error("VITE_EXTENSION_SECRET is not configured");
+					}
+
+					// Get user session for authentication
+					const session = await getStoredSession();
+					if (!session?.user) {
+						throw new Error("User not authenticated");
+					}
+
+					// Upload directly to Edge Function
+					const response = await fetch(`${uploadUrl}/upload`, {
+						method: "POST",
+						headers: {
+							"Content-Type": uploadMsg.contentType,
+							"X-Upload-Filename": uploadMsg.filename,
+							"X-User-Id": session.user.id,
+							"X-User-Email": session.user.email ?? "",
+							"X-Extension-Key": extensionSecret,
+						},
+						body: uploadMsg.fileData,
+					});
+
+					if (!response.ok) {
+						const errorData = await response
+							.json()
+							.catch(() => ({ error: response.statusText }));
+						throw new Error(
+							(errorData as { error?: string }).error ??
+								`Upload failed: ${response.status}`,
+						);
+					}
+
+					const data = await response.json();
+					console.log("[MessageHandler] Upload successful:", data);
+					sendResponse({ ok: true, data });
+				} catch (error) {
+					console.error("[MessageHandler] Upload failed:", error);
+					sendResponse({ ok: false, error: serializeError(error) });
+				}
+				break;
+			}
+
 			default:
-				sendResponse({ ok: false, error: serializeError("Unknown message type") });
+				sendResponse({
+					ok: false,
+					error: serializeError("Unknown message type"),
+				});
 		}
 	} catch (error) {
 		console.error("[LazyJob] Message handler error:", error);

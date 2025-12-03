@@ -1,10 +1,8 @@
 import type { ParseCVQueueMessage, TokenUsage } from "@lazyapply/types";
-import { MAXIMUM_UPLOAD_SIZE_BYTES } from "@lazyapply/types";
-import { trace, context } from "@opentelemetry/api";
+import { context, trace } from "@opentelemetry/api";
 import type { Env } from "../types";
+import { type ExtractCVDataResult, extractCVData } from "./extractCVData";
 import { Logger } from "./logger";
-import { downloadFile, deleteFile } from "./r2";
-import { parseCV } from "./cvParser";
 import { updateOutboxStatus } from "./outbox";
 
 type LogContext = {
@@ -17,6 +15,7 @@ type LogContext = {
 
 /**
  * Process a single message from the queue
+ * Raw text is already extracted and validated at upload time
  */
 export async function processMessage(
 	payload: ParseCVQueueMessage,
@@ -24,7 +23,13 @@ export async function processMessage(
 ): Promise<void> {
 	const { uploadId, fileId, processId, userId, fileType } = payload;
 	const logger = new Logger(env);
-	const logContext: LogContext = { uploadId, fileId, processId, userId, fileType };
+	const logContext: LogContext = {
+		uploadId,
+		fileId,
+		processId,
+		userId,
+		fileType,
+	};
 
 	logger.info("Starting message processing", logContext);
 
@@ -36,25 +41,45 @@ export async function processMessage(
 	let tokenUsage: TokenUsage | undefined;
 
 	try {
-		// 1. Download and validate file
-		const file = await downloadAndValidateFile(env, fileId, logContext, logger, tracer, span);
+		// Fetch raw text from API (stored in file_upload document)
+		const rawText = await fetchRawText(env, uploadId, logger);
 
-		// 2. Parse the CV - capture token usage even if subsequent steps fail
-		const result = await parseCVFile(file, fileId, fileType, env, logContext, logger, tracer, span);
+		// Extract structured CV data from raw text using AI
+		const result = await extractCVFromText(
+			rawText,
+			fileId,
+			env,
+			logContext,
+			logger,
+			tracer,
+			span,
+		);
 		tokenUsage = result.usage;
 
-		// 3. Update outbox status
+		// Update outbox status with parsed data
 		await updateOutboxWithResult(env, processId, result, tracer, span);
 
-		// 4. Complete processing
+		// Complete processing
 		await completeProcessing(logger, logContext, startTime, span);
 	} catch (error) {
-		await handleProcessingError(error, env, processId, logger, logContext, startTime, span, tokenUsage);
+		await handleProcessingError(
+			error,
+			env,
+			processId,
+			logger,
+			logContext,
+			startTime,
+			span,
+			tokenUsage,
+		);
 		throw error;
 	}
 }
 
-function setSpanAttributes(span: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>, payload: ParseCVQueueMessage): void {
+function setSpanAttributes(
+	span: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>,
+	payload: ParseCVQueueMessage,
+): void {
 	span.setAttribute("uploadId", payload.uploadId);
 	span.setAttribute("fileId", payload.fileId);
 	span.setAttribute("processId", payload.processId);
@@ -62,90 +87,87 @@ function setSpanAttributes(span: ReturnType<ReturnType<typeof trace.getTracer>["
 	span.setAttribute("fileType", payload.fileType);
 }
 
-async function downloadAndValidateFile(
+/**
+ * Fetch raw text from the API (stored in file_upload document)
+ */
+async function fetchRawText(
 	env: Env,
-	fileId: string,
-	logContext: LogContext,
+	uploadId: string,
 	logger: Logger,
-	tracer: ReturnType<typeof trace.getTracer>,
-	parentSpan: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>,
-): Promise<ArrayBuffer> {
-	logger.info("Downloading file from R2", { ...logContext, operation: "download" });
-	
-	const downloadSpan = tracer.startSpan(
-		"downloadFile",
-		{},
-		context.active().setValue(Symbol.for("OpenTelemetry Context Key SPAN"), parentSpan),
-	);
-
-	const file = await downloadFile(env, fileId);
-	
-	if (!file) {
-		downloadSpan.recordException(new Error(`File not found in R2: ${fileId}`));
-		downloadSpan.end();
-		logger.error("File not found in R2", logContext);
-		throw new Error(`File not found in R2: ${fileId}`);
-	}
-
-	downloadSpan.setAttribute("fileSize", file.byteLength);
-	downloadSpan.end();
-	
-	logger.info("File downloaded successfully", {
-		...logContext,
-		fileSize: file.byteLength,
-		operation: "download",
+): Promise<string> {
+	logger.info("Fetching raw text from API", {
+		uploadId,
+		operation: "fetch_raw_text",
 	});
 
-	// Validate file size
-	if (file.byteLength > MAXIMUM_UPLOAD_SIZE_BYTES) {
-		logger.warn("File size exceeds limit, deleting file", {
-			...logContext,
-			fileSize: file.byteLength,
-			maxSize: MAXIMUM_UPLOAD_SIZE_BYTES,
-			operation: "validate",
-		});
-		await deleteFile(env, fileId);
+	const response = await fetch(
+		`${env.API_URL}/worker/uploads/${uploadId}/raw-text`,
+		{
+			method: "GET",
+			headers: {
+				"X-Worker-Secret": env.WORKER_SECRET,
+			},
+		},
+	);
+
+	if (!response.ok) {
+		const errorText = await response.text();
 		throw new Error(
-			`File size (${file.byteLength} bytes) exceeds maximum allowed size (${MAXIMUM_UPLOAD_SIZE_BYTES} bytes)`,
+			`Failed to fetch raw text: ${response.status} ${errorText}`,
 		);
 	}
 
-	return file;
+	const data = (await response.json()) as { rawText: string };
+
+	logger.info("Raw text fetched successfully", {
+		uploadId,
+		rawTextLength: data.rawText.length,
+		operation: "fetch_raw_text",
+	});
+
+	return data.rawText;
 }
 
-async function parseCVFile(
-	file: ArrayBuffer,
+/**
+ * Extract structured CV data from raw text using AI
+ */
+async function extractCVFromText(
+	rawText: string,
 	fileId: string,
-	fileType: ParseCVQueueMessage["fileType"],
 	env: Env,
 	logContext: LogContext,
 	logger: Logger,
 	tracer: ReturnType<typeof trace.getTracer>,
 	parentSpan: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>,
-) {
-	logger.info("Starting CV parsing", { ...logContext, operation: "parse" });
-	
-	const parseStart = Date.now();
-	const parseSpan = tracer.startSpan(
-		"parseCV",
-		{},
-		context.active().setValue(Symbol.for("OpenTelemetry Context Key SPAN"), parentSpan),
-	);
-	parseSpan.setAttribute("fileId", fileId);
-	parseSpan.setAttribute("fileType", fileType);
-
-	const result = await parseCV(file, fileId, fileType, env);
-	
-	parseSpan.setAttribute("promptTokens", result.usage.promptTokens);
-	parseSpan.setAttribute("completionTokens", result.usage.completionTokens);
-	parseSpan.setAttribute("totalTokens", result.usage.totalTokens);
-	parseSpan.end();
-	const parseDuration = Date.now() - parseStart;
-	
-	logger.info("CV parsing completed", {
+): Promise<ExtractCVDataResult> {
+	logger.info("Starting CV data extraction", {
 		...logContext,
-		operation: "parse",
-		duration: parseDuration,
+		operation: "extract",
+	});
+
+	const extractStart = Date.now();
+	const extractSpan = tracer.startSpan(
+		"extractCVData",
+		{},
+		context
+			.active()
+			.setValue(Symbol.for("OpenTelemetry Context Key SPAN"), parentSpan),
+	);
+	extractSpan.setAttribute("fileId", fileId);
+	extractSpan.setAttribute("rawTextLength", rawText.length);
+
+	const result = await extractCVData(rawText, env);
+
+	extractSpan.setAttribute("promptTokens", result.usage.promptTokens);
+	extractSpan.setAttribute("completionTokens", result.usage.completionTokens);
+	extractSpan.setAttribute("totalTokens", result.usage.totalTokens);
+	extractSpan.end();
+	const extractDuration = Date.now() - extractStart;
+
+	logger.info("CV data extraction completed", {
+		...logContext,
+		operation: "extract",
+		duration: extractDuration,
 		promptTokens: result.usage.promptTokens,
 		completionTokens: result.usage.completionTokens,
 		totalTokens: result.usage.totalTokens,
@@ -160,14 +182,16 @@ async function parseCVFile(
 async function updateOutboxWithResult(
 	env: Env,
 	processId: string,
-	result: Awaited<ReturnType<typeof parseCV>>,
+	result: ExtractCVDataResult,
 	tracer: ReturnType<typeof trace.getTracer>,
 	parentSpan: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>,
 ): Promise<void> {
 	const updateSpan = tracer.startSpan(
 		"updateOutboxStatus",
 		{},
-		context.active().setValue(Symbol.for("OpenTelemetry Context Key SPAN"), parentSpan),
+		context
+			.active()
+			.setValue(Symbol.for("OpenTelemetry Context Key SPAN"), parentSpan),
 	);
 	updateSpan.setAttribute("processId", processId);
 	updateSpan.setAttribute("status", "completed");
@@ -180,7 +204,7 @@ async function updateOutboxWithResult(
 		undefined,
 		result.usage,
 	);
-	
+
 	updateSpan.end();
 }
 
@@ -191,14 +215,14 @@ async function completeProcessing(
 	span: ReturnType<ReturnType<typeof trace.getTracer>["startSpan"]>,
 ): Promise<void> {
 	const totalDuration = Date.now() - startTime;
-	
+
 	logger.info("Successfully processed message", {
 		...logContext,
 		operation: "complete",
 		duration: totalDuration,
 		status: "success",
 	});
-	
+
 	span.setStatus({ code: 1 }); // OK status
 	span.end();
 	await logger.flush();
@@ -237,10 +261,19 @@ async function handleProcessingError(
 	);
 
 	// Update outbox to failed status - include token usage if available
-	await updateOutboxStatus(env, processId, "failed", null, errorMessage, tokenUsage);
+	await updateOutboxStatus(
+		env,
+		processId,
+		"failed",
+		null,
+		errorMessage,
+		tokenUsage,
+	);
 
 	// Record error in span
-	span.recordException(error instanceof Error ? error : new Error(String(error)));
+	span.recordException(
+		error instanceof Error ? error : new Error(String(error)),
+	);
 	span.setStatus({ code: 2, message: errorMessage }); // ERROR status
 	span.end();
 	await logger.flush();

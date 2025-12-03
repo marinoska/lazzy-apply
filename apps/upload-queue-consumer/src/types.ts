@@ -10,8 +10,11 @@ export type Env = {
 	// API base URL for callbacks
 	API_URL: string;
 
-	// Worker authentication secret
+	// Worker authentication secret (for API calls)
 	WORKER_SECRET: string;
+
+	// Extension authentication secret (for upload endpoint)
+	EXTENSION_SECRET: string;
 
 	// OpenAI API Key for CV extraction
 	OPENAI_API_KEY: string;
