@@ -216,12 +216,6 @@ async function storeFile(
 	contentType: string,
 	logger: Logger,
 ): Promise<number> {
-	logger.info("Storing file in R2", {
-		objectKey,
-		contentType,
-		operation: "store",
-	});
-
 	const object = await env.UPLOADS_BUCKET.put(objectKey, fileData, {
 		httpMetadata: {
 			contentType,
@@ -403,8 +397,13 @@ export async function handleUpload(
 
 		const fileBuffer = await new Response(body).arrayBuffer();
 
+		// Capture file size and make a copy for R2 storage
+		// (text extraction may consume the original buffer)
+		const fileSize = fileBuffer.byteLength;
+		const fileBufferCopy = fileBuffer.slice(0);
+
 		// Validate actual file size (content-length header can be missing or incorrect)
-		if (fileBuffer.byteLength > MAXIMUM_UPLOAD_SIZE_BYTES) {
+		if (fileSize > MAXIMUM_UPLOAD_SIZE_BYTES) {
 			const error = `File size (${fileBuffer.byteLength} bytes) exceeds maximum allowed size (${MAXIMUM_UPLOAD_SIZE_BYTES} bytes)`;
 			logger.warn("File too large", {
 				size: fileBuffer.byteLength,
@@ -466,24 +465,26 @@ export async function handleUpload(
 		const initResult = await initUpload(env, metadata, fileType, logger);
 		objectKey = initResult.objectKey;
 
-		// Compute file hash for deduplication
-		const fileHash = await sha256(fileBuffer);
+		// Compute file hash for deduplication (use copy since original may be consumed)
+		const fileHash = await sha256(fileBufferCopy);
 
-		// Phase 2: Store file in R2
+		// Phase 2: Store file in R2 (use the copy since original may be consumed)
 		const size = await storeFile(
 			env,
 			objectKey,
-			fileBuffer,
+			fileBufferCopy,
 			metadata.contentType,
 			logger,
 		);
+		// Use captured fileSize if R2 returns 0
+		const finalSize = size > 0 ? size : fileSize;
 
 		// Phase 3: Finalize upload (validates, updates DB, triggers queue)
 		const finalizeResult = await finalizeUpload(
 			env,
 			initResult.fileId,
 			initResult.processId,
-			size,
+			finalSize,
 			rawText,
 			fileHash,
 			logger,

@@ -27,11 +27,7 @@ export const deleteUploadController = async (
 
 	const { fileId } = req.params;
 
-	// Find the upload
-	const upload = await FileUploadModel.findOne({
-		fileId,
-		status: { $in: ["uploaded", "deduplicated", "failed"] },
-	}).setOptions({ userId: user.id });
+	const upload = await FileUploadModel.findDeletableByFileId(fileId, user.id);
 
 	if (!upload) {
 		throw new NotFound("Upload not found");

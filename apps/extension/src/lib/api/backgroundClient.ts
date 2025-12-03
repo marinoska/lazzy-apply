@@ -1,7 +1,4 @@
-import type {
-	ApiRequestMessage,
-	UploadFileMessage,
-} from "../../background/types.js";
+import type { ApiRequestMessage } from "../../background/types.js";
 import type { UploadResponse } from "./api.js";
 
 /**
@@ -69,14 +66,15 @@ export async function sendApiRequest<T>(
  * The background script uploads directly to the Edge Function
  */
 export async function sendUploadRequest(file: File): Promise<UploadResponse> {
-	console.log("[BackgroundClient] Sending upload request:", {
-		filename: file.name,
-		contentType: file.type,
-		size: file.size,
-	});
-
-	// Convert File to ArrayBuffer for message passing
-	const fileData = await file.arrayBuffer();
+	// Convert to base64 for reliable Chrome message passing (ArrayBuffer doesn't serialize properly)
+	// Base64 is ~33% larger than binary but much smaller than number[] which is ~4x larger
+	const arrayBuffer = await file.arrayBuffer();
+	const bytes = new Uint8Array(arrayBuffer);
+	const binaryString = bytes.reduce(
+		(str, byte) => str + String.fromCharCode(byte),
+		"",
+	);
+	const fileDataBase64 = btoa(binaryString);
 
 	return new Promise((resolve, reject) => {
 		chrome.runtime.sendMessage(
@@ -84,31 +82,19 @@ export async function sendUploadRequest(file: File): Promise<UploadResponse> {
 				type: "UPLOAD_FILE",
 				filename: file.name,
 				contentType: file.type,
-				fileData,
-			} satisfies UploadFileMessage,
+				fileData: fileDataBase64,
+			},
 			(response) => {
-				console.log("[BackgroundClient] Upload response:", response);
-
 				if (chrome.runtime.lastError) {
-					console.error(
-						"[BackgroundClient] Chrome runtime error:",
-						chrome.runtime.lastError,
-					);
 					reject(new Error(chrome.runtime.lastError.message));
 					return;
 				}
 
 				if (!response || !response.ok) {
-					const errorMsg = response?.error || "Upload failed";
-					console.error("[BackgroundClient] Upload failed:", {
-						error: errorMsg,
-						response,
-					});
-					reject(new Error(errorMsg));
+					reject(new Error(response?.error || "Upload failed"));
 					return;
 				}
 
-				console.log("[BackgroundClient] Upload successful:", response.data);
 				resolve(response.data as UploadResponse);
 			},
 		);

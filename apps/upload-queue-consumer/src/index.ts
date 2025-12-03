@@ -60,9 +60,24 @@ const handler = {
 
 /**
  * OpenTelemetry configuration for Axiom
- * Note: In local development, OTEL export errors are expected and can be ignored
+ * In local development, we use a no-op exporter to avoid export errors
  */
 const config: ResolveConfigFn = (env: Env, _trigger) => {
+	// In local dev, use a dummy URL that won't attempt real exports
+	if (env.ENVIRONMENT === "local") {
+		return {
+			exporter: {
+				url: "http://localhost:0/noop",
+			},
+			service: {
+				name: "upload-queue-consumer",
+			},
+			resourceAttributes: {
+				environment: env.ENVIRONMENT,
+			},
+		};
+	}
+
 	return {
 		exporter: {
 			url: "https://api.axiom.co/v1/traces",

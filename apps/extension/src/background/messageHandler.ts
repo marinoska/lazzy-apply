@@ -149,11 +149,14 @@ export async function handleMessage(
 
 			case "UPLOAD_FILE": {
 				const uploadMsg = msg as UploadFileMessage;
-				console.log("[MessageHandler] Handling UPLOAD_FILE:", {
-					filename: uploadMsg.filename,
-					contentType: uploadMsg.contentType,
-					size: uploadMsg.fileData.byteLength,
-				});
+
+				// Decode base64 back to ArrayBuffer
+				const binaryString = atob(uploadMsg.fileData);
+				const bytes = new Uint8Array(binaryString.length);
+				for (let i = 0; i < binaryString.length; i++) {
+					bytes[i] = binaryString.charCodeAt(i);
+				}
+				const fileData = bytes.buffer;
 
 				try {
 					// Get upload URL and secret from environment
@@ -190,7 +193,7 @@ export async function handleMessage(
 							"X-User-Email": session.user.email ?? "",
 							"X-Extension-Key": extensionSecret,
 						},
-						body: uploadMsg.fileData,
+						body: fileData,
 					});
 
 					if (!response.ok) {

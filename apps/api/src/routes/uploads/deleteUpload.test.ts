@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import type { FileUploadContentType } from "@lazyapply/types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FileUploadModel } from "@/uploads/fileUpload.model.js";
 import { deleteUploadController } from "./deleteUpload.controller.js";
-import type { FileUploadContentType } from "@lazyapply/types";
 
 describe("Delete Upload", () => {
 	let mockReq: any;
@@ -18,7 +18,7 @@ describe("Delete Upload", () => {
 	describe("Successful Deletion", () => {
 		it("should mark uploaded file as deleted-by-user", async () => {
 			// Create an uploaded file
-			const upload = await FileUploadModel.create({
+			const _upload = await FileUploadModel.create({
 				fileId: "test-file-delete-1",
 				objectKey: "test/key-1",
 				originalFilename: "test.pdf",
@@ -79,8 +79,7 @@ describe("Delete Upload", () => {
 			expect(deletedUpload?.status).toBe("deleted-by-user");
 		});
 
-		it("should allow deletion from terminal states", async () => {
-			// Create a failed upload (terminal state)
+		it("should allow deletion from failed state", async () => {
 			await FileUploadModel.create({
 				fileId: "test-file-delete-3",
 				objectKey: "test/key-3",
@@ -100,9 +99,36 @@ describe("Delete Upload", () => {
 
 			await deleteUploadController(mockReq, mockRes);
 
-			// Verify the upload was marked as deleted even from failed state
 			const deletedUpload = await FileUploadModel.findOne({
 				fileId: "test-file-delete-3",
+			}).setOptions({ skipOwnershipEnforcement: true });
+
+			expect(deletedUpload?.status).toBe("deleted-by-user");
+		});
+
+		it("should allow deletion from rejected state", async () => {
+			await FileUploadModel.create({
+				fileId: "test-file-delete-rejected",
+				objectKey: "test/key-rejected",
+				originalFilename: "test-rejected.pdf",
+				contentType: "PDF" as FileUploadContentType,
+				directory: "cv",
+				bucket: "test-bucket",
+				userId: "test-user-rejected",
+				status: "rejected",
+				rejectionReason: "Invalid file",
+				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
+			});
+
+			mockReq = {
+				params: { fileId: "test-file-delete-rejected" },
+				user: { id: "test-user-rejected" },
+			};
+
+			await deleteUploadController(mockReq, mockRes);
+
+			const deletedUpload = await FileUploadModel.findOne({
+				fileId: "test-file-delete-rejected",
 			}).setOptions({ skipOwnershipEnforcement: true });
 
 			expect(deletedUpload?.status).toBe("deleted-by-user");
@@ -116,9 +142,9 @@ describe("Delete Upload", () => {
 				user: { id: "test-user-4" },
 			};
 
-			await expect(
-				deleteUploadController(mockReq, mockRes),
-			).rejects.toThrow("Upload not found");
+			await expect(deleteUploadController(mockReq, mockRes)).rejects.toThrow(
+				"Upload not found",
+			);
 		});
 
 		it("should throw NotFound for file owned by different user", async () => {
@@ -141,9 +167,9 @@ describe("Delete Upload", () => {
 				user: { id: "different-user" },
 			};
 
-			await expect(
-				deleteUploadController(mockReq, mockRes),
-			).rejects.toThrow("Upload not found");
+			await expect(deleteUploadController(mockReq, mockRes)).rejects.toThrow(
+				"Upload not found",
+			);
 		});
 
 		it("should throw Unauthorized when user is missing", async () => {
@@ -152,12 +178,12 @@ describe("Delete Upload", () => {
 				user: undefined,
 			};
 
-			await expect(
-				deleteUploadController(mockReq, mockRes),
-			).rejects.toThrow("Missing authenticated user");
+			await expect(deleteUploadController(mockReq, mockRes)).rejects.toThrow(
+				"Missing authenticated user",
+			);
 		});
 
-		it("should not find pending uploads for deletion", async () => {
+		it("should allow deletion of pending uploads", async () => {
 			// Create a pending upload
 			await FileUploadModel.create({
 				fileId: "test-file-delete-7",
@@ -176,10 +202,13 @@ describe("Delete Upload", () => {
 				user: { id: "test-user-7" },
 			};
 
-			// Should not find pending uploads (only uploaded/deduplicated can be deleted)
-			await expect(
-				deleteUploadController(mockReq, mockRes),
-			).rejects.toThrow("Upload not found");
+			await deleteUploadController(mockReq, mockRes);
+
+			const deletedUpload = await FileUploadModel.findOne({
+				fileId: "test-file-delete-7",
+			}).setOptions({ skipOwnershipEnforcement: true });
+
+			expect(deletedUpload?.status).toBe("deleted-by-user");
 		});
 
 		it("should not find already deleted uploads", async () => {
@@ -202,9 +231,9 @@ describe("Delete Upload", () => {
 			};
 
 			// Should not find already deleted uploads
-			await expect(
-				deleteUploadController(mockReq, mockRes),
-			).rejects.toThrow("Upload not found");
+			await expect(deleteUploadController(mockReq, mockRes)).rejects.toThrow(
+				"Upload not found",
+			);
 		});
 	});
 });

@@ -34,9 +34,15 @@ export type FileUploadStatics = {
 		cutoff: Date,
 		limit: number,
 	): Promise<FileUploadDocument[]>;
+	findDeletableByFileId(
+		this: FileUploadModelWithStatics,
+		fileId: string,
+		userId: string,
+	): Promise<FileUploadDocument | null>;
 };
 
-export type FileUploadModelWithStatics = FileUploadModelBase & FileUploadStatics;
+export type FileUploadModelWithStatics = FileUploadModelBase &
+	FileUploadStatics;
 
 export const registerFileUploadStatics = (
 	schema: Schema<TFileUpload, FileUploadModelWithStatics, FileUploadMethods>,
@@ -55,9 +61,7 @@ export const registerFileUploadStatics = (
 		}).setOptions({ userId });
 	};
 
-	schema.statics.findExistingCompletedUploadByHash = async function (
-		params,
-	) {
+	schema.statics.findExistingCompletedUploadByHash = async function (params) {
 		return await this.findOne({
 			fileHash: params.fileHash,
 			status: { $in: ["uploaded", "deduplicated"] },
@@ -65,10 +69,7 @@ export const registerFileUploadStatics = (
 		}).setOptions({ userId: params.userId });
 	};
 
-	schema.statics.findUploadedByFileId = async function (
-		fileId,
-		ownership,
-	) {
+	schema.statics.findUploadedByFileId = async function (fileId, ownership) {
 		return await this.findOne({
 			fileId,
 			status: "uploaded",
@@ -84,5 +85,12 @@ export const registerFileUploadStatics = (
 			.sort({ createdAt: 1 })
 			.limit(limit)
 			.exec();
+	};
+
+	schema.statics.findDeletableByFileId = async function (fileId, userId) {
+		return await this.findOne({
+			fileId,
+			status: { $ne: "deleted-by-user" },
+		}).setOptions({ userId });
 	};
 };

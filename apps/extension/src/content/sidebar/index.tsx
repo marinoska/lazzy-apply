@@ -79,7 +79,7 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
 
 	// Event handlers
 	const handleSignIn = async (): Promise<void> => {
-		update({ loading: true, status: "Starting OAuth…" });
+		update({ loading: true, status: "Logging in…" });
 		try {
 			await deps.signIn();
 			update({ status: "Finishing sign-in…" });

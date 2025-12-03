@@ -26,7 +26,7 @@ export interface UploadFileMessage extends BackgroundMessage {
 	type: "UPLOAD_FILE";
 	filename: string;
 	contentType: string;
-	fileData: ArrayBuffer;
+	fileData: string; // base64 encoded
 }
 
 export interface JdScanMessage extends BackgroundMessage {
