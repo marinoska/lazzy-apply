@@ -1,3 +1,4 @@
+import type { ParseStatus } from "@lazyapply/types";
 import type { Request, Response } from "express";
 import { z } from "zod";
 
@@ -13,12 +14,7 @@ export const getUploadsQuerySchema = z.object({
 
 type GetUploadsQuery = z.infer<typeof getUploadsQuerySchema>;
 
-export type ParseStatus =
-	| "pending"
-	| "sending"
-	| "processing"
-	| "completed"
-	| "failed";
+export type { ParseStatus };
 
 export type UploadDTO = Pick<
 	TFileUpload,

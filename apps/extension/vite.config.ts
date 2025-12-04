@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import manifest from "./src/manifest.json";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
 	plugins: [react(), crx({ manifest })],
 	resolve: {
 		alias: {
@@ -14,19 +14,22 @@ export default defineConfig({
 	build: {
 		rollupOptions: {
 			output: {
-				manualChunks: {
-					"vendor-react": ["react", "react-dom"],
-					"vendor-mui": [
-						"@mui/joy",
-						"@mui/icons-material",
-						"@emotion/react",
-						"@emotion/styled",
-						"@emotion/cache",
-					],
-					"vendor-supabase": ["@supabase/supabase-js"],
-					"vendor-nlp": ["compromise"],
-				},
+				manualChunks:
+					mode === "production"
+						? {
+								"vendor-react": ["react", "react-dom"],
+								"vendor-mui": [
+									"@mui/joy",
+									"@mui/icons-material",
+									"@emotion/react",
+									"@emotion/styled",
+									"@emotion/cache",
+								],
+								"vendor-supabase": ["@supabase/supabase-js"],
+								"vendor-nlp": ["compromise"],
+							}
+						: undefined,
 			},
 		},
 	},
-});
+}));

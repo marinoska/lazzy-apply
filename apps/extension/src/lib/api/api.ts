@@ -2,10 +2,12 @@ import type {
 	AutofillRequest,
 	ClassifiedField,
 	FileUploadContentType,
+	FileUploadStatus,
+	ParseStatus,
 } from "@lazyapply/types";
 import { sendApiRequest, sendUploadRequest } from "./backgroundClient.js";
 
-export type UploadStatus = "uploaded" | "failed" | "deduplicated";
+export type { FileUploadStatus as UploadStatus, ParseStatus };
 
 export interface UploadResponse {
 	fileId: string;
@@ -22,8 +24,6 @@ export async function uploadFile(file: File): Promise<UploadResponse> {
 	return sendUploadRequest(file);
 }
 
-export type ParseStatus = "pending" | "processing" | "completed" | "failed";
-
 // Re-export for backward compatibility
 export type { UploadResponse as CompleteUploadResponse };
 
@@ -31,7 +31,7 @@ export type UploadDTO = {
 	fileId: string;
 	originalFilename: string;
 	contentType: "PDF" | "DOCX";
-	status: UploadStatus;
+	status: FileUploadStatus;
 	size?: number;
 	createdAt: string;
 	updatedAt: string;

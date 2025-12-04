@@ -1,13 +1,7 @@
-import type { FileUploadContentType } from "@lazyapply/types";
+import type { FileUploadContentType, FileUploadStatus } from "@lazyapply/types";
 import type { Document, Model } from "mongoose";
 
-export type FileUploadStatus =
-	| "pending"
-	| "uploaded"
-	| "failed"
-	| "rejected"
-	| "deduplicated"
-	| "deleted-by-user";
+export type { FileUploadStatus };
 
 export const FILE_UPLOAD_MODEL_NAME = "file_uploads" as const;
 

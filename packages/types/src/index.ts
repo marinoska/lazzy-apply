@@ -3,6 +3,39 @@
 export * from "./constants.js";
 
 /**
+ * File upload status values
+ */
+export const FILE_UPLOAD_STATUSES = [
+	"pending",
+	"uploaded",
+	"failed",
+	"rejected",
+	"deduplicated",
+	"deleted-by-user",
+] as const;
+
+/**
+ * File upload status type
+ */
+export type FileUploadStatus = (typeof FILE_UPLOAD_STATUSES)[number];
+
+/**
+ * Parse status values (from outbox processing)
+ */
+export const PARSE_STATUSES = [
+	"pending",
+	"sending",
+	"processing",
+	"completed",
+	"failed",
+] as const;
+
+/**
+ * Parse status type
+ */
+export type ParseStatus = (typeof PARSE_STATUSES)[number];
+
+/**
  * File upload content type values
  */
 export const FILE_UPLOAD_CONTENT_TYPES = ["PDF", "DOCX"] as const;

@@ -3,6 +3,7 @@ export { AutofillButton } from "./AutofillButton.js";
 export { CVSelector } from "./CVSelector.js";
 export { LoadingIndicator } from "./LoadingIndicator.js";
 export { SidebarHeader } from "./SidebarHeader.js";
+export { StatusChip, StatusIcon } from "./StatusIcon.js";
 export { StatusMessage } from "./StatusMessage.js";
 export { UploadSection } from "./UploadSection.js";
 export { UploadsList } from "./UploadsList.js";

@@ -1,12 +1,10 @@
-import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import DescriptionIcon from "@mui/icons-material/Description";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
-import CircularProgress from "@mui/joy/CircularProgress";
 import Divider from "@mui/joy/Divider";
 import IconButton from "@mui/joy/IconButton";
 import Stack from "@mui/joy/Stack";
@@ -15,9 +13,10 @@ import { AppAlert } from "@/components/AppAlert.js";
 import { LoadingState } from "@/components/QueryState.js";
 import { Snackbar } from "@/components/Snackbar.js";
 import { BodyExtraSmall, BodySmall } from "@/components/Typography.js";
-import type { ParseStatus, UploadDTO } from "@/lib/api/api.js";
+import type { UploadDTO } from "@/lib/api/api.js";
 import { useDeleteUploadMutation } from "@/lib/api/query/useDeleteUploadMutation.js";
 import { useUploadsQuery } from "@/lib/api/query/useUploadsQuery.js";
+import { StatusChip } from "./StatusIcon.js";
 
 const getFileIcon = (contentType: UploadDTO["contentType"]) => {
 	switch (contentType) {
@@ -25,46 +24,6 @@ const getFileIcon = (contentType: UploadDTO["contentType"]) => {
 			return <PictureAsPdfIcon />;
 		case "DOCX":
 			return <DescriptionIcon />;
-	}
-};
-
-const ParseStatusIcon = ({ status }: { status: ParseStatus }) => {
-	switch (status) {
-		case "completed":
-			return (
-				<Box
-					component="span"
-					title="CV parsed successfully"
-					sx={{ display: "flex", alignItems: "center", cursor: "default" }}
-				>
-					<CheckIcon sx={{ fontSize: 16, color: "success.500" }} />
-				</Box>
-			);
-		case "processing":
-			return (
-				<Box
-					component="span"
-					title="Parsing CV..."
-					sx={{ display: "flex", alignItems: "center", cursor: "default" }}
-				>
-					<CircularProgress
-						size="sm"
-						sx={{ "--CircularProgress-size": "14px" }}
-					/>
-				</Box>
-			);
-		case "failed":
-			return (
-				<Box
-					component="span"
-					title="Failed to parse CV"
-					sx={{ display: "flex", alignItems: "center", cursor: "default" }}
-				>
-					<ErrorOutlineIcon sx={{ fontSize: 16, color: "danger.500" }} />
-				</Box>
-			);
-		case "pending":
-			return null;
 	}
 };
 
@@ -105,7 +64,7 @@ function CVItem({
 			endDecorator={
 				showDecorators ? (
 					<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-						<ParseStatusIcon status={upload.parseStatus} />
+						<StatusChip upload={upload} />
 						<IconButton
 							size="sm"
 							variant="plain"
@@ -165,16 +124,21 @@ export function CVSelector({ activeFileId, onActiveChange }: CVSelectorProps) {
 	}
 
 	const uploads = data.uploads;
-	const successfulUploads = uploads.filter(
-		(u) => u.parseStatus === "completed",
+	const readyUploads = uploads.filter(
+		(u) => u.status === "uploaded" && u.parseStatus === "completed",
 	);
+	const hasUploadsButNoneReady =
+		uploads.length > 0 && readyUploads.length === 0;
 
 	// Determine the active upload
 	const activeUpload = activeFileId
 		? uploads.find(
-				(u) => u.fileId === activeFileId && u.parseStatus === "completed",
+				(u) =>
+					u.fileId === activeFileId &&
+					u.status === "uploaded" &&
+					u.parseStatus === "completed",
 			)
-		: successfulUploads[0];
+		: readyUploads[0];
 
 	// Other uploads (excluding active)
 	const otherUploads = uploads.filter((u) => u.fileId !== activeUpload?.fileId);
@@ -189,6 +153,20 @@ export function CVSelector({ activeFileId, onActiveChange }: CVSelectorProps) {
 
 	return (
 		<Stack direction="column" spacing={1}>
+			{/* Alert when uploads exist but none are ready */}
+			{hasUploadsButNoneReady && (
+				<Alert
+					variant="soft"
+					color="warning"
+					size="sm"
+					startDecorator={<InfoOutlinedIcon />}
+				>
+					<BodyExtraSmall>
+						No CV ready yet. Please wait for processing to complete.
+					</BodyExtraSmall>
+				</Alert>
+			)}
+
 			{/* Active CV at top */}
 			{activeUpload && (
 				<CVItem

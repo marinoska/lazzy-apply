@@ -1,15 +1,13 @@
-import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import DescriptionIcon from "@mui/icons-material/Description";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
-import CircularProgress from "@mui/joy/CircularProgress";
 import IconButton from "@mui/joy/IconButton";
 import { BodyExtraSmall } from "@/components/Typography.js";
-import type { ParseStatus, UploadDTO } from "@/lib/api/api.js";
+import type { UploadDTO } from "@/lib/api/api.js";
 import { useDeleteUploadMutation } from "@/lib/api/query/useDeleteUploadMutation.js";
+import { StatusChip } from "./StatusIcon.js";
 
 const getFileIcon = (contentType: UploadDTO["contentType"]) => {
 	switch (contentType) {
@@ -17,45 +15,6 @@ const getFileIcon = (contentType: UploadDTO["contentType"]) => {
 			return <PictureAsPdfIcon />;
 		case "DOCX":
 			return <DescriptionIcon />;
-	}
-};
-
-const ParseStatusIcon = ({ status }: { status: ParseStatus }) => {
-	switch (status) {
-		case "completed":
-			return (
-				<Box
-					component="span"
-					title="CV parsed successfully"
-					sx={{ display: "flex", alignItems: "center", cursor: "default" }}
-				>
-					<CheckIcon sx={{ fontSize: 16, color: "success.500" }} />
-				</Box>
-			);
-		case "pending":
-		case "processing":
-			return (
-				<Box
-					component="span"
-					title="Parsing CV..."
-					sx={{ display: "flex", alignItems: "center", cursor: "default" }}
-				>
-					<CircularProgress
-						size="sm"
-						sx={{ "--CircularProgress-size": "14px" }}
-					/>
-				</Box>
-			);
-		case "failed":
-			return (
-				<Box
-					component="span"
-					title="Failed to parse CV"
-					sx={{ display: "flex", alignItems: "center", cursor: "default" }}
-				>
-					<ErrorOutlineIcon sx={{ fontSize: 16, color: "danger.500" }} />
-				</Box>
-			);
 	}
 };
 
@@ -77,7 +36,7 @@ export function UploadItem({ upload }: UploadItemProps) {
 			startDecorator={getFileIcon(upload.contentType)}
 			endDecorator={
 				<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-					<ParseStatusIcon status={upload.parseStatus} />
+					<StatusChip upload={upload} />
 					<IconButton
 						size="sm"
 						variant="plain"
