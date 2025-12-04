@@ -2,7 +2,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import DescriptionIcon from "@mui/icons-material/Description";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import { Box } from "@mui/joy";
+import { Box, Chip } from "@mui/joy";
 import Divider from "@mui/joy/Divider";
 import IconButton from "@mui/joy/IconButton";
 import Sheet from "@mui/joy/Sheet";
@@ -32,19 +32,19 @@ const getFileIcon = (contentType: EnhancedUploadDTO["contentType"]) => {
 
 interface CVItemProps {
 	upload: EnhancedUploadDTO;
-	isActive: boolean;
-	onSelect: (fileId: string) => void;
+	isSelected: boolean;
+	onSelect: (upload: EnhancedUploadDTO) => void;
 	isTopItem?: boolean;
 }
 
 function CVItem({
 	upload,
-	isActive,
+	isSelected,
 	onSelect,
 	isTopItem = false,
 }: CVItemProps) {
 	const deleteUploadMutation = useDeleteUploadMutation();
-	const isSelectable = upload.isReady;
+	const isSelectable = upload.isCanonical;
 
 	const handleDelete = (e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -52,8 +52,8 @@ function CVItem({
 	};
 
 	const handleClick = () => {
-		if (isSelectable && !isActive) {
-			onSelect(upload.fileId);
+		if (isSelectable && !isSelected) {
+			onSelect(upload);
 		}
 	};
 
@@ -62,7 +62,7 @@ function CVItem({
 	return (
 		<Sheet
 			variant="soft"
-			color={isActive ? "primary" : "neutral"}
+			color={isSelected ? "primary" : "neutral"}
 			onClick={handleClick}
 			sx={{
 				display: "flex",
@@ -71,11 +71,11 @@ function CVItem({
 				gap: 1,
 				p: 1,
 				borderRadius: "sm",
-				cursor: isSelectable && !isActive ? "pointer" : "default",
+				cursor: isSelectable && !isSelected ? "pointer" : "default",
 				opacity: isSelectable ? 1 : 0.6,
 				transition: "all 0.2s ease",
 				"&:hover":
-					isSelectable && !isActive
+					isSelectable && !isSelected
 						? {
 								backgroundColor: "neutral.softHoverBg",
 							}
@@ -109,7 +109,7 @@ interface OtherUploadsProps {
 	otherUploads: EnhancedUploadDTO[];
 	isExpanded: boolean;
 	onToggleExpanded: () => void;
-	onSelect: (fileId: string) => void;
+	onSelect: (upload: EnhancedUploadDTO) => void;
 }
 
 function OtherUploads({
@@ -124,7 +124,7 @@ function OtherUploads({
 				direction="row"
 				onClick={onToggleExpanded}
 				alignItems="center"
-				justifyContent="right"
+				justifyContent="space-between"
 				gap={1}
 				px={2}
 				py={1}
@@ -137,6 +137,10 @@ function OtherUploads({
 					},
 				}}
 			>
+				<Stack direction="row" alignItems="center" gap={1}>
+					<BodySmallDarker>Select another CV</BodySmallDarker>
+					<Chip>{otherUploads.length}</Chip>
+				</Stack>
 				<ExpandMoreIcon
 					sx={{
 						fontSize: 30,
@@ -145,7 +149,6 @@ function OtherUploads({
 						transition: "transform 0.2s ease",
 					}}
 				/>
-				<BodySmallDarker>Select your CV</BodySmallDarker>
 			</Stack>
 
 			<Box
@@ -161,7 +164,7 @@ function OtherUploads({
 							<CVItem
 								key={upload.fileId}
 								upload={upload}
-								isActive={false}
+								isSelected={false}
 								onSelect={onSelect}
 							/>
 						))}
@@ -173,14 +176,10 @@ function OtherUploads({
 	);
 }
 
-interface CVSelectorProps {
-	activeFileId: string | null;
-	onActiveChange: (fileId: string) => void;
-}
-
-export function CVSelector({ activeFileId, onActiveChange }: CVSelectorProps) {
+export function CVSelector() {
 	const [isExpanded, setIsExpanded] = useState(false);
-	const { uploads, topUpload, isLoading, error } = useUploads();
+	const { uploads, selectedUpload, setSelectedUpload, isLoading, error } =
+		useUploads();
 
 	if (isLoading) {
 		return <LoadingState />;
@@ -199,41 +198,27 @@ export function CVSelector({ activeFileId, onActiveChange }: CVSelectorProps) {
 		return null;
 	}
 
-	// Determine the active upload: use activeFileId if it's a ready upload, otherwise use topUpload
-	const activeUpload = activeFileId
-		? (uploads.find((u) => u.fileId === activeFileId && u.isReady) ?? topUpload)
-		: topUpload;
-
-	// Other uploads (excluding active)
-	const otherUploads = uploads.filter((u) => u.fileId !== activeUpload?.fileId);
-
-	const handleSelect = (fileId: string) => {
-		onActiveChange(fileId);
-	};
-
-	const toggleExpanded = () => {
-		setIsExpanded((prev) => !prev);
-	};
+	const otherUploads = uploads.filter(
+		(u) => u.fileId !== selectedUpload?.fileId,
+	);
 
 	return (
 		<Stack direction="column" spacing={1}>
-			{/* Top upload (ready or latest) */}
-			{activeUpload && (
+			{selectedUpload && (
 				<CVItem
-					upload={activeUpload}
-					isActive={true}
-					onSelect={handleSelect}
+					upload={selectedUpload}
+					isSelected={true}
+					onSelect={setSelectedUpload}
 					isTopItem
 				/>
 			)}
 
-			{/* Collapsible section for other CVs - only show if more than one CV */}
 			{otherUploads.length > 0 && uploads.length > 1 && (
 				<OtherUploads
 					otherUploads={otherUploads}
 					isExpanded={isExpanded}
-					onToggleExpanded={toggleExpanded}
-					onSelect={handleSelect}
+					onToggleExpanded={() => setIsExpanded((prev) => !prev)}
+					onSelect={setSelectedUpload}
 				/>
 			)}
 		</Stack>

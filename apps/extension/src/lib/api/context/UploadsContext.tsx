@@ -1,5 +1,5 @@
 import type { UseQueryResult } from "@tanstack/react-query";
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { GetUploadsResponse, UploadDTO } from "../api.js";
 import { useUploadsQuery } from "../query/useUploadsQuery.js";
 
@@ -8,7 +8,9 @@ export type EnhancedUploadDTO = UploadDTO & { isReady: boolean };
 interface UploadsContextValue {
 	uploads: EnhancedUploadDTO[];
 	readyUploads: EnhancedUploadDTO[];
-	topUpload: EnhancedUploadDTO | null;
+	selectedUpload: EnhancedUploadDTO | null;
+	setSelectedUpload: (upload: EnhancedUploadDTO | null) => void;
+	isSelectedReady: boolean;
 	hasUploads: boolean;
 	hasReadyUploads: boolean;
 	total: number;
@@ -29,8 +31,10 @@ export function UploadsProvider({
 	limit = 20,
 }: UploadsProviderProps) {
 	const { data, isLoading, error, refetch } = useUploadsQuery({ limit });
+	const [selectedUpload, setSelectedUpload] =
+		useState<EnhancedUploadDTO | null>(null);
 
-	const value = useMemo<UploadsContextValue>(() => {
+	const { uploads, readyUploads } = useMemo(() => {
 		const rawUploads = data?.uploads ?? [];
 
 		// Enhance with isReady prop (already sorted by createdAt desc from server)
@@ -42,21 +46,48 @@ export function UploadsProvider({
 
 		const readyUploads = uploads.filter((u) => u.isReady);
 
-		// Top upload: first ready one if exists, otherwise the latest one
-		const topUpload = readyUploads[0] ?? uploads[0] ?? null;
+		return { uploads, readyUploads };
+	}, [data]);
 
-		return {
+	// Set default selected upload when uploads load or change
+	useEffect(() => {
+		if (selectedUpload) {
+			// If current selection still exists, keep it
+			const stillExists = uploads.find(
+				(u) => u.fileId === selectedUpload.fileId,
+			);
+			if (stillExists) {
+				return;
+			}
+		}
+		// Default to first upload
+		setSelectedUpload(uploads[0] ?? null);
+	}, [uploads, selectedUpload]);
+
+	const value = useMemo<UploadsContextValue>(
+		() => ({
 			uploads,
 			readyUploads,
-			topUpload,
+			selectedUpload,
+			setSelectedUpload,
+			isSelectedReady: selectedUpload?.isReady ?? false,
 			hasUploads: uploads.length > 0,
 			hasReadyUploads: readyUploads.length > 0,
 			total: data?.total ?? 0,
 			isLoading,
 			error,
 			refetch,
-		};
-	}, [data, isLoading, error, refetch]);
+		}),
+		[
+			uploads,
+			readyUploads,
+			selectedUpload,
+			data?.total,
+			isLoading,
+			error,
+			refetch,
+		],
+	);
 
 	return (
 		<UploadsContext.Provider value={value}>{children}</UploadsContext.Provider>

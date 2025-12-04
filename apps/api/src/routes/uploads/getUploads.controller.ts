@@ -28,6 +28,7 @@ export type UploadDTO = Pick<
 	| "contentType"
 	| "status"
 	| "size"
+	| "isCanonical"
 	| "createdAt"
 	| "updatedAt"
 > & {
@@ -63,7 +64,7 @@ export const getUploadsController = async (
 		.skip(offset)
 		.limit(limit)
 		.select(
-			"fileId originalFilename contentType status size createdAt updatedAt",
+			"fileId originalFilename contentType status size isCanonical createdAt updatedAt",
 		)
 		.lean()
 		.exec();
@@ -95,6 +96,7 @@ export const getUploadsController = async (
 		contentType: upload.contentType,
 		status: upload.status,
 		size: upload.size,
+		isCanonical: upload.isCanonical,
 		createdAt: upload.createdAt,
 		updatedAt: upload.updatedAt,
 		parseStatus: parseStatusMap.get(upload.fileId) ?? "pending",

@@ -220,4 +220,44 @@ describe("getUploadsController", () => {
 			).rejects.toThrow("Missing authenticated user");
 		});
 	});
+
+	describe("isCanonical field", () => {
+		it("should return isCanonical true for canonical uploads", async () => {
+			const upload = await createUpload("file-canonical-1");
+			upload.isCanonical = true;
+			await upload.save();
+
+			await getUploadsController(mockReq as never, mockRes as never);
+
+			expect(jsonMock).toHaveBeenCalledWith(
+				expect.objectContaining({
+					uploads: expect.arrayContaining([
+						expect.objectContaining({
+							fileId: "file-canonical-1",
+							isCanonical: true,
+						}),
+					]),
+				}),
+			);
+		});
+
+		it("should return isCanonical false for non-canonical uploads", async () => {
+			const upload = await createUpload("file-non-canonical-1");
+			upload.isCanonical = false;
+			await upload.save();
+
+			await getUploadsController(mockReq as never, mockRes as never);
+
+			expect(jsonMock).toHaveBeenCalledWith(
+				expect.objectContaining({
+					uploads: expect.arrayContaining([
+						expect.objectContaining({
+							fileId: "file-non-canonical-1",
+							isCanonical: false,
+						}),
+					]),
+				}),
+			);
+		});
+	});
 });

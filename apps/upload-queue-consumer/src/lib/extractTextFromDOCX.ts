@@ -1,4 +1,3 @@
-import { Buffer } from "node:buffer";
 import mammoth from "mammoth";
 
 /**
@@ -8,11 +7,8 @@ export async function extractTextFromDOCX(
 	fileBuffer: ArrayBuffer,
 ): Promise<string> {
 	try {
-		// Convert ArrayBuffer to Buffer for mammoth
-		const buffer = Buffer.from(fileBuffer);
-
-		// Extract text from DOCX
-		const result = await mammoth.extractRawText({ buffer });
+		// Pass ArrayBuffer directly - mammoth supports this natively
+		const result = await mammoth.extractRawText({ arrayBuffer: fileBuffer });
 
 		// Return extracted text
 		return result.value;

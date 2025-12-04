@@ -1,10 +1,9 @@
+import { model, Schema } from "mongoose";
 import { applyOwnershipEnforcement } from "@/app/middleware/mongoOwnershipEnforcement.middleware.js";
-import { Schema, model } from "mongoose";
 
 import { registerCVDataMethods } from "./cvData.methods.js";
 import { registerCVDataStatics } from "./cvData.statics.js";
 import type {
-	CVDataDocument,
 	CVDataMethods,
 	CVDataModelWithStatics,
 	TCVData,
@@ -97,7 +96,7 @@ const cvDataSchema = new Schema<TCVData, CVDataModel, CVDataMethods>(
 			required: true,
 		},
 	},
-	{ timestamps: true },
+	{ timestamps: true, collection: "cv_data" },
 );
 
 // Index for efficient queries

@@ -33,6 +33,7 @@ export type UploadDTO = {
 	contentType: "PDF" | "DOCX";
 	status: FileUploadStatus;
 	size?: number;
+	isCanonical: boolean;
 	createdAt: string;
 	updatedAt: string;
 	parseStatus: ParseStatus;

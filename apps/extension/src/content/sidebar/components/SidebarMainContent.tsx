@@ -14,7 +14,6 @@ export function SidebarMainContent({
 	loading: sessionLoading,
 }: SidebarMainContentProps) {
 	const [showDropzone, setShowDropzone] = useState(false);
-	const [activeFileId, setActiveFileId] = useState<string | null>(null);
 	const [alertMessage, setAlertMessage] = useState("");
 	const [alertType, setAlertType] = useState<"success" | "danger">("success");
 
@@ -41,10 +40,7 @@ export function SidebarMainContent({
 
 	return (
 		<UploadsProvider>
-			<CVSelector
-				activeFileId={activeFileId}
-				onActiveChange={setActiveFileId}
-			/>
+			<CVSelector />
 
 			{!showDropzone && (
 				<Button
