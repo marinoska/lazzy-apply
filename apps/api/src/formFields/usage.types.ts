@@ -1,7 +1,6 @@
 import type { Document, Model, Types } from "mongoose";
-import type { TokenUsage } from "@lazyapply/types";
 
-export const USAGE_MODEL_NAME = "usages" as const;
+export const USAGE_MODEL_NAME = "usage" as const;
 
 /**
  * Usage type enum - identifies what operation generated the usage
@@ -52,10 +51,7 @@ export type UsageStatics = {
 		reference: Types.ObjectId,
 		type: UsageType,
 	): Promise<UsageDocument | null>;
-	findByType(
-		this: UsageModelWithStatics,
-		type: UsageType,
-	): Promise<TUsage[]>;
+	findByType(this: UsageModelWithStatics, type: UsageType): Promise<TUsage[]>;
 };
 
 export type UsageDocument = Document & TUsage & UsageMethods;

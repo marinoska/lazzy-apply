@@ -95,7 +95,7 @@ const outboxSchema = new Schema<TOutbox, OutboxModel, OutboxMethods>(
 			required: false,
 		},
 	},
-	{ timestamps: true },
+	{ timestamps: true, collection: OUTBOX_MODEL_NAME },
 );
 
 // Index for efficient queue processing - get latest entry per processId

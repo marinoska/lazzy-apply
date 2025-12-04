@@ -1,13 +1,12 @@
-import { Schema, model } from "mongoose";
+import { model, Schema } from "mongoose";
 
 import {
+	type TUsage,
 	USAGE_MODEL_NAME,
-	USAGE_TYPES,
 	USAGE_REFERENCE_TABLES,
-	type UsageDocument,
+	USAGE_TYPES,
 	type UsageMethods,
 	type UsageModelWithStatics,
-	type TUsage,
 	type UsageType,
 } from "./usage.types.js";
 
@@ -66,7 +65,7 @@ const usageSchema = new Schema<TUsage, UsageModel, UsageMethods>(
 			immutable: true,
 		},
 	},
-	{ timestamps: true },
+	{ timestamps: true, collection: USAGE_MODEL_NAME },
 );
 
 // Compound index for efficient lookups
