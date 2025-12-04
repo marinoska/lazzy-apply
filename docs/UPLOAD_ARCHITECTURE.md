@@ -105,13 +105,78 @@ Headers:
 Body: file binary (max 5MB)
 ```
 
+## Canonical Upload System
+
+Each `fileHash` has exactly **one canonical upload attempt**. The `isCanonical` field identifies the authoritative record.
+
+### Goals
+
+- Prevent duplicate processing
+- Allow retries after failed or deleted attempts
+- Guarantee race-safe, single canonical per hash
+
+### Canonical Resolution Rules
+
+When a new upload arrives with a `fileHash`:
+
+1. **No canonical exists** → New upload becomes canonical (`isCanonical = true`)
+2. **Canonical exists with blocking status** → Deduplicate the new upload
+3. **Canonical exists with replaceable status** → Replace canonical ownership
+
+| Status | Category | Action |
+|--------|----------|--------|
+| `pending` | Blocking | Deduplicate (upload in progress) |
+| `uploaded` | Blocking | Deduplicate (completed upload exists) |
+| `failed` | Replaceable | Replace canonical |
+| `rejected` | Replaceable | Replace canonical |
+| `deleted-by-user` | Replaceable | Replace canonical |
+
+**Note:** `deduplicated` uploads cannot be canonical (enforced by schema validator).
+
+### Atomic Canonical Resolution
+
+Canonical resolution happens **inside a MongoDB transaction** to prevent race conditions:
+
+1. Start transaction with snapshot isolation
+2. Query for existing canonical within transaction
+3. If replacing: atomically revoke old canonical's status
+4. Set new upload's `isCanonical = true`
+5. Commit transaction
+
+This ensures no two concurrent requests can both claim canonical status for the same `fileHash`.
+
+### Worker Guard
+
+Workers must only process canonical uploads:
+- `GET /worker/uploads/:uploadId/raw-text` returns `409 Conflict` for non-canonical uploads
+- Worker stops processing immediately on 409
+
+### Parse Pipeline Independence
+
+Parse statuses (`pending`, `sending`, `processing`, `completed`, `failed`) do **not** affect canonical ownership:
+- A parse failure never requires a new upload
+- Retry parsing on the canonical record instead
+
+### Database Index
+
+A partial unique index enforces single canonical per hash:
+```javascript
+{ fileHash: 1 }, { unique: true, partialFilterExpression: { isCanonical: true } }
+```
+
+### Files
+
+- **Canonical Logic:** `apps/api/src/uploads/fileUpload.statics.ts`
+- **Tests:** `apps/api/src/uploads/canonical.test.ts`
+
 ## Deduplication
 
 Files are deduplicated per-user using SHA-256 hash:
 1. Worker computes hash before storing in R2
-2. API checks for existing file with same hash for same user
-3. If duplicate found: mark new upload as `deduplicated`, return existing file info
-4. Worker deletes the duplicate from R2
+2. API resolves canonical status via `FileUploadModel.resolveAndClaimCanonical()`
+3. If canonical exists with blocking status: mark new upload as `deduplicated`, return existing file info
+4. If canonical exists with replaceable status: transfer canonical ownership to new upload
+5. Worker deletes the duplicate from R2 (for deduplicated uploads)
 
 ## Error Handling
 

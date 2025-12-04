@@ -58,48 +58,57 @@ export const finalizeUploadController = async (
 		});
 	}
 
-	// Check for existing file with same hash for this user
-	if (!(process.env.NO_DEDUP && process.env.NODE_ENV !== "production")) {
-		const existingFile =
-			await FileUploadModel.findExistingCompletedUploadByHash({
-				fileHash,
-				excludeFileId: fileId,
-				userId: pendingUpload.userId,
-			});
-
-		if (existingFile) {
-			log.info(
-				{ fileId, existingFileId: existingFile.fileId },
-				"File deduplicated",
-			);
-
-			// Mark as deduplicated
-			pendingUpload.status = "deduplicated";
-			pendingUpload.deduplicatedFrom = existingFile.fileId;
-			pendingUpload.size = size;
-			pendingUpload.rawTextSize = new TextEncoder().encode(rawText).length;
-			pendingUpload.rawText = rawText;
-			await pendingUpload.save();
-
-			return res.status(200).json({
-				existingFileId: existingFile.fileId,
-				fileId,
-				processId,
-			});
-		}
-	}
-
-	// Start transaction for atomic DB write + queue enqueue
+	// Start transaction for atomic canonical resolution + DB write + queue enqueue
+	// This prevents race conditions between checking canonical status and claiming it
 	const session = await mongoose.startSession();
 	session.startTransaction();
 
 	try {
-		// Update upload record to "uploaded" status
+		// Resolve canonical status atomically within transaction
+		const resolution = await FileUploadModel.resolveAndClaimCanonical(
+			{
+				fileHash,
+				excludeFileId: fileId,
+				userId: pendingUpload.userId,
+			},
+			session,
+		);
+
+		if (resolution.action === "deduplicate") {
+			const canonicalUpload = resolution.canonicalUpload;
+			log.info(
+				{ fileId, canonicalFileId: canonicalUpload.fileId },
+				"File deduplicated against canonical",
+			);
+
+			// Mark as deduplicated (non-canonical) within transaction
+			pendingUpload.status = "deduplicated";
+			pendingUpload.deduplicatedFrom = canonicalUpload.fileId;
+			pendingUpload.size = size;
+			pendingUpload.rawTextSize = new TextEncoder().encode(rawText).length;
+			pendingUpload.rawText = rawText;
+			pendingUpload.fileHash = fileHash;
+			// isCanonical remains false (default)
+			await pendingUpload.save({ session });
+
+			await session.commitTransaction();
+
+			return res.status(200).json({
+				existingFileId: canonicalUpload.fileId,
+				fileId,
+				processId,
+			});
+		}
+
+		// action === "become_canonical" - previous canonical already revoked in resolveAndClaimCanonical
+
+		// Update upload record to "uploaded" status and mark as canonical
 		pendingUpload.status = "uploaded";
 		pendingUpload.size = size;
 		pendingUpload.rawTextSize = new TextEncoder().encode(rawText).length;
 		pendingUpload.fileHash = fileHash;
 		pendingUpload.rawText = rawText;
+		pendingUpload.isCanonical = true;
 		await pendingUpload.save({ session });
 
 		// Create outbox entry for queue processing

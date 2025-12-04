@@ -38,10 +38,10 @@ export function SidebarView({
 
 					<LoadingIndicator loading={loading} />
 
-					{!session ? (
-						<LoginButton onClick={onSignIn} disabled={loading} />
-					) : (
+					{session ? (
 						<SidebarMainContent loading={loading} />
+					) : (
+						<LoginButton onClick={onSignIn} disabled={loading} />
 					)}
 				</Stack>
 				{statusIsError && <p>{status}</p>}

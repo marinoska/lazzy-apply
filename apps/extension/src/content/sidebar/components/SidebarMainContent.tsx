@@ -1,5 +1,4 @@
 import Button from "@mui/joy/Button";
-import Stack from "@mui/joy/Stack";
 import { useState } from "react";
 import { UploadsProvider } from "@/lib/api/context/UploadsContext.js";
 import { Snackbar } from "../../../components/Snackbar.js";
@@ -11,7 +10,9 @@ interface SidebarMainContentProps {
 	loading: boolean;
 }
 
-export function SidebarMainContent({ loading }: SidebarMainContentProps) {
+export function SidebarMainContent({
+	loading: sessionLoading,
+}: SidebarMainContentProps) {
 	const [showDropzone, setShowDropzone] = useState(false);
 	const [activeFileId, setActiveFileId] = useState<string | null>(null);
 	const [alertMessage, setAlertMessage] = useState("");
@@ -34,6 +35,10 @@ export function SidebarMainContent({ loading }: SidebarMainContentProps) {
 		setAlertMessage(error);
 	};
 
+	if (sessionLoading) {
+		return null;
+	}
+
 	return (
 		<UploadsProvider>
 			<CVSelector
@@ -42,18 +47,15 @@ export function SidebarMainContent({ loading }: SidebarMainContentProps) {
 			/>
 
 			{!showDropzone && (
-				<Stack direction="row" spacing={1}>
-					<Button
-						fullWidth
-						variant="solid"
-						color="primary"
-						size="md"
-						onClick={() => setShowDropzone(true)}
-						disabled={loading}
-					>
-						Upload your CV
-					</Button>
-				</Stack>
+				<Button
+					fullWidth
+					variant="solid"
+					color="primary"
+					size="md"
+					onClick={() => setShowDropzone(true)}
+				>
+					Upload your CV
+				</Button>
 			)}
 			<UploadSection
 				visible={showDropzone}

@@ -25,6 +25,8 @@ export type TFileUpload = {
 	/** Raw text size in bytes */
 	rawTextSize?: number;
 	fileHash?: string;
+	/** Whether this is the canonical version of the file (for deduplication) */
+	isCanonical: boolean;
 	/** Raw text extracted from the CV at upload time */
 	rawText?: string;
 	/** Rejection reason if status is 'rejected' */

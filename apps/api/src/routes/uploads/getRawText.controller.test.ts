@@ -30,7 +30,7 @@ describe("getRawTextController", () => {
 			const rawText =
 				"John Doe\nSoftware Engineer\nExperience: 5 years\nSkills: TypeScript, React";
 
-			// Create upload with rawText
+			// Create upload with rawText (canonical for worker processing)
 			const upload = await FileUploadModel.create({
 				fileId: `test-rawtext-${Date.now()}-1`,
 				objectKey: "cv/test-1",
@@ -44,6 +44,7 @@ describe("getRawTextController", () => {
 				size: 1024000,
 				rawTextSize: rawText.length,
 				rawText,
+				isCanonical: true,
 			});
 
 			mockReq = {
@@ -61,7 +62,7 @@ describe("getRawTextController", () => {
 		it("should return rawText regardless of upload status", async () => {
 			const rawText = "CV content for processing";
 
-			// Create upload that's already being processed
+			// Create canonical upload that's already being processed
 			const upload = await FileUploadModel.create({
 				fileId: `test-rawtext-${Date.now()}-2`,
 				objectKey: "cv/test-2",
@@ -75,6 +76,7 @@ describe("getRawTextController", () => {
 				size: 512000,
 				rawTextSize: rawText.length,
 				rawText,
+				isCanonical: true,
 			});
 
 			mockReq = {
@@ -90,7 +92,7 @@ describe("getRawTextController", () => {
 		it("should skip ownership enforcement (worker access)", async () => {
 			const rawText = "Worker accessible content";
 
-			// Create upload for a specific user
+			// Create canonical upload for a specific user
 			const upload = await FileUploadModel.create({
 				fileId: `test-rawtext-${Date.now()}-3`,
 				objectKey: "cv/test-3",
@@ -104,6 +106,7 @@ describe("getRawTextController", () => {
 				size: 256000,
 				rawTextSize: rawText.length,
 				rawText,
+				isCanonical: true,
 			});
 
 			// Request without user context (worker request)
@@ -131,7 +134,7 @@ describe("getRawTextController", () => {
 		});
 
 		it("should return 404 when rawText is not available", async () => {
-			// Create upload without rawText (e.g., legacy upload)
+			// Create canonical upload without rawText (e.g., legacy upload)
 			const upload = await FileUploadModel.create({
 				fileId: `test-rawtext-${Date.now()}-4`,
 				objectKey: "cv/test-4",
@@ -143,6 +146,7 @@ describe("getRawTextController", () => {
 				userEmail: "rawtext4@example.com",
 				status: "uploaded",
 				size: 1000000,
+				isCanonical: true,
 				// No rawText field
 			});
 
@@ -168,6 +172,38 @@ describe("getRawTextController", () => {
 				getRawTextController(mockReq as never, mockRes as never),
 			).rejects.toThrow();
 		});
+
+		it("should return 409 for non-canonical upload", async () => {
+			const rawText = "Non-canonical content";
+
+			// Create non-canonical upload (e.g., deduplicated or replaced)
+			const upload = await FileUploadModel.create({
+				fileId: `test-rawtext-${Date.now()}-noncanonical`,
+				objectKey: "cv/test-noncanonical",
+				originalFilename: "duplicate.pdf",
+				contentType: "PDF" as FileUploadContentType,
+				directory: "cv",
+				bucket: "test-bucket",
+				userId: "user-rawtext-noncanonical",
+				userEmail: "noncanonical@example.com",
+				status: "deduplicated",
+				size: 1000000,
+				rawTextSize: rawText.length,
+				rawText,
+				isCanonical: false, // Non-canonical - should be rejected
+			});
+
+			mockReq = {
+				params: { uploadId: upload._id.toString() },
+			};
+
+			await getRawTextController(mockReq as never, mockRes as never);
+
+			expect(statusMock).toHaveBeenCalledWith(409);
+			expect(jsonMock).toHaveBeenCalledWith({
+				error: "Upload is not canonical - processing not allowed",
+			});
+		});
 	});
 
 	describe("Large Text Handling", () => {
@@ -188,6 +224,7 @@ describe("getRawTextController", () => {
 				size: 4000000,
 				rawTextSize: largeText.length,
 				rawText: largeText,
+				isCanonical: true,
 			});
 
 			mockReq = {

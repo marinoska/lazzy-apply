@@ -92,8 +92,18 @@ const fileUploadSchema = new Schema<
 		},
 		fileHash: {
 			type: String,
-			unique: true,
-			sparse: true,
+		},
+		isCanonical: {
+			type: Boolean,
+			default: false,
+			required: true,
+			validate: {
+				validator: function (this: { status: string }, value: boolean) {
+					// Deduplicated uploads cannot be canonical
+					return !(this.status === "deduplicated" && value === true);
+				},
+				message: "Deduplicated uploads cannot be canonical",
+			},
 		},
 		rawText: {
 			type: String,
@@ -105,6 +115,14 @@ const fileUploadSchema = new Schema<
 		},
 	},
 	{ timestamps: true },
+);
+
+fileUploadSchema.index(
+	{ fileHash: 1 },
+	{
+		unique: true,
+		partialFilterExpression: { isCanonical: true },
+	},
 );
 
 // Store original values when document is loaded
@@ -148,6 +166,12 @@ fileUploadSchema.pre(
 				{ filter },
 				"Update to an initial state is not allowed. Skipping",
 			);
+			return next();
+		}
+
+		// Allow bypassing immutability check (for canonical transfer)
+		const options = this.getOptions();
+		if (options.skipImmutabilityCheck) {
 			return next();
 		}
 
