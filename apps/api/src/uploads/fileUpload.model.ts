@@ -79,7 +79,8 @@ const fileUploadSchema = new Schema<
 			default: "pending",
 		},
 		deduplicatedFrom: {
-			type: String,
+			type: Schema.Types.ObjectId,
+			ref: FILE_UPLOAD_MODEL_NAME,
 			index: true,
 		},
 		size: {

@@ -50,7 +50,20 @@ describe("Delete Upload", () => {
 		});
 
 		it("should mark deduplicated file as deleted-by-user", async () => {
-			// Create a deduplicated file
+			// Create a canonical file first
+			const canonicalUpload = await FileUploadModel.create({
+				fileId: "canonical-file-for-delete-test",
+				objectKey: "test/canonical-key",
+				originalFilename: "canonical.pdf",
+				contentType: "PDF" as FileUploadContentType,
+				directory: "cv",
+				bucket: "test-bucket",
+				userId: "test-user-2",
+				status: "uploaded",
+				isCanonical: true,
+			});
+
+			// Create a deduplicated file referencing the canonical
 			await FileUploadModel.create({
 				fileId: "test-file-delete-2",
 				objectKey: "test/key-2",
@@ -60,7 +73,7 @@ describe("Delete Upload", () => {
 				bucket: "test-bucket",
 				userId: "test-user-2",
 				status: "deduplicated",
-				deduplicatedFrom: "original-file-id",
+				deduplicatedFrom: canonicalUpload._id,
 				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
 			});
 

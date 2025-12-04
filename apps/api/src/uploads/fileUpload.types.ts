@@ -1,5 +1,5 @@
 import type { FileUploadContentType, FileUploadStatus } from "@lazyapply/types";
-import type { Document, Model } from "mongoose";
+import type { Document, Model, Types } from "mongoose";
 
 export type { FileUploadStatus };
 
@@ -20,7 +20,7 @@ export type TFileUpload = {
 	userId: string;
 	userEmail?: string;
 	status: FileUploadStatus;
-	deduplicatedFrom?: string;
+	deduplicatedFrom?: Types.ObjectId;
 	size?: number;
 	/** Raw text size in bytes */
 	rawTextSize?: number;
@@ -54,7 +54,7 @@ export type FindExistingUploadByHashParams = {
 };
 
 export type MarkUploadDeduplicatedParams = {
-	deduplicatedFrom: string;
+	deduplicatedFrom: Types.ObjectId;
 	size: number;
 };
 

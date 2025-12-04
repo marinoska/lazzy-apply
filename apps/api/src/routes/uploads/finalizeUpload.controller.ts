@@ -83,7 +83,7 @@ export const finalizeUploadController = async (
 
 			// Mark as deduplicated (non-canonical) within transaction
 			pendingUpload.status = "deduplicated";
-			pendingUpload.deduplicatedFrom = canonicalUpload.fileId;
+			pendingUpload.deduplicatedFrom = canonicalUpload._id;
 			pendingUpload.size = size;
 			pendingUpload.rawTextSize = new TextEncoder().encode(rawText).length;
 			pendingUpload.rawText = rawText;
