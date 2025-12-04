@@ -1,8 +1,9 @@
-export { ActionButtons } from "./ActionButtons.js";
 export { AutofillButton } from "./AutofillButton.js";
 export { CVSelector } from "./CVSelector.js";
 export { LoadingIndicator } from "./LoadingIndicator.js";
+export { LoginButton } from "./LoginButton.js";
 export { SidebarHeader } from "./SidebarHeader.js";
+export { SidebarMainContent } from "./SidebarMainContent.js";
 export { StatusChip, StatusIcon } from "./StatusIcon.js";
 export { StatusMessage } from "./StatusMessage.js";
 export { UploadSection } from "./UploadSection.js";

@@ -38,6 +38,14 @@ export type UploadDTO = {
 	parseStatus: ParseStatus;
 };
 
+/**
+ * Discriminated union for upload state.
+ * Enforces that parseStatus only exists when status is "uploaded".
+ */
+export type UploadState =
+	| { status: Exclude<FileUploadStatus, "uploaded"> }
+	| { status: "uploaded"; parseStatus: ParseStatus };
+
 export interface GetUploadsResponse {
 	uploads: UploadDTO[];
 	total: number;

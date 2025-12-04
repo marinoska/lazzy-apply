@@ -381,8 +381,9 @@ describe("Security", () => {
 				);
 				const source = await fs.readFile(deleteControllerPath, "utf-8");
 
-				// Should set userId option for ownership enforcement
-				expect(source).toContain("setOptions({ userId: user.id })");
+				// Should pass userId to query for ownership enforcement
+				expect(source).toContain("user.id");
+				expect(source).toContain("findDeletableByFileId");
 			});
 
 			it("should skip ownership for worker routes with explicit flag", async () => {

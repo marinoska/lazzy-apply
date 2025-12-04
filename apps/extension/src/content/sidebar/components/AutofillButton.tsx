@@ -5,14 +5,15 @@ import Divider from "@mui/joy/Divider";
 import Stack from "@mui/joy/Stack";
 import { useEffect, useState } from "react";
 import { classifyFormFields } from "@/lib/api/api.js";
+import { useUploads } from "@/lib/api/context/UploadsContext.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
 
 interface AutofillButtonProps {
-	hasUploads: boolean;
 	onError: (message: string) => void;
 }
 
-export function AutofillButton({ hasUploads, onError }: AutofillButtonProps) {
+export function AutofillButton({ onError }: AutofillButtonProps) {
+	const { hasUploads } = useUploads();
 	const [loading, setLoading] = useState(false);
 	const [formDetected, setFormDetected] = useState<boolean | null>(null);
 

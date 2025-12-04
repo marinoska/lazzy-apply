@@ -1,6 +1,5 @@
 import Sheet from "@mui/joy/Sheet";
-import Typography from "@mui/joy/Typography";
-import React from "react";
+import { BodySmall, TitleSmall } from "@/components/Typography.js";
 import type { StoredSession } from "../../../lib/supabase.js";
 
 interface UserInfoProps {
@@ -13,16 +12,10 @@ export function UserInfo({ session, loading }: UserInfoProps) {
 
 	return (
 		<Sheet variant="plain" sx={{ borderRadius: "md", px: 1.5, py: 1 }}>
-			<Typography
-				level="body-sm"
-				color="success"
-				sx={{ fontWeight: 600, mb: 0.5 }}
-			>
+			<BodySmall sx={{ color: "success.500", fontWeight: 600, mb: 0.5 }}>
 				Signed in
-			</Typography>
-			<Typography level="title-sm">
-				{session.user?.email ?? "unknown"}
-			</Typography>
+			</BodySmall>
+			<TitleSmall>{session.user?.email ?? "unknown"}</TitleSmall>
 		</Sheet>
 	);
 }

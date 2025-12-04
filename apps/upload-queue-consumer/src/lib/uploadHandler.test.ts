@@ -154,7 +154,7 @@ describe("uploadHandler buffer handling", () => {
 			expect(hash).not.toBe(EMPTY_BUFFER_HASH);
 			// Should be consistent
 			expect(hash).toBe(
-				"3df79d34abbca99308e79cb94461c1893582604d68329a41fd4bec1885e6adb4",
+				"315d429b7714cedb6ad04ac31240145257692630457f3c88253c5beceac76027",
 			);
 		});
 

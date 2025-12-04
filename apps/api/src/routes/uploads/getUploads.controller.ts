@@ -7,9 +7,14 @@ import { OutboxModel } from "@/outbox/index.js";
 import { FileUploadModel } from "@/uploads/fileUpload.model.js";
 import type { TFileUpload } from "@/uploads/fileUpload.types.js";
 
+const sortFieldSchema = z.enum(["createdAt", "updatedAt"]);
+const sortOrderSchema = z.enum(["asc", "desc"]);
+
 export const getUploadsQuerySchema = z.object({
 	limit: z.coerce.number().int().positive().max(100).optional().default(10),
 	offset: z.coerce.number().int().min(0).optional().default(0),
+	sortBy: sortFieldSchema.optional().default("createdAt"),
+	sortOrder: sortOrderSchema.optional().default("desc"),
 });
 
 type GetUploadsQuery = z.infer<typeof getUploadsQuerySchema>;
@@ -46,14 +51,15 @@ export const getUploadsController = async (
 		throw new Unauthorized("Missing authenticated user");
 	}
 
-	const { limit, offset } = req.query as unknown as GetUploadsQuery;
+	const { limit, offset, sortBy, sortOrder } =
+		req.query as unknown as GetUploadsQuery;
 
 	// Find uploaded files for the user (exclude failed and deleted)
 	const uploads = await FileUploadModel.find({
 		status: { $in: ["pending", "uploaded", "deduplicated"] },
 	})
 		.setOptions({ userId: user.id })
-		.sort({ createdAt: -1 })
+		.sort({ [sortBy]: sortOrder === "desc" ? -1 : 1 })
 		.skip(offset)
 		.limit(limit)
 		.select(

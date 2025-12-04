@@ -1,7 +1,6 @@
 import CircularProgress from "@mui/joy/CircularProgress";
 import Stack from "@mui/joy/Stack";
-import Typography from "@mui/joy/Typography";
-import React from "react";
+import { BodySmall } from "@/components/Typography.js";
 
 interface LoadingIndicatorProps {
 	loading: boolean;
@@ -13,9 +12,7 @@ export function LoadingIndicator({ loading }: LoadingIndicatorProps) {
 	return (
 		<Stack direction="row" spacing={1.5} alignItems="center">
 			<CircularProgress size="sm" determinate={false} />
-			<Typography level="body-sm" color="neutral">
-				Working…
-			</Typography>
+			<BodySmall sx={{ color: "neutral.500" }}>Working…</BodySmall>
 		</Stack>
 	);
 }

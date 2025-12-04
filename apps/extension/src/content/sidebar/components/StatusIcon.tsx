@@ -1,11 +1,9 @@
 import Chip from "@mui/joy/Chip";
 import CircularProgress from "@mui/joy/CircularProgress";
-import type { UploadDTO } from "@/lib/api/api.js";
-
-type UploadStatus = Pick<UploadDTO, "status" | "parseStatus">;
+import type { UploadState } from "@/lib/api/api.js";
 
 interface StatusIconProps {
-	upload: UploadStatus;
+	upload: UploadState;
 }
 
 type StatusInfo = {
@@ -14,10 +12,10 @@ type StatusInfo = {
 	isProcessing?: boolean;
 };
 
-function getStatusInfo(upload: UploadStatus): StatusInfo | null {
+function getStatusInfo(upload: UploadState): StatusInfo | null {
 	switch (upload.status) {
 		case "pending":
-			return { label: "Pending", color: "neutral" };
+			return { label: "Pending", color: "neutral", isProcessing: true };
 		case "failed":
 			return { label: "Failed", color: "danger" };
 		case "rejected":
@@ -31,9 +29,9 @@ function getStatusInfo(upload: UploadStatus): StatusInfo | null {
 				case "completed":
 					return { label: "Ready", color: "success" };
 				case "pending":
-					return { label: "Queued", color: "neutral" };
+					return { label: "Queued", color: "neutral", isProcessing: true };
 				case "sending":
-					return { label: "Sending", color: "primary" };
+					return { label: "Sending", color: "primary", isProcessing: true };
 				case "processing":
 					return { label: "Processing", color: "primary", isProcessing: true };
 				case "failed":
@@ -50,11 +48,12 @@ export function StatusChip({ upload }: StatusIconProps) {
 	return (
 		<Chip
 			size="sm"
-			variant="soft"
+			variant="outlined"
 			color={info.color}
 			startDecorator={
 				info.isProcessing ? (
 					<CircularProgress
+						color={info.color}
 						size="sm"
 						sx={{ "--CircularProgress-size": "12px" }}
 					/>

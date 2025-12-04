@@ -1,6 +1,5 @@
 import Stack from "@mui/joy/Stack";
-import Typography from "@mui/joy/Typography";
-import React from "react";
+import { TitleLarge } from "@/components/Typography.js";
 import type { StoredSession } from "../../../lib/supabase.js";
 import { CloseButton } from "./CloseButton";
 import { LogoutButton } from "./LogoutButton";
@@ -18,9 +17,7 @@ export function SidebarHeader({
 }: SidebarHeaderProps) {
 	return (
 		<Stack direction="row" justifyContent="space-between" alignItems="center">
-			<Typography level="title-lg" sx={{ fontWeight: 600 }}>
-				JobAutoFill
-			</Typography>
+			<TitleLarge sx={{ fontWeight: 600 }}>JobAutoFill</TitleLarge>
 			<Stack direction="row" alignItems="center">
 				{session && <LogoutButton onSignOut={onSignOut} />}
 				<CloseButton onClose={onClose} />

@@ -1,6 +1,6 @@
 import Box from "@mui/joy/Box";
 import CircularProgress from "@mui/joy/CircularProgress";
-import Typography from "@mui/joy/Typography";
+import { BodySmall } from "@/components/Typography.js";
 
 export function LoadingState() {
 	return (
@@ -14,10 +14,8 @@ interface ErrorStateProps {
 	message?: string;
 }
 
-export function ErrorState({ message = "Something went wrong" }: ErrorStateProps) {
-	return (
-		<Typography level="body-sm" color="danger">
-			{message}
-		</Typography>
-	);
+export function ErrorState({
+	message = "Something went wrong",
+}: ErrorStateProps) {
+	return <BodySmall sx={{ color: "danger.500" }}>{message}</BodySmall>;
 }

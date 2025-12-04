@@ -4,9 +4,13 @@ import Alert from "@mui/joy/Alert";
 import Button from "@mui/joy/Button";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Stack from "@mui/joy/Stack";
-import Typography from "@mui/joy/Typography";
 import { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
+import {
+	BodyExtraSmall,
+	BodySmallDarker,
+	HeadingLarge,
+} from "@/components/Typography.js";
 import { useUploadMutation } from "@/lib/api/query/useUploadMutation.js";
 import { MAXIMUM_UPLOAD_SIZE_BYTES } from "@/lib/consts.js";
 import { getUserFriendlyMessage } from "@/lib/errorUtils.js";
@@ -117,9 +121,9 @@ export const DropzoneBox = ({
 						justifyContent: "center",
 					}}
 				>
-					<Typography level="h2">
+					<HeadingLarge>
 						<CloudUpload color="primary" />
-					</Typography>
+					</HeadingLarge>
 					{file ? (
 						<Stack gap={2} alignItems="center" width="100%">
 							<Alert
@@ -141,9 +145,9 @@ export const DropzoneBox = ({
 								}
 								sx={{ width: "100%" }}
 							>
-								<Typography fontWeight="300" level="body-xs">
+								<BodyExtraSmall sx={{ fontWeight: 300 }}>
 									{file.name}
-								</Typography>
+								</BodyExtraSmall>
 							</Alert>
 							<Button
 								size="md"
@@ -163,16 +167,16 @@ export const DropzoneBox = ({
 						</Stack>
 					) : (
 						<>
-							<Typography level="body-sm">Drag & drop a CV or</Typography>
+							<BodySmallDarker>Drag & drop a CV or</BodySmallDarker>
 							<input {...getInputProps()} />
 							<Button size="md" sx={{ m: 1 }} color="primary" onClick={open}>
 								Browse Files
 							</Button>
-							<Typography level="body-xs" textAlign="center">
+							<BodyExtraSmall sx={{ textAlign: "center" }}>
 								Supported formats: PDF, DOCX
 								<br />
 								(Max 3MB)
-							</Typography>
+							</BodyExtraSmall>
 						</>
 					)}
 				</Stack>

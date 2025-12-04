@@ -4,7 +4,7 @@ import ErrorIcon from "@mui/icons-material/Error";
 import InfoIcon from "@mui/icons-material/Info";
 import Alert from "@mui/joy/Alert";
 import Button from "@mui/joy/Button";
-import Typography from "@mui/joy/Typography";
+import { BodySmall } from "@/components/Typography.js";
 
 type AlertType = "error" | "success" | "info";
 
@@ -54,7 +54,7 @@ export function AppAlert({ type, message, onClose }: AppAlertProps) {
 				) : undefined
 			}
 		>
-			<Typography level="body-sm">{displayMessage}</Typography>
+			<BodySmall>{displayMessage}</BodySmall>
 		</Alert>
 	);
 }

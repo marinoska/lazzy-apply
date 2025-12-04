@@ -1,24 +1,27 @@
 import CloseIcon from "@mui/icons-material/Close";
 import DescriptionIcon from "@mui/icons-material/Description";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import Alert from "@mui/joy/Alert";
-import Box from "@mui/joy/Box";
+import { Box } from "@mui/joy";
 import Divider from "@mui/joy/Divider";
 import IconButton from "@mui/joy/IconButton";
+import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import { useState } from "react";
 import { AppAlert } from "@/components/AppAlert.js";
 import { LoadingState } from "@/components/QueryState.js";
 import { Snackbar } from "@/components/Snackbar.js";
-import { BodyExtraSmall, BodySmall } from "@/components/Typography.js";
-import type { UploadDTO } from "@/lib/api/api.js";
+import {
+	BodyExtraSmall,
+	BodyExtraSmallDarker,
+	BodySmallDarker,
+} from "@/components/Typography.js";
+import type { EnhancedUploadDTO } from "@/lib/api/context/UploadsContext.js";
+import { useUploads } from "@/lib/api/context/UploadsContext.js";
 import { useDeleteUploadMutation } from "@/lib/api/query/useDeleteUploadMutation.js";
-import { useUploadsQuery } from "@/lib/api/query/useUploadsQuery.js";
 import { StatusChip } from "./StatusIcon.js";
 
-const getFileIcon = (contentType: UploadDTO["contentType"]) => {
+const getFileIcon = (contentType: EnhancedUploadDTO["contentType"]) => {
 	switch (contentType) {
 		case "PDF":
 			return <PictureAsPdfIcon />;
@@ -28,20 +31,20 @@ const getFileIcon = (contentType: UploadDTO["contentType"]) => {
 };
 
 interface CVItemProps {
-	upload: UploadDTO;
+	upload: EnhancedUploadDTO;
 	isActive: boolean;
 	onSelect: (fileId: string) => void;
-	showDecorators?: boolean;
+	isTopItem?: boolean;
 }
 
 function CVItem({
 	upload,
 	isActive,
 	onSelect,
-	showDecorators = true,
+	isTopItem = false,
 }: CVItemProps) {
 	const deleteUploadMutation = useDeleteUploadMutation();
-	const isSelectable = upload.parseStatus === "completed";
+	const isSelectable = upload.isReady;
 
 	const handleDelete = (e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -54,33 +57,20 @@ function CVItem({
 		}
 	};
 
+	const FilenameComponent = isTopItem ? BodyExtraSmallDarker : BodyExtraSmall;
+
 	return (
-		<Alert
+		<Sheet
 			variant="soft"
 			color={isActive ? "primary" : "neutral"}
-			startDecorator={
-				showDecorators ? getFileIcon(upload.contentType) : undefined
-			}
-			endDecorator={
-				showDecorators ? (
-					<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-						<StatusChip upload={upload} />
-						<IconButton
-							size="sm"
-							variant="plain"
-							color="neutral"
-							onClick={handleDelete}
-							disabled={deleteUploadMutation.isPending}
-							sx={{ minHeight: 0, minWidth: 0, padding: 0 }}
-						>
-							<CloseIcon sx={{ fontSize: 16 }} />
-						</IconButton>
-					</Box>
-				) : undefined
-			}
-			size="sm"
 			onClick={handleClick}
 			sx={{
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "space-between",
+				gap: 1,
+				p: 1,
+				borderRadius: "sm",
 				cursor: isSelectable && !isActive ? "pointer" : "default",
 				opacity: isSelectable ? 1 : 0.6,
 				transition: "all 0.2s ease",
@@ -92,8 +82,94 @@ function CVItem({
 						: {},
 			}}
 		>
-			<BodyExtraSmall>{upload.originalFilename}</BodyExtraSmall>
-		</Alert>
+			<Stack direction="row" alignItems="center" gap={1}>
+				{getFileIcon(upload.contentType)}
+				<FilenameComponent>{upload.originalFilename}</FilenameComponent>
+			</Stack>
+			<Stack direction="row" alignItems="center" gap={0.5}>
+				<StatusChip upload={upload} />
+				{!isTopItem && (
+					<IconButton
+						size="sm"
+						variant="plain"
+						color="neutral"
+						onClick={handleDelete}
+						disabled={deleteUploadMutation.isPending}
+						sx={{ minHeight: 0, minWidth: 0, padding: 0 }}
+					>
+						<CloseIcon sx={{ fontSize: 16 }} />
+					</IconButton>
+				)}
+			</Stack>
+		</Sheet>
+	);
+}
+
+interface OtherUploadsProps {
+	otherUploads: EnhancedUploadDTO[];
+	isExpanded: boolean;
+	onToggleExpanded: () => void;
+	onSelect: (fileId: string) => void;
+}
+
+function OtherUploads({
+	otherUploads,
+	isExpanded,
+	onToggleExpanded,
+	onSelect,
+}: OtherUploadsProps) {
+	return (
+		<>
+			<Stack
+				direction="row"
+				onClick={onToggleExpanded}
+				alignItems="center"
+				justifyContent="right"
+				gap={1}
+				px={2}
+				py={1}
+				borderRadius="sm"
+				sx={{
+					cursor: "pointer",
+					"&:hover": {
+						transform: "scale(1.05)",
+						backgroundColor: "neutral.100",
+					},
+				}}
+			>
+				<ExpandMoreIcon
+					sx={{
+						fontSize: 30,
+						color: "neutral.500",
+						transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+						transition: "transform 0.2s ease",
+					}}
+				/>
+				<BodySmallDarker>Select your CV</BodySmallDarker>
+			</Stack>
+
+			<Box
+				sx={{
+					display: "grid",
+					gridTemplateRows: isExpanded ? "1fr" : "0fr",
+					transition: "grid-template-rows 0.3s ease-out",
+				}}
+			>
+				<Stack sx={{ overflow: "hidden" }}>
+					<Stack direction="column" spacing={1}>
+						{otherUploads.map((upload) => (
+							<CVItem
+								key={upload.fileId}
+								upload={upload}
+								isActive={false}
+								onSelect={onSelect}
+							/>
+						))}
+					</Stack>
+				</Stack>
+			</Box>
+			<Divider orientation="horizontal" color="border" />
+		</>
 	);
 }
 
@@ -104,7 +180,7 @@ interface CVSelectorProps {
 
 export function CVSelector({ activeFileId, onActiveChange }: CVSelectorProps) {
 	const [isExpanded, setIsExpanded] = useState(false);
-	const { data, isLoading, error } = useUploadsQuery({ limit: 20 });
+	const { uploads, topUpload, isLoading, error } = useUploads();
 
 	if (isLoading) {
 		return <LoadingState />;
@@ -119,26 +195,14 @@ export function CVSelector({ activeFileId, onActiveChange }: CVSelectorProps) {
 		);
 	}
 
-	if (!data?.uploads || data.uploads.length === 0) {
+	if (uploads.length === 0) {
 		return null;
 	}
 
-	const uploads = data.uploads;
-	const readyUploads = uploads.filter(
-		(u) => u.status === "uploaded" && u.parseStatus === "completed",
-	);
-	const hasUploadsButNoneReady =
-		uploads.length > 0 && readyUploads.length === 0;
-
-	// Determine the active upload
+	// Determine the active upload: use activeFileId if it's a ready upload, otherwise use topUpload
 	const activeUpload = activeFileId
-		? uploads.find(
-				(u) =>
-					u.fileId === activeFileId &&
-					u.status === "uploaded" &&
-					u.parseStatus === "completed",
-			)
-		: readyUploads[0];
+		? (uploads.find((u) => u.fileId === activeFileId && u.isReady) ?? topUpload)
+		: topUpload;
 
 	// Other uploads (excluding active)
 	const otherUploads = uploads.filter((u) => u.fileId !== activeUpload?.fileId);
@@ -153,88 +217,24 @@ export function CVSelector({ activeFileId, onActiveChange }: CVSelectorProps) {
 
 	return (
 		<Stack direction="column" spacing={1}>
-			{/* Alert when uploads exist but none are ready */}
-			{hasUploadsButNoneReady && (
-				<Alert
-					variant="soft"
-					color="warning"
-					size="sm"
-					startDecorator={<InfoOutlinedIcon />}
-				>
-					<BodyExtraSmall>
-						No CV ready yet. Please wait for processing to complete.
-					</BodyExtraSmall>
-				</Alert>
-			)}
-
-			{/* Active CV at top */}
+			{/* Top upload (ready or latest) */}
 			{activeUpload && (
 				<CVItem
 					upload={activeUpload}
 					isActive={true}
 					onSelect={handleSelect}
-					showDecorators={false}
+					isTopItem
 				/>
 			)}
 
 			{/* Collapsible section for other CVs - only show if more than one CV */}
 			{otherUploads.length > 0 && uploads.length > 1 && (
-				<>
-					<Box
-						onClick={toggleExpanded}
-						sx={{
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							gap: 0.5,
-							cursor: "pointer",
-							userSelect: "none",
-							py: 0.5,
-							transition: "transform 0.2s ease",
-							"&:hover": {
-								transform: "scale(1.05)",
-								backgroundColor: "neutral.100",
-							},
-							borderRadius: "sm",
-						}}
-					>
-						<ExpandMoreIcon
-							sx={{
-								fontSize: 30,
-								color: "neutral.500",
-								transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
-								transition: "transform 0.2s ease",
-							}}
-						/>
-						<BodySmall sx={{ color: "neutral.600" }}>Select your CV</BodySmall>
-					</Box>
-
-					<Box
-						sx={{
-							display: "grid",
-							gridTemplateRows: isExpanded ? "1fr" : "0fr",
-							transition: "grid-template-rows 0.3s ease-out",
-						}}
-					>
-						<Box sx={{ overflow: "hidden" }}>
-							<Stack
-								direction="column"
-								spacing={1}
-								sx={{ pb: isExpanded ? 0 : 0 }}
-							>
-								{otherUploads.map((upload) => (
-									<CVItem
-										key={upload.fileId}
-										upload={upload}
-										isActive={false}
-										onSelect={handleSelect}
-									/>
-								))}
-							</Stack>
-						</Box>
-					</Box>
-					<Divider orientation="horizontal" color="border" />
-				</>
+				<OtherUploads
+					otherUploads={otherUploads}
+					isExpanded={isExpanded}
+					onToggleExpanded={toggleExpanded}
+					onSelect={handleSelect}
+				/>
 			)}
 		</Stack>
 	);
