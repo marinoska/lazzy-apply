@@ -70,7 +70,6 @@ describe("Update Outbox Status", () => {
 			expect(allEntries).toHaveLength(2); // Original + completed
 			const latestEntry = allEntries[0];
 			expect(latestEntry.status).toBe("completed");
-			expect(latestEntry.processedAt).toBeDefined();
 			expect(latestEntry.error).toBeUndefined();
 
 			// Verify CV data was saved (skip ownership enforcement for test)
@@ -251,7 +250,6 @@ describe("Update Outbox Status", () => {
 			const latestEntry = allEntries[0];
 			expect(latestEntry.status).toBe("failed");
 			expect(latestEntry.error).toBe("Processing failed due to invalid format");
-			expect(latestEntry.processedAt).toBeDefined();
 
 			// Verify no CV data was created
 			const cvData = await CVDataModel.findOne(
@@ -260,6 +258,60 @@ describe("Update Outbox Status", () => {
 				{ skipOwnershipEnforcement: true },
 			);
 			expect(cvData).toBeNull();
+		});
+	});
+
+	describe("Not-a-CV Status", () => {
+		it("should create not-a-cv outbox entry", async () => {
+			await OutboxModel.create({
+				processId: "test-process-not-a-cv",
+				type: "file_upload",
+				status: "processing",
+				uploadId: "upload-id-not-a-cv",
+				fileId: "test-file-not-a-cv",
+				userId: "test-user-not-a-cv",
+				fileType: "PDF",
+			});
+
+			mockReq = {
+				params: { processId: "test-process-not-a-cv" },
+				body: {
+					status: "not-a-cv",
+					usage: {
+						promptTokens: 100,
+						completionTokens: 50,
+						totalTokens: 150,
+					},
+				},
+			};
+
+			await updateOutboxStatus(mockReq, mockRes);
+
+			// Verify new not-a-cv entry was created
+			const allEntries = await OutboxModel.find({
+				processId: "test-process-not-a-cv",
+			}).sort({ createdAt: -1 });
+			expect(allEntries).toHaveLength(2); // Original + not-a-cv
+			const latestEntry = allEntries[0];
+			expect(latestEntry.status).toBe("not-a-cv");
+			expect(latestEntry.promptTokens).toBe(100);
+			expect(latestEntry.completionTokens).toBe(50);
+			expect(latestEntry.totalTokens).toBe(150);
+
+			// Verify no CV data was created
+			const cvData = await CVDataModel.findOne(
+				{ uploadId: "upload-id-not-a-cv" },
+				null,
+				{ skipOwnershipEnforcement: true },
+			);
+			expect(cvData).toBeNull();
+
+			// Verify response
+			expect(statusMock).toHaveBeenCalledWith(200);
+			expect(jsonMock).toHaveBeenCalledWith({
+				processId: "test-process-not-a-cv",
+				status: "not-a-cv",
+			});
 		});
 	});
 

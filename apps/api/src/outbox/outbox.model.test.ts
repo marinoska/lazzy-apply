@@ -126,7 +126,6 @@ describe("Outbox Model", () => {
 				fileId: "test-file-multi",
 				userId: "test-user-multi",
 				fileType: "PDF",
-				processedAt: new Date(),
 			});
 
 			const entries = await OutboxModel.find({ processId }).sort({
@@ -148,12 +147,10 @@ describe("Outbox Model", () => {
 				userId: "test-user-failed",
 				fileType: "PDF",
 				error: "Processing failed",
-				processedAt: new Date(),
 			});
 
 			expect(failedEntry.error).toBe("Processing failed");
 			expect(failedEntry.status).toBe("failed");
-			expect(failedEntry.processedAt).toBeDefined();
 		});
 	});
 
@@ -175,7 +172,6 @@ describe("Outbox Model", () => {
 				expect(processing.processId).toBe(original.processId);
 				expect(processing.status).toBe("processing");
 				expect(processing.error).toBeUndefined();
-				expect(processing.processedAt).toBeUndefined();
 
 				// Verify both entries exist
 				const allEntries = await OutboxModel.find({
@@ -184,7 +180,7 @@ describe("Outbox Model", () => {
 				expect(allEntries).toHaveLength(2);
 			});
 
-			it("markAsCompleted should create completed entry with processedAt", async () => {
+			it("markAsCompleted should create completed entry", async () => {
 				const original = await OutboxModel.create({
 					processId: "test-process-convenience-2",
 					type: "file_upload",
@@ -200,7 +196,6 @@ describe("Outbox Model", () => {
 				expect(completed.processId).toBe(original.processId);
 				expect(completed.status).toBe("completed");
 				expect(completed.error).toBeUndefined();
-				expect(completed.processedAt).toBeDefined();
 
 				// Verify both entries exist
 				const allEntries = await OutboxModel.find({
@@ -209,7 +204,7 @@ describe("Outbox Model", () => {
 				expect(allEntries).toHaveLength(2);
 			});
 
-			it("markAsFailed should create failed entry with error and processedAt", async () => {
+			it("markAsFailed should create failed entry with error", async () => {
 				const original = await OutboxModel.create({
 					processId: "test-process-convenience-3",
 					type: "file_upload",
@@ -226,7 +221,6 @@ describe("Outbox Model", () => {
 				expect(failed.processId).toBe(original.processId);
 				expect(failed.status).toBe("failed");
 				expect(failed.error).toBe(errorMessage);
-				expect(failed.processedAt).toBeDefined();
 
 				// Verify both entries exist
 				const allEntries = await OutboxModel.find({
@@ -256,10 +250,9 @@ describe("Outbox Model", () => {
 				expect(processing.processId).toBe(original.processId);
 				expect(processing.status).toBe("processing");
 				expect(processing.error).toBeUndefined();
-				expect(processing.processedAt).toBeUndefined();
 			});
 
-			it("should create new entry with completed status and processedAt", async () => {
+			it("should create new entry with completed status", async () => {
 				const original = await OutboxModel.create({
 					processId: "test-process-status-2",
 					type: "file_upload",
@@ -278,10 +271,9 @@ describe("Outbox Model", () => {
 				expect(completed.processId).toBe(original.processId);
 				expect(completed.status).toBe("completed");
 				expect(completed.error).toBeUndefined();
-				expect(completed.processedAt).toBeDefined();
 			});
 
-			it("should create new entry with failed status, error, and processedAt", async () => {
+			it("should create new entry with failed status and error", async () => {
 				const original = await OutboxModel.create({
 					processId: "test-process-status-3",
 					type: "file_upload",
@@ -302,7 +294,6 @@ describe("Outbox Model", () => {
 				expect(failed.processId).toBe(original.processId);
 				expect(failed.status).toBe("failed");
 				expect(failed.error).toBe(errorMessage);
-				expect(failed.processedAt).toBeDefined();
 			});
 		});
 
@@ -358,7 +349,6 @@ describe("Outbox Model", () => {
 					userId: "user-3",
 					fileType: "PDF",
 					error: "Test error",
-					processedAt: new Date(),
 				});
 
 				const pending = await OutboxModel.findPendingLogs(10);
@@ -523,7 +513,6 @@ describe("Outbox Model", () => {
 					fileId: "file-find",
 					userId: "user-find",
 					fileType: "PDF",
-					processedAt: new Date(),
 				});
 
 				const entries = await OutboxModel.findByProcessId(processId);
@@ -662,7 +651,6 @@ describe("Outbox Model", () => {
 				fileId,
 				userId: "user-multi",
 				fileType: "PDF",
-				processedAt: new Date(),
 			});
 
 			const entries = await OutboxModel.find({ processId });
@@ -696,7 +684,6 @@ describe("Outbox Model", () => {
 			// Step 4: Mark as completed
 			const completed = await OutboxModel.markAsCompleted(processing);
 			expect(completed.status).toBe("completed");
-			expect(completed.processedAt).toBeDefined();
 
 			// Verify full audit trail
 			const allEntries = await OutboxModel.findByProcessId(processId);

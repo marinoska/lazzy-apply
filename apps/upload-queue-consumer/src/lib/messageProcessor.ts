@@ -194,16 +194,29 @@ async function updateOutboxWithResult(
 			.setValue(Symbol.for("OpenTelemetry Context Key SPAN"), parentSpan),
 	);
 	updateSpan.setAttribute("processId", processId);
-	updateSpan.setAttribute("status", "completed");
+	updateSpan.setAttribute("status", result.parseStatus);
 
-	await updateOutboxStatus(
-		env,
-		processId,
-		"completed",
-		result.parsedData,
-		undefined,
-		result.usage,
-	);
+	if (result.parseStatus === "not-a-cv") {
+		// Document is not a CV - update status accordingly
+		await updateOutboxStatus(
+			env,
+			processId,
+			"not-a-cv",
+			null,
+			undefined,
+			result.usage,
+		);
+	} else {
+		// Successfully parsed CV
+		await updateOutboxStatus(
+			env,
+			processId,
+			"completed",
+			result.parsedData,
+			undefined,
+			result.usage,
+		);
+	}
 
 	updateSpan.end();
 }

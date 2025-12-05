@@ -126,7 +126,7 @@ function OtherUploads({
 				alignItems="center"
 				justifyContent="space-between"
 				gap={1}
-				px={2}
+				px={1.5}
 				py={1}
 				borderRadius="sm"
 				sx={{

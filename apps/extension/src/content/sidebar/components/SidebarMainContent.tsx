@@ -2,7 +2,7 @@ import Button from "@mui/joy/Button";
 import { useState } from "react";
 import { UploadsProvider } from "@/lib/api/context/UploadsContext.js";
 import { Snackbar } from "../../../components/Snackbar.js";
-import { AutofillButton } from "./AutofillButton.js";
+import { ApplicationSection } from "./ApplicationSection.js";
 import { CVSelector } from "./CVSelector.js";
 import { UploadSection } from "./UploadSection.js";
 
@@ -59,7 +59,7 @@ export function SidebarMainContent({
 				onUploadComplete={handleUploadComplete}
 				onUploadError={handleUploadError}
 			/>
-			<AutofillButton onError={handleAutofillError} />
+			<ApplicationSection onError={handleAutofillError} />
 			<Snackbar
 				msg={alertMessage}
 				show={!!alertMessage}

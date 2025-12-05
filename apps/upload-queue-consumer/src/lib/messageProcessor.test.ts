@@ -128,6 +128,7 @@ describe("messageProcessor", () => {
 		it("should successfully process a valid message", async () => {
 			mockFetchRawTextSuccess();
 			vi.mocked(extractCVData).mockResolvedValue({
+				parseStatus: "completed",
 				parsedData: mockParsedData,
 				usage: mockUsage,
 				finishReason: "stop" as const,
@@ -200,6 +201,7 @@ describe("messageProcessor", () => {
 		it("should handle outbox update errors for completed status", async () => {
 			mockFetchRawTextSuccess();
 			vi.mocked(extractCVData).mockResolvedValue({
+				parseStatus: "completed",
 				parsedData: mockParsedData,
 				usage: mockUsage,
 				finishReason: "stop" as const,
@@ -216,6 +218,7 @@ describe("messageProcessor", () => {
 			const docxPayload = { ...mockPayload, fileType: "DOCX" as const };
 			mockFetchRawTextSuccess();
 			vi.mocked(extractCVData).mockResolvedValue({
+				parseStatus: "completed",
 				parsedData: mockParsedData,
 				usage: mockUsage,
 				finishReason: "stop" as const,
@@ -243,6 +246,28 @@ describe("messageProcessor", () => {
 				null,
 				"Network connection failed",
 				undefined,
+			);
+		});
+
+		it("should handle not-a-cv response", async () => {
+			mockFetchRawTextSuccess();
+			vi.mocked(extractCVData).mockResolvedValue({
+				parseStatus: "not-a-cv",
+				rawText: mockRawText,
+				usage: mockUsage,
+				finishReason: "stop" as const,
+			});
+			vi.mocked(updateOutboxStatus).mockResolvedValue(undefined);
+
+			await processMessage(mockPayload, mockEnv);
+
+			expect(updateOutboxStatus).toHaveBeenCalledWith(
+				mockEnv,
+				"log-789",
+				"not-a-cv",
+				null,
+				undefined,
+				mockUsage,
 			);
 		});
 	});

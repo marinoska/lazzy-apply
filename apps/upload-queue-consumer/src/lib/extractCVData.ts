@@ -39,9 +39,10 @@ function getAIModelConfig(env: Env) {
 	return { modelName, inputPricePer1M, outputPricePer1M };
 }
 
-// Zod schema matching the ExtractedCVData structure
-// Using .optional() for fields that might not be present in AI response
+// Single unified schema that works with OpenAI structured outputs
+// OpenAI requires root-level object type, not union
 const extractedCVDataSchema = z.object({
+	parseStatus: z.enum(["completed", "not-a-cv"]),
 	personal: z
 		.object({
 			fullName: z.string().nullable().optional(),
@@ -120,14 +121,29 @@ const extractedCVDataSchema = z.object({
 	rawText: z.string(),
 });
 
-// Infer the TypeScript type from the schema
+// Infer type from schema
 type ExtractedCVData = z.infer<typeof extractedCVDataSchema>;
 
-// Type helper to avoid deep instantiation issues
-type SchemaType = typeof extractedCVDataSchema;
+// Type guard to check if response is not-a-cv
+function isNotACV(data: ExtractedCVData): boolean {
+	return data.parseStatus === "not-a-cv";
+}
 
-const EXTRACTION_PROMPT = `You are an information extraction engine. 
-Your task is to extract structured data from a CV exactly following the JSON schema below.
+const EXTRACTION_PROMPT = `You are an information extraction engine.
+
+STEP 1 — DOCUMENT CLASSIFICATION:
+First, determine whether the input document is a CV/resume.
+A CV/resume typically contains: personal contact information, work experience, education, skills, or professional summary.
+
+If the document is NOT a CV/resume (e.g., a cover letter, invoice, article, random text, or any other document type), return:
+{
+  "parseStatus": "not-a-cv",
+  "rawText": "<the full input text>"
+}
+Leave all other fields empty/null and stop. Do not proceed with extraction.
+
+STEP 2 — CV EXTRACTION (only if document IS a CV/resume):
+Extract structured data from the CV exactly following the JSON schema below.
 
 IMPORTANT RULES:
 - Do NOT hallucinate.
@@ -142,6 +158,7 @@ IMPORTANT RULES:
 OUTPUT SCHEMA:
 
 {
+  "parseStatus": "completed",  // Use "completed" for valid CVs, "not-a-cv" for non-CV documents
   "personal": {
     "fullName": string | null,
     "email": string | null,
@@ -212,18 +229,32 @@ OUTPUT SCHEMA:
 
 NOW EXTRACT THE DATA.`;
 
-export type ExtractCVDataResult = {
+type FinishReason =
+	| "stop"
+	| "length"
+	| "content-filter"
+	| "tool-calls"
+	| "error"
+	| "other"
+	| "unknown";
+
+export type ExtractCVDataSuccessResult = {
+	parseStatus: "completed";
 	parsedData: ParsedCVData;
 	usage: TokenUsage;
-	finishReason:
-		| "stop"
-		| "length"
-		| "content-filter"
-		| "tool-calls"
-		| "error"
-		| "other"
-		| "unknown";
+	finishReason: FinishReason;
 };
+
+export type ExtractCVDataNotACVResult = {
+	parseStatus: "not-a-cv";
+	rawText: string;
+	usage: TokenUsage;
+	finishReason: FinishReason;
+};
+
+export type ExtractCVDataResult =
+	| ExtractCVDataSuccessResult
+	| ExtractCVDataNotACVResult;
 
 /**
  * Extract structured CV data from raw text using configured AI model
@@ -252,13 +283,44 @@ export async function extractCVData(
 		// Extract and cast to our inferred type
 		const extractedData = result.object as ExtractedCVData;
 
+		const promptTokens = result.usage.inputTokens ?? 0;
+		const completionTokens = result.usage.outputTokens ?? 0;
+		const totalTokens = result.usage.totalTokens ?? 0;
+
+		// Calculate cost breakdown using pricing from environment
+		const inputCost = (promptTokens / 1_000_000) * inputPricePer1M;
+		const outputCost = (completionTokens / 1_000_000) * outputPricePer1M;
+		const totalCost = inputCost + outputCost;
+
+		const usage: TokenUsage = {
+			promptTokens,
+			completionTokens,
+			totalTokens,
+			inputCost,
+			outputCost,
+			totalCost,
+		};
+
+		// Handle not-a-cv response
+		if (isNotACV(extractedData)) {
+			return {
+				parseStatus: "not-a-cv",
+				rawText: extractedData.rawText,
+				usage,
+				finishReason: result.finishReason,
+			};
+		}
+
+		// At this point, extractedData is a full CV
+		const cvData = extractedData;
+
 		// Transform the extracted data to match ParsedCVData format
-		const personal = extractedData.personal ?? {};
-		const links = extractedData.links ?? [];
-		const experience = extractedData.experience ?? [];
-		const education = extractedData.education ?? [];
-		const certifications = extractedData.certifications ?? [];
-		const languages = extractedData.languages ?? [];
+		const personal = cvData.personal ?? {};
+		const links = cvData.links ?? [];
+		const experience = cvData.experience ?? [];
+		const education = cvData.education ?? [];
+		const certifications = cvData.certifications ?? [];
+		const languages = cvData.languages ?? [];
 
 		const parsedData: ParsedCVData = {
 			personal: {
@@ -273,10 +335,10 @@ export async function extractCVData(
 				.filter((l) => l.url) // Filter out links with null URLs
 				.map((l) => ({
 					type: l.type,
-					url: l.url!,
+					url: l.url ?? "",
 				})),
-			headline: extractedData.headline ?? null,
-			summary: extractedData.summary ?? null,
+			headline: cvData.headline ?? null,
+			summary: cvData.summary ?? null,
 			experience: experience.map((exp) => ({
 				role: exp.role ?? null,
 				company: exp.company ?? null,
@@ -301,36 +363,21 @@ export async function extractCVData(
 				level: lang.level ?? null,
 			})),
 			extras: {
-				drivingLicense: extractedData.extras?.drivingLicense ?? null,
-				workPermit: extractedData.extras?.workPermit ?? null,
-				willingToRelocate: extractedData.extras?.willingToRelocate ?? null,
-				remotePreference: extractedData.extras?.remotePreference ?? null,
-				noticePeriod: extractedData.extras?.noticePeriod ?? null,
-				availability: extractedData.extras?.availability ?? null,
-				salaryExpectation: extractedData.extras?.salaryExpectation ?? null,
+				drivingLicense: cvData.extras?.drivingLicense ?? null,
+				workPermit: cvData.extras?.workPermit ?? null,
+				willingToRelocate: cvData.extras?.willingToRelocate ?? null,
+				remotePreference: cvData.extras?.remotePreference ?? null,
+				noticePeriod: cvData.extras?.noticePeriod ?? null,
+				availability: cvData.extras?.availability ?? null,
+				salaryExpectation: cvData.extras?.salaryExpectation ?? null,
 			},
-			rawText: extractedData.rawText,
+			rawText: cvData.rawText,
 		};
 
-		const promptTokens = result.usage.inputTokens ?? 0;
-		const completionTokens = result.usage.outputTokens ?? 0;
-		const totalTokens = result.usage.totalTokens ?? 0;
-
-		// Calculate cost breakdown using pricing from environment
-		const inputCost = (promptTokens / 1_000_000) * inputPricePer1M;
-		const outputCost = (completionTokens / 1_000_000) * outputPricePer1M;
-		const totalCost = inputCost + outputCost;
-
 		return {
+			parseStatus: "completed",
 			parsedData,
-			usage: {
-				promptTokens,
-				completionTokens,
-				totalTokens,
-				inputCost,
-				outputCost,
-				totalCost,
-			},
+			usage,
 			finishReason: result.finishReason,
 		};
 	} catch (error) {

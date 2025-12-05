@@ -36,6 +36,8 @@ function getStatusInfo(upload: UploadState): StatusInfo | null {
 					return { label: "Processing", color: "primary", isProcessing: true };
 				case "failed":
 					return { label: "Parse failed", color: "danger" };
+				case "not-a-cv":
+					return { label: "Not a CV", color: "warning" };
 			}
 	}
 	return null;

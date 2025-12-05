@@ -6,6 +6,23 @@ import { handleQueueBatch } from "./lib/queueHandler";
 import { handleUpload } from "./lib/uploadHandler";
 import type { Env } from "./types";
 
+/**
+ * No-op span exporter for local development
+ * Silently discards all spans without attempting network requests
+ * Implements the OpenTelemetry SpanExporter interface
+ */
+const noopSpanExporter = {
+	export(
+		_spans: unknown[],
+		resultCallback: (result: { code: number }) => void,
+	): void {
+		resultCallback({ code: 0 }); // SUCCESS
+	},
+	shutdown(): Promise<void> {
+		return Promise.resolve();
+	},
+};
+
 // Re-export Env type for backward compatibility
 export type { Env };
 
@@ -63,12 +80,10 @@ const handler = {
  * In local development, we use a no-op exporter to avoid export errors
  */
 const config: ResolveConfigFn = (env: Env, _trigger) => {
-	// In local dev, use a dummy URL that won't attempt real exports
+	// In local dev, use no-op exporter to prevent network errors
 	if (env.ENVIRONMENT === "local") {
 		return {
-			exporter: {
-				url: "http://localhost:0/noop",
-			},
+			exporter: noopSpanExporter,
 			service: {
 				name: "upload-queue-consumer",
 			},

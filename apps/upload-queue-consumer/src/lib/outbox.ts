@@ -8,7 +8,7 @@ import { Logger } from "./logger";
 export async function updateOutboxStatus(
 	env: Env,
 	processId: string,
-	status: "completed" | "failed",
+	status: "completed" | "failed" | "not-a-cv",
 	data: ParsedCVData | null,
 	error?: string,
 	usage?: TokenUsage,
@@ -46,11 +46,11 @@ export async function updateOutboxStatus(
 				operation: "outbox_update",
 			});
 
-			// For status updates to "completed", we want to ensure the update succeeds
+			// For status updates to "completed" or "not-a-cv", we want to ensure the update succeeds
 			// If it fails, we should retry the entire message processing
-			if (status === "completed") {
+			if (status === "completed" || status === "not-a-cv") {
 				throw new Error(
-					`Failed to update outbox status to completed: ${response.status} ${responseText}`,
+					`Failed to update outbox status to ${status}: ${response.status} ${responseText}`,
 				);
 			}
 
@@ -75,8 +75,8 @@ export async function updateOutboxStatus(
 			error instanceof Error ? error : new Error(String(error)),
 		);
 
-		// Re-throw for "completed" status - we need the update to succeed
-		if (status === "completed") {
+		// Re-throw for "completed" or "not-a-cv" status - we need the update to succeed
+		if (status === "completed" || status === "not-a-cv") {
 			throw error;
 		}
 

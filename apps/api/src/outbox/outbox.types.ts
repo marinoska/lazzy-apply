@@ -6,7 +6,8 @@ export type OutboxStatus =
 	| "sending"
 	| "processing"
 	| "completed"
-	| "failed";
+	| "failed"
+	| "not-a-cv";
 
 export type OutboxType = "file_upload";
 
@@ -21,7 +22,6 @@ export type TOutbox = {
 	userId: string;
 	fileType: FileUploadContentType;
 	error?: string;
-	processedAt?: Date;
 	// Token usage from AI processing
 	promptTokens?: number;
 	completionTokens?: number;
@@ -81,6 +81,14 @@ export type OutboxStatics = {
 			"processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType"
 		>,
 		error: string,
+		usage?: TokenUsage,
+	): Promise<OutboxDocument>;
+	markAsNotACV(
+		this: OutboxModelWithStatics,
+		original: Pick<
+			TOutbox,
+			"processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType"
+		>,
 		usage?: TokenUsage,
 	): Promise<OutboxDocument>;
 	findPendingLogs(

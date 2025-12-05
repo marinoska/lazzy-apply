@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { handleQueueBatch } from "./queueHandler";
 import type { ParseCVQueueMessage } from "@lazyapply/types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../types";
+import { handleQueueBatch } from "./queueHandler";
 
 // Mock the messageProcessor module
 vi.mock("./messageProcessor", () => ({
@@ -26,6 +26,7 @@ describe("queueHandler", () => {
 			} as Queue<ParseCVQueueMessage>,
 			API_URL: "http://test-api.com",
 			WORKER_SECRET: "test-secret",
+			EXTENSION_SECRET: "test-extension-secret",
 			OPENAI_API_KEY: "test-openai-key",
 			AI_MODEL_NAME: "gpt-4o-mini",
 			AI_MODEL_INPUT_PRICE_PER_1M: "0.15",
@@ -95,7 +96,10 @@ describe("queueHandler", () => {
 		});
 
 		it("should send to DLQ when attempts >= 3", async () => {
-			const failedMessage = { ...mockMessage, attempts: 3 } as Message<ParseCVQueueMessage>;
+			const failedMessage = {
+				...mockMessage,
+				attempts: 3,
+			} as Message<ParseCVQueueMessage>;
 			const batch = {
 				messages: [failedMessage],
 				queue: "test-queue",
@@ -114,8 +118,15 @@ describe("queueHandler", () => {
 		});
 
 		it("should handle multiple messages with mixed results", async () => {
-			const successMessage = { ...mockMessage, body: { ...mockMessage.body, processId: "log-success" } };
-			const failMessage = { ...mockMessage, body: { ...mockMessage.body, processId: "log-fail" }, retry: vi.fn() };
+			const successMessage = {
+				...mockMessage,
+				body: { ...mockMessage.body, processId: "log-success" },
+			};
+			const failMessage = {
+				...mockMessage,
+				body: { ...mockMessage.body, processId: "log-fail" },
+				retry: vi.fn(),
+			};
 
 			const batch = {
 				messages: [successMessage, failMessage],

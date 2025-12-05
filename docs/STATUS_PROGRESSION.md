@@ -43,6 +43,9 @@ A file upload goes through two independent status tracks:
 │  │ pending │───▶│ sending │───▶│ processing │───▶│ completed │             │
 │  └─────────┘    └─────────┘    └────────────┘    └───────────┘             │
 │                                       │                                     │
+│                                       ├───────────▶ ┌───────────┐           │
+│                                       │             │ not-a-cv  │           │
+│                                       │             └───────────┘           │
 │                                       ▼                                     │
 │                                  ┌─────────┐                                │
 │                                  │ failed  │                                │
@@ -101,11 +104,14 @@ Defined in `packages/types/src/index.ts`. Tracked via the **Outbox pattern** (ev
 | `processing` | Message sent to queue, worker is processing | No |
 | `completed` | Successfully parsed, CV data stored | Yes |
 | `failed` | Processing failed after retries | Yes |
+| `not-a-cv` | Document is not a CV/resume | Yes |
 
 ### Status Transitions
 
 ```
 pending ──▶ sending ──▶ processing ──▶ completed
+                              │
+                              ├──────▶ not-a-cv
                               │
                               ▼
                            failed

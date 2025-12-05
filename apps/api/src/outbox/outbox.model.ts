@@ -27,7 +27,14 @@ const outboxSchema = new Schema<TOutbox, OutboxModel, OutboxMethods>(
 		},
 		status: {
 			type: String,
-			enum: ["pending", "sending", "processing", "completed", "failed"],
+			enum: [
+				"pending",
+				"sending",
+				"processing",
+				"completed",
+				"failed",
+				"not-a-cv",
+			],
 			default: "pending",
 			index: true,
 			immutable: true,
@@ -64,10 +71,6 @@ const outboxSchema = new Schema<TOutbox, OutboxModel, OutboxMethods>(
 		},
 		error: {
 			type: String,
-			required: false,
-		},
-		processedAt: {
-			type: Date,
 			required: false,
 		},
 		promptTokens: {

@@ -85,11 +85,9 @@ const fileUploadSchema = new Schema<
 		},
 		size: {
 			type: Number,
-			immutable: true,
 		},
 		rawTextSize: {
 			type: Number,
-			immutable: true,
 		},
 		fileHash: {
 			type: String,
@@ -108,7 +106,6 @@ const fileUploadSchema = new Schema<
 		},
 		rawText: {
 			type: String,
-			immutable: true,
 		},
 		rejectionReason: {
 			type: String,

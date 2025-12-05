@@ -15,7 +15,7 @@ export const updateOutboxParamsSchema = z.object({
 
 export const updateOutboxBodySchema = z
 	.object({
-		status: z.enum(["completed", "failed"]),
+		status: z.enum(["completed", "failed", "not-a-cv"]),
 		data: z.any().nullable().optional(), // ParsedCVData
 		error: z.string().optional(),
 		usage: z
@@ -67,9 +67,13 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 
 	const latestEntry = outboxEntries[0];
 
-	// Idempotency check: if already completed or failed, return success
+	// Idempotency check: if already in terminal state, return success
 	// This handles duplicate message delivery from Cloudflare Queues
-	if (latestEntry.status === "completed" || latestEntry.status === "failed") {
+	if (
+		latestEntry.status === "completed" ||
+		latestEntry.status === "failed" ||
+		latestEntry.status === "not-a-cv"
+	) {
 		log.warn(
 			{ processId, currentStatus: latestEntry.status, requestedStatus: status },
 			"Outbox entry already in terminal state - duplicate delivery detected",
@@ -163,6 +167,22 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 				}),
 			},
 			"Created failed outbox entry",
+		);
+	} else if (status === "not-a-cv") {
+		await OutboxModel.markAsNotACV(latestEntry, usage);
+		log.warn(
+			{
+				processId,
+				...(usage && {
+					promptTokens: usage.promptTokens,
+					completionTokens: usage.completionTokens,
+					totalTokens: usage.totalTokens,
+					inputCost: usage.inputCost,
+					outputCost: usage.outputCost,
+					totalCost: usage.totalCost,
+				}),
+			},
+			"File is not a CV - created not-a-cv outbox entry",
 		);
 	}
 

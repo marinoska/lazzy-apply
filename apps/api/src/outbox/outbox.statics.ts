@@ -36,10 +36,6 @@ export const registerOutboxStatics = (
 			newEntry.error = error;
 		}
 
-		if (status === "completed" || status === "failed") {
-			newEntry.processedAt = new Date();
-		}
-
 		if (usage) {
 			newEntry.promptTokens = usage.promptTokens;
 			newEntry.completionTokens = usage.completionTokens;
@@ -87,6 +83,10 @@ export const registerOutboxStatics = (
 
 	schema.statics.markAsFailed = async function (original, error, usage) {
 		return await this.createWithStatus(original, "failed", error, usage);
+	};
+
+	schema.statics.markAsNotACV = async function (original, usage) {
+		return await this.createWithStatus(original, "not-a-cv", undefined, usage);
 	};
 
 	schema.statics.findPendingLogs = async function (limit) {

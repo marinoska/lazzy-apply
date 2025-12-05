@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { parseCV } from "./cvParser";
 import type { Env } from "../types";
+import { parseCV } from "./cvParser";
 
 // Mock dependencies
 vi.mock("./extractText", () => ({
@@ -11,8 +11,8 @@ vi.mock("./extractCVData", () => ({
 	extractCVData: vi.fn(),
 }));
 
-import { extractText } from "./extractText";
 import { extractCVData } from "./extractCVData";
+import { extractText } from "./extractText";
 
 describe("cvParser", () => {
 	let mockEnv: Env;
@@ -25,6 +25,7 @@ describe("cvParser", () => {
 			PARSE_CV_DLQ: {} as Queue,
 			API_URL: "http://test-api.com",
 			WORKER_SECRET: "test-secret",
+			EXTENSION_SECRET: "test-extension-secret",
 			OPENAI_API_KEY: "test-openai-key",
 			AI_MODEL_NAME: "gpt-4o-mini",
 			AI_MODEL_INPUT_PRICE_PER_1M: "0.15",
@@ -41,6 +42,7 @@ describe("cvParser", () => {
 			const mockBuffer = new ArrayBuffer(100);
 			const mockText = "Sample CV text content";
 			const mockParsedData = {
+				parseStatus: "completed" as const,
 				parsedData: {
 					personal: {
 						fullName: "Jane Doe",
@@ -52,7 +54,8 @@ describe("cvParser", () => {
 					},
 					links: [],
 					headline: "Software Engineer",
-					summary: "Experienced software engineer with 5+ years in web development.",
+					summary:
+						"Experienced software engineer with 5+ years in web development.",
 					experience: [],
 					education: [],
 					certifications: [],
@@ -76,7 +79,7 @@ describe("cvParser", () => {
 					outputCost: 0.0005,
 					totalCost: 0.0015,
 				},
-				finishReason: 'stop' as const,
+				finishReason: "stop" as const,
 			};
 
 			vi.mocked(extractText).mockResolvedValue(mockText);
@@ -93,6 +96,7 @@ describe("cvParser", () => {
 			const mockBuffer = new ArrayBuffer(200);
 			const mockText = "DOCX CV content";
 			const mockParsedData = {
+				parseStatus: "completed" as const,
 				parsedData: {
 					personal: {
 						fullName: "John Smith",
@@ -128,7 +132,7 @@ describe("cvParser", () => {
 					outputCost: 0.0004,
 					totalCost: 0.0012,
 				},
-				finishReason: 'stop' as const,
+				finishReason: "stop" as const,
 			};
 
 			vi.mocked(extractText).mockResolvedValue(mockText);
@@ -171,6 +175,7 @@ describe("cvParser", () => {
 			const mockBuffer = new ArrayBuffer(50);
 			const emptyText = "";
 			const mockParsedData = {
+				parseStatus: "completed" as const,
 				parsedData: {
 					personal: {
 						fullName: null,
@@ -206,7 +211,7 @@ describe("cvParser", () => {
 					outputCost: 0.0002,
 					totalCost: 0.0007,
 				},
-				finishReason: 'stop' as const,
+				finishReason: "stop" as const,
 			};
 
 			vi.mocked(extractText).mockResolvedValue(emptyText);

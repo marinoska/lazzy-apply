@@ -28,6 +28,7 @@ export const PARSE_STATUSES = [
 	"processing",
 	"completed",
 	"failed",
+	"not-a-cv",
 ] as const;
 
 /**
