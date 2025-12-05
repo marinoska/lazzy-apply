@@ -28,6 +28,11 @@ export const UNFINISHED_PARSE_STATUSES = [
 	"processing",
 ] as const;
 
+export const SUCCESS_AND_UNFINISHED_PARSE_STATUSES = [
+	...UNFINISHED_PARSE_STATUSES,
+	"completed",
+] as const;
+
 export const TERMINAL_PARSE_STATUSES = [
 	"completed",
 	"failed",

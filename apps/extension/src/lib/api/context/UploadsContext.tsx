@@ -1,12 +1,18 @@
+import { SUCCESS_AND_UNFINISHED_PARSE_STATUSES } from "@lazyapply/types";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { GetUploadsResponse, UploadDTO } from "../api.js";
 import { useUploadsQuery } from "../query/useUploadsQuery.js";
 
-export type EnhancedUploadDTO = UploadDTO & { isReady: boolean };
+export type EnhancedUploadDTO = UploadDTO & {
+	isParsed: boolean;
+	isActive: boolean;
+};
 
 interface UploadsContextValue {
 	uploads: EnhancedUploadDTO[];
+	activeUploads: EnhancedUploadDTO[];
+	failedUploads: EnhancedUploadDTO[];
 	readyUploads: EnhancedUploadDTO[];
 	selectedUpload: EnhancedUploadDTO | null;
 	setSelectedUpload: (upload: EnhancedUploadDTO | null) => void;
@@ -34,43 +40,71 @@ export function UploadsProvider({
 	const [selectedUpload, setSelectedUpload] =
 		useState<EnhancedUploadDTO | null>(null);
 
-	const { uploads, readyUploads } = useMemo(() => {
+	const uploads = useMemo(() => {
 		const rawUploads = data?.uploads ?? [];
+		const activeStatuses: readonly string[] =
+			SUCCESS_AND_UNFINISHED_PARSE_STATUSES;
 
-		// Enhance with isReady prop (already sorted by createdAt desc from server)
-		const uploads: EnhancedUploadDTO[] = rawUploads.map((upload) => ({
-			...upload,
-			isReady:
-				upload.status === "uploaded" && upload.parseStatus === "completed",
-		}));
-
-		const readyUploads = uploads.filter((u) => u.isReady);
-
-		return { uploads, readyUploads };
+		// Enhance with isParsed and isActive prop and sort by createdAt desc
+		return rawUploads
+			.map((upload) => ({
+				...upload,
+				isParsed:
+					upload.status === "uploaded" && upload.parseStatus === "completed",
+				isActive:
+					upload.status === "uploaded" &&
+					activeStatuses.includes(upload.parseStatus),
+			}))
+			.sort(
+				(a, b) =>
+					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+			);
 	}, [data]);
 
-	// Set default selected upload when uploads load or change
+	const { activeUploads, failedUploads, readyUploads } = useMemo(() => {
+		const activeUploads = [];
+		const failedUploads = [];
+		const readyUploads = [];
+		for (const upload of uploads) {
+			if (upload.fileId === selectedUpload?.fileId) {
+				continue;
+			}
+
+			upload.isActive ? activeUploads.push(upload) : failedUploads.push(upload);
+
+			upload.isParsed ?? readyUploads.push(upload);
+		}
+
+		return { activeUploads, failedUploads, readyUploads };
+	}, [uploads, selectedUpload]);
+
+	// Sync selectedUpload with fresh data from uploads when polling updates arrive
+	const selectedUploadId = selectedUpload?.fileId;
 	useEffect(() => {
-		if (selectedUpload) {
-			// If current selection still exists, keep it
+		if (selectedUploadId) {
+			// If current selection still exists, update it with fresh data
 			const stillExists = uploads.find(
-				(u) => u.fileId === selectedUpload.fileId,
+				(upload) => upload.fileId === selectedUploadId,
 			);
 			if (stillExists) {
+				// Update with fresh data to reflect status changes from polling
+				setSelectedUpload(stillExists);
 				return;
 			}
 		}
 		// Default to first upload
 		setSelectedUpload(uploads[0] ?? null);
-	}, [uploads, selectedUpload]);
+	}, [uploads, selectedUploadId]);
 
 	const value = useMemo<UploadsContextValue>(
 		() => ({
 			uploads,
+			activeUploads,
+			failedUploads,
 			readyUploads,
 			selectedUpload,
 			setSelectedUpload,
-			isSelectedReady: selectedUpload?.isReady ?? false,
+			isSelectedReady: selectedUpload?.isParsed ?? false,
 			hasUploads: uploads.length > 0,
 			hasReadyUploads: readyUploads.length > 0,
 			total: data?.total ?? 0,
@@ -80,6 +114,8 @@ export function UploadsProvider({
 		}),
 		[
 			uploads,
+			activeUploads,
+			failedUploads,
 			readyUploads,
 			selectedUpload,
 			data?.total,
@@ -88,7 +124,6 @@ export function UploadsProvider({
 			refetch,
 		],
 	);
-
 	return (
 		<UploadsContext.Provider value={value}>{children}</UploadsContext.Provider>
 	);

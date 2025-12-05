@@ -44,7 +44,7 @@ function CVItem({
 	isTopItem = false,
 }: CVItemProps) {
 	const deleteUploadMutation = useDeleteUploadMutation();
-	const isSelectable = upload.isCanonical;
+	const isSelectable = upload.isActive;
 
 	const handleDelete = (e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -62,7 +62,7 @@ function CVItem({
 	return (
 		<Sheet
 			variant="soft"
-			color={isSelected ? "primary" : "neutral"}
+			color={isSelected ? "success" : "neutral"}
 			onClick={handleClick}
 			sx={{
 				display: "flex",
@@ -78,13 +78,19 @@ function CVItem({
 					isSelectable && !isSelected
 						? {
 								backgroundColor: "neutral.softHoverBg",
+								cursor: "pointer",
 							}
 						: {},
 			}}
 		>
 			<Stack direction="row" alignItems="center" gap={1}>
 				{getFileIcon(upload.contentType)}
-				<FilenameComponent>{upload.originalFilename}</FilenameComponent>
+				<Box>
+					<FilenameComponent>{upload.originalFilename}</FilenameComponent>
+					<BodyExtraSmall sx={{ color: "text.tertiary" }}>
+						Uploaded on: {new Date(upload.createdAt).toLocaleDateString()}
+					</BodyExtraSmall>
+				</Box>
 			</Stack>
 			<Stack direction="row" alignItems="center" gap={0.5}>
 				<StatusChip upload={upload} />
@@ -178,8 +184,14 @@ function OtherUploads({
 
 export function CVSelector() {
 	const [isExpanded, setIsExpanded] = useState(false);
-	const { uploads, selectedUpload, setSelectedUpload, isLoading, error } =
-		useUploads();
+	const {
+		activeUploads,
+		failedUploads,
+		selectedUpload,
+		setSelectedUpload,
+		isLoading,
+		error,
+	} = useUploads();
 
 	if (isLoading) {
 		return <LoadingState />;
@@ -194,13 +206,9 @@ export function CVSelector() {
 		);
 	}
 
-	if (uploads.length === 0) {
+	if (activeUploads.length === 0 && failedUploads.length === 0) {
 		return null;
 	}
-
-	const otherUploads = uploads.filter(
-		(u) => u.fileId !== selectedUpload?.fileId,
-	);
 
 	return (
 		<Stack direction="column" spacing={1}>
@@ -213,14 +221,12 @@ export function CVSelector() {
 				/>
 			)}
 
-			{otherUploads.length > 0 && uploads.length > 1 && (
-				<OtherUploads
-					otherUploads={otherUploads}
-					isExpanded={isExpanded}
-					onToggleExpanded={() => setIsExpanded((prev) => !prev)}
-					onSelect={setSelectedUpload}
-				/>
-			)}
+			<OtherUploads
+				otherUploads={[...activeUploads, ...failedUploads]}
+				isExpanded={isExpanded}
+				onToggleExpanded={() => setIsExpanded((prev) => !prev)}
+				onSelect={setSelectedUpload}
+			/>
 		</Stack>
 	);
 }

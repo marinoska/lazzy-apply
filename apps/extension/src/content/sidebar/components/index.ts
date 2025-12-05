@@ -7,5 +7,4 @@ export { SidebarMainContent } from "./SidebarMainContent.js";
 export { StatusChip, StatusIcon } from "./StatusIcon.js";
 export { StatusMessage } from "./StatusMessage.js";
 export { UploadSection } from "./UploadSection.js";
-export { UploadsList } from "./UploadsList.js";
 export { UserInfo } from "./UserInfo.js";

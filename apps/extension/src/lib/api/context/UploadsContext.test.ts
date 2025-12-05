@@ -21,17 +21,17 @@ const createMockUpload = (overrides: Partial<UploadDTO> = {}): UploadDTO => ({
 });
 
 describe("UploadsContext logic", () => {
-	describe("isReady computation", () => {
+	describe("isParsed computation", () => {
 		it("should mark upload as ready when status is uploaded and parseStatus is completed", () => {
 			const upload = createMockUpload({
 				status: "uploaded",
 				parseStatus: "completed",
 			});
 
-			const isReady =
+			const isParsed =
 				upload.status === "uploaded" && upload.parseStatus === "completed";
 
-			expect(isReady).toBe(true);
+			expect(isParsed).toBe(true);
 		});
 
 		it("should not mark upload as ready when status is pending", () => {
@@ -40,10 +40,10 @@ describe("UploadsContext logic", () => {
 				parseStatus: "completed",
 			});
 
-			const isReady =
+			const isParsed =
 				upload.status === "uploaded" && upload.parseStatus === "completed";
 
-			expect(isReady).toBe(false);
+			expect(isParsed).toBe(false);
 		});
 
 		it("should not mark upload as ready when parseStatus is processing", () => {
@@ -52,10 +52,10 @@ describe("UploadsContext logic", () => {
 				parseStatus: "processing",
 			});
 
-			const isReady =
+			const isParsed =
 				upload.status === "uploaded" && upload.parseStatus === "completed";
 
-			expect(isReady).toBe(false);
+			expect(isParsed).toBe(false);
 		});
 	});
 
@@ -123,6 +123,30 @@ describe("UploadsContext logic", () => {
 
 			expect(stillExists).toBeUndefined();
 			expect(newSelection?.fileId).toBe("first");
+		});
+
+		it("should update selection with fresh data when upload status changes", () => {
+			// Simulates polling returning updated parseStatus
+			const currentSelection = createMockUpload({
+				fileId: "selected",
+				parseStatus: "processing",
+			});
+			const uploads = [
+				createMockUpload({
+					fileId: "selected",
+					parseStatus: "completed", // Status changed from processing to completed
+				}),
+				createMockUpload({ fileId: "other" }),
+			];
+
+			const stillExists = uploads.find(
+				(u) => u.fileId === currentSelection.fileId,
+			);
+
+			expect(stillExists).toBeDefined();
+			expect(stillExists?.parseStatus).toBe("completed");
+			// The new selection should have the updated parseStatus
+			expect(stillExists?.parseStatus).not.toBe(currentSelection.parseStatus);
 		});
 	});
 
