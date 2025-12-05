@@ -24,6 +24,10 @@ const envSchema = z.object({
 	OPENAI_MODEL_INPUT_PRICE_PER_1M: z.coerce.number(),
 	/** Price per 1M output tokens in USD */
 	OPENAI_MODEL_OUTPUT_PRICE_PER_1M: z.coerce.number(),
+	IS_LOCAL: z
+		.enum(["true", "false"])
+		.default("false")
+		.transform((val) => val === "true"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -50,6 +54,7 @@ export const env = {
 	...base,
 	ALLOWED_ORIGIN_LIST: allowedOriginList,
 	ALLOWED_WORKER_URL_LIST: allowedWorkerUrls,
+	isLocal: base.IS_LOCAL,
 };
 
 export type AppEnv = typeof env;

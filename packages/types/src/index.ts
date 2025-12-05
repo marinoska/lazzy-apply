@@ -22,13 +22,21 @@ export type FileUploadStatus = (typeof FILE_UPLOAD_STATUSES)[number];
 /**
  * Parse status values (from outbox processing)
  */
-export const PARSE_STATUSES = [
+export const UNFINISHED_PARSE_STATUSES = [
 	"pending",
 	"sending",
 	"processing",
+] as const;
+
+export const TERMINAL_PARSE_STATUSES = [
 	"completed",
 	"failed",
 	"not-a-cv",
+] as const;
+
+export const PARSE_STATUSES = [
+	...UNFINISHED_PARSE_STATUSES,
+	...TERMINAL_PARSE_STATUSES,
 ] as const;
 
 /**

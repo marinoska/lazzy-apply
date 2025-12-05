@@ -9,8 +9,14 @@ const log = createLogger("authenticateWorker");
 /**
  * Validates that the request originates from an allowed Cloudflare Worker URL.
  * Cloudflare Workers send a CF-Worker header with the worker's script name/URL.
+ * In development, this check is skipped since Wrangler doesn't send the header.
  */
 function validateWorkerUrl(req: Request): void {
+	if (getEnv("IS_LOCAL") === "true") {
+		log.debug({}, "Skipping CF-Worker validation in local mode");
+		return;
+	}
+
 	const cfWorkerHeader = req.header("cf-worker") ?? req.header("CF-Worker");
 
 	if (!cfWorkerHeader) {
