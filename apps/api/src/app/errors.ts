@@ -44,7 +44,7 @@ export class HttpError extends Error {
 }
 
 export class Forbidden extends HttpError {
-	constructor(message: string, data: unknown) {
+	constructor(message: string, data?: unknown) {
 		super(message, boom.forbidden("Forbidden", data));
 	}
 }

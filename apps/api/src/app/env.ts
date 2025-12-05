@@ -17,6 +17,7 @@ const envSchema = z.object({
 	MONGO_CONNECTION: z.string(),
 	SUPABASE_JWKS_URL: z.string().url(),
 	WORKER_SECRET: z.string(),
+	ALLOWED_WORKER_URLS: z.string(),
 	OPENAI_API_KEY: z.string(),
 	OPENAI_MODEL: z.string(),
 	/** Price per 1M input tokens in USD */
@@ -40,9 +41,15 @@ const allowedOriginList =
 		.map((origin) => origin.trim())
 		.filter(Boolean) ?? [];
 
+const allowedWorkerUrls =
+	base.ALLOWED_WORKER_URLS?.split(",")
+		.map((url) => url.trim())
+		.filter(Boolean) ?? [];
+
 export const env = {
 	...base,
 	ALLOWED_ORIGIN_LIST: allowedOriginList,
+	ALLOWED_WORKER_URL_LIST: allowedWorkerUrls,
 };
 
 export type AppEnv = typeof env;

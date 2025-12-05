@@ -96,53 +96,146 @@ describe("Security", () => {
 				mockNext = vi.fn();
 			});
 
-			it("should reject requests without X-Worker-Secret header", async () => {
-				const { authenticateWorker } = await import(
-					"./app/middleware/authenticateWorker.js"
+			// Helper to mock headers based on header name
+			const mockHeaders = (headers: Record<string, string | undefined>) => {
+				(mockReq.header as ReturnType<typeof vi.fn>).mockImplementation(
+					(name: string) => {
+						const lowerName = name.toLowerCase();
+						for (const [key, value] of Object.entries(headers)) {
+							if (key.toLowerCase() === lowerName) {
+								return value;
+							}
+						}
+						return undefined;
+					},
 				);
+			};
 
-				(mockReq.header as ReturnType<typeof vi.fn>).mockReturnValue(undefined);
+			describe("Worker URL Validation (CF-Worker header)", () => {
+				it("should reject requests without CF-Worker header", async () => {
+					const { authenticateWorker } = await import(
+						"./app/middleware/authenticateWorker.js"
+					);
 
-				await expect(
-					authenticateWorker(mockReq as Request, mockRes as Response, mockNext),
-				).rejects.toThrow("Missing worker authentication header");
+					mockHeaders({});
 
-				expect(mockNext).not.toHaveBeenCalled();
+					await expect(
+						authenticateWorker(
+							mockReq as Request,
+							mockRes as Response,
+							mockNext,
+						),
+					).rejects.toThrow("Missing worker origin header");
+
+					expect(mockNext).not.toHaveBeenCalled();
+				});
+
+				it("should reject requests from unauthorized worker URL", async () => {
+					const { authenticateWorker } = await import(
+						"./app/middleware/authenticateWorker.js"
+					);
+
+					mockHeaders({
+						"CF-Worker": "unauthorized-worker.example.com",
+						"X-Worker-Secret": "test-worker-secret",
+					});
+
+					await expect(
+						authenticateWorker(
+							mockReq as Request,
+							mockRes as Response,
+							mockNext,
+						),
+					).rejects.toThrow("Unauthorized worker origin");
+
+					expect(mockNext).not.toHaveBeenCalled();
+				});
+
+				it("should validate worker URL before checking token", async () => {
+					const { authenticateWorker } = await import(
+						"./app/middleware/authenticateWorker.js"
+					);
+
+					// Missing CF-Worker header but has valid token
+					mockHeaders({
+						"X-Worker-Secret": "test-worker-secret",
+					});
+
+					// Should fail on URL validation first, not token validation
+					await expect(
+						authenticateWorker(
+							mockReq as Request,
+							mockRes as Response,
+							mockNext,
+						),
+					).rejects.toThrow("Missing worker origin header");
+
+					expect(mockNext).not.toHaveBeenCalled();
+				});
 			});
 
-			it("should reject requests with invalid worker secret", async () => {
-				const { authenticateWorker } = await import(
-					"./app/middleware/authenticateWorker.js"
-				);
+			describe("Worker Token Validation (X-Worker-Secret header)", () => {
+				it("should reject requests without X-Worker-Secret header", async () => {
+					const { authenticateWorker } = await import(
+						"./app/middleware/authenticateWorker.js"
+					);
 
-				(mockReq.header as ReturnType<typeof vi.fn>).mockReturnValue(
-					"wrong-secret",
-				);
+					// Valid CF-Worker but missing token
+					mockHeaders({
+						"CF-Worker": "test-worker.example.com",
+					});
 
-				await expect(
-					authenticateWorker(mockReq as Request, mockRes as Response, mockNext),
-				).rejects.toThrow("Invalid worker authentication token");
+					await expect(
+						authenticateWorker(
+							mockReq as Request,
+							mockRes as Response,
+							mockNext,
+						),
+					).rejects.toThrow("Missing worker authentication header");
 
-				expect(mockNext).not.toHaveBeenCalled();
-			});
+					expect(mockNext).not.toHaveBeenCalled();
+				});
 
-			it("should accept requests with valid worker secret", async () => {
-				const { authenticateWorker } = await import(
-					"./app/middleware/authenticateWorker.js"
-				);
+				it("should reject requests with invalid worker secret", async () => {
+					const { authenticateWorker } = await import(
+						"./app/middleware/authenticateWorker.js"
+					);
 
-				// Use the test secret from vitest.config.ts
-				(mockReq.header as ReturnType<typeof vi.fn>).mockReturnValue(
-					"test-worker-secret",
-				);
+					mockHeaders({
+						"CF-Worker": "test-worker.example.com",
+						"X-Worker-Secret": "wrong-secret",
+					});
 
-				await authenticateWorker(
-					mockReq as Request,
-					mockRes as Response,
-					mockNext,
-				);
+					await expect(
+						authenticateWorker(
+							mockReq as Request,
+							mockRes as Response,
+							mockNext,
+						),
+					).rejects.toThrow("Invalid worker authentication token");
 
-				expect(mockNext).toHaveBeenCalled();
+					expect(mockNext).not.toHaveBeenCalled();
+				});
+
+				it("should accept requests with valid CF-Worker and worker secret", async () => {
+					const { authenticateWorker } = await import(
+						"./app/middleware/authenticateWorker.js"
+					);
+
+					// Use test values from vitest.config.ts
+					mockHeaders({
+						"CF-Worker": "test-worker.example.com",
+						"X-Worker-Secret": "test-worker-secret",
+					});
+
+					await authenticateWorker(
+						mockReq as Request,
+						mockRes as Response,
+						mockNext,
+					);
+
+					expect(mockNext).toHaveBeenCalled();
+				});
 			});
 		});
 

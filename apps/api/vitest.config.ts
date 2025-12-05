@@ -15,6 +15,7 @@ export default defineConfig({
 			SUPABASE_JWKS_URL: "https://example.supabase.co/.well-known/jwks.json",
 			SUPABASE_JWT_SECRET: "test-jwt-secret",
 			WORKER_SECRET: "test-worker-secret",
+			ALLOWED_WORKER_URLS: "test-worker.example.com,another-worker.example.com",
 			OPENAI_API_KEY: "test-openai-key",
 			OPENAI_MODEL: "gpt-4o-mini",
 			OPENAI_MODEL_INPUT_PRICE_PER_1M: "0.15",
