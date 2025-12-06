@@ -19,4 +19,14 @@ export function registerPreferencesStatics(
 			{ upsert: true, new: true },
 		);
 	};
+
+	schema.statics.clearSelectedUploadIfMatches = async function (
+		userId: string,
+		uploadId: Types.ObjectId,
+	) {
+		return this.updateOne(
+			{ userId, selectedUploadId: uploadId },
+			{ $set: { selectedUploadId: null } },
+		);
+	};
 }

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 
 import { NotFound, Unauthorized } from "@/app/errors.js";
+import { PreferencesModel } from "@/preferences/index.js";
 import { FileUploadModel } from "@/uploads/fileUpload.model.js";
 
 export const deleteUploadParamsSchema = z.object({
@@ -36,6 +37,9 @@ export const deleteUploadController = async (
 	// Mark as deleted
 	upload.status = "deleted-by-user";
 	await upload.save();
+
+	// Clear from preferences if this was the selected upload
+	await PreferencesModel.clearSelectedUploadIfMatches(user.id, upload._id);
 
 	return res.json({
 		fileId: upload.fileId,

@@ -94,18 +94,16 @@ function CVItem({
 			</Stack>
 			<Stack direction="row" alignItems="center" gap={0.5}>
 				<StatusChip upload={upload} />
-				{!isTopItem && (
-					<IconButton
-						size="sm"
-						variant="plain"
-						color="neutral"
-						onClick={handleDelete}
-						disabled={deleteUploadMutation.isPending}
-						sx={{ minHeight: 0, minWidth: 0, padding: 0 }}
-					>
-						<CloseIcon sx={{ fontSize: 16 }} />
-					</IconButton>
-				)}
+				<IconButton
+					size="sm"
+					variant="plain"
+					color="neutral"
+					onClick={handleDelete}
+					disabled={deleteUploadMutation.isPending}
+					sx={{ minHeight: 0, minWidth: 0, padding: 0 }}
+				>
+					<CloseIcon sx={{ fontSize: 16 }} />
+				</IconButton>
 			</Stack>
 		</Sheet>
 	);

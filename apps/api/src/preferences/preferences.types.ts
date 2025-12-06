@@ -21,6 +21,11 @@ export type PreferencesStatics = {
 		userId: string,
 		selectedUploadId: Types.ObjectId | null,
 	): Promise<PreferencesDocument>;
+	clearSelectedUploadIfMatches(
+		this: PreferencesModelWithStatics,
+		userId: string,
+		uploadId: Types.ObjectId,
+	): Promise<unknown>;
 };
 
 export type PreferencesDocument = Document & TPreferences & PreferencesMethods;

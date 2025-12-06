@@ -1,5 +1,6 @@
 import type { FileUploadContentType } from "@lazyapply/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PreferencesModel } from "@/preferences/index.js";
 import { FileUploadModel } from "@/uploads/fileUpload.model.js";
 import { deleteUploadController } from "./deleteUpload.controller.js";
 
@@ -145,6 +146,89 @@ describe("Delete Upload", () => {
 			}).setOptions({ skipOwnershipEnforcement: true });
 
 			expect(deletedUpload?.status).toBe("deleted-by-user");
+		});
+
+		it("should clear selectedUploadId from preferences when deleting selected upload", async () => {
+			const userId = "test-user-pref-clear";
+
+			// Create an uploaded file
+			const upload = await FileUploadModel.create({
+				fileId: "test-file-delete-pref",
+				objectKey: "test/key-pref",
+				originalFilename: "test-pref.pdf",
+				contentType: "PDF" as FileUploadContentType,
+				directory: "cv",
+				bucket: "test-bucket",
+				userId,
+				status: "uploaded",
+				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
+			});
+
+			// Set this upload as selected in preferences
+			await PreferencesModel.upsertSelectedUpload(userId, upload._id);
+
+			// Verify it's set
+			const prefsBefore = await PreferencesModel.findByUserId(userId);
+			expect(prefsBefore?.selectedUploadId?.toString()).toBe(
+				upload._id.toString(),
+			);
+
+			mockReq = {
+				params: { fileId: "test-file-delete-pref" },
+				user: { id: userId },
+			};
+
+			await deleteUploadController(mockReq, mockRes);
+
+			// Verify preference was cleared
+			const prefsAfter = await PreferencesModel.findByUserId(userId);
+			expect(prefsAfter?.selectedUploadId).toBeNull();
+		});
+
+		it("should not clear selectedUploadId when deleting a different upload", async () => {
+			const userId = "test-user-pref-keep";
+
+			// Create two uploaded files
+			const selectedUpload = await FileUploadModel.create({
+				fileId: "test-file-selected",
+				objectKey: "test/key-selected",
+				originalFilename: "selected.pdf",
+				contentType: "PDF" as FileUploadContentType,
+				directory: "cv",
+				bucket: "test-bucket",
+				userId,
+				status: "uploaded",
+				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
+			});
+
+			await FileUploadModel.create({
+				fileId: "test-file-to-delete",
+				objectKey: "test/key-to-delete",
+				originalFilename: "to-delete.pdf",
+				contentType: "PDF" as FileUploadContentType,
+				directory: "cv",
+				bucket: "test-bucket",
+				userId,
+				status: "uploaded",
+				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
+			});
+
+			// Set the first upload as selected
+			await PreferencesModel.upsertSelectedUpload(userId, selectedUpload._id);
+
+			mockReq = {
+				params: { fileId: "test-file-to-delete" },
+				user: { id: userId },
+			};
+
+			// Delete the second upload
+			await deleteUploadController(mockReq, mockRes);
+
+			// Verify preference still points to the first upload
+			const prefsAfter = await PreferencesModel.findByUserId(userId);
+			expect(prefsAfter?.selectedUploadId?.toString()).toBe(
+				selectedUpload._id.toString(),
+			);
 		});
 	});
 
