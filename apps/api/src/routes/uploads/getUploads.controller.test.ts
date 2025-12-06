@@ -38,13 +38,14 @@ describe("getUploadsController", () => {
 	};
 
 	const createOutboxEntry = async (
+		uploadId: string,
 		fileId: string,
 		status: "pending" | "processing" | "completed" | "failed",
 	) => {
 		return OutboxModel.create({
 			processId: `process-${fileId}-${status}`,
 			type: "file_upload",
-			uploadId: `upload-${fileId}`,
+			uploadId,
 			fileId,
 			userId: testUserId,
 			fileType: "PDF",
@@ -54,8 +55,12 @@ describe("getUploadsController", () => {
 
 	describe("parseStatus field", () => {
 		it("should return parseStatus 'completed' for uploads with completed outbox entry", async () => {
-			await createUpload("file-completed-1");
-			await createOutboxEntry("file-completed-1", "completed");
+			const upload = await createUpload("file-completed-1");
+			await createOutboxEntry(
+				upload._id.toString(),
+				"file-completed-1",
+				"completed",
+			);
 
 			await getUploadsController(mockReq as never, mockRes as never);
 
@@ -72,8 +77,12 @@ describe("getUploadsController", () => {
 		});
 
 		it("should return parseStatus 'processing' for uploads currently being processed", async () => {
-			await createUpload("file-processing-1");
-			await createOutboxEntry("file-processing-1", "processing");
+			const upload = await createUpload("file-processing-1");
+			await createOutboxEntry(
+				upload._id.toString(),
+				"file-processing-1",
+				"processing",
+			);
 
 			await getUploadsController(mockReq as never, mockRes as never);
 
@@ -90,8 +99,8 @@ describe("getUploadsController", () => {
 		});
 
 		it("should return parseStatus 'failed' for uploads with failed parsing", async () => {
-			await createUpload("file-failed-1");
-			await createOutboxEntry("file-failed-1", "failed");
+			const upload = await createUpload("file-failed-1");
+			await createOutboxEntry(upload._id.toString(), "file-failed-1", "failed");
 
 			await getUploadsController(mockReq as never, mockRes as never);
 
@@ -108,8 +117,12 @@ describe("getUploadsController", () => {
 		});
 
 		it("should return parseStatus 'pending' for uploads with pending outbox entry", async () => {
-			await createUpload("file-pending-1");
-			await createOutboxEntry("file-pending-1", "pending");
+			const upload = await createUpload("file-pending-1");
+			await createOutboxEntry(
+				upload._id.toString(),
+				"file-pending-1",
+				"pending",
+			);
 
 			await getUploadsController(mockReq as never, mockRes as never);
 
@@ -143,11 +156,23 @@ describe("getUploadsController", () => {
 		});
 
 		it("should use latest outbox status when multiple entries exist", async () => {
-			await createUpload("file-multi-status-1");
+			const upload = await createUpload("file-multi-status-1");
 			// Create entries in order: pending -> processing -> completed
-			await createOutboxEntry("file-multi-status-1", "pending");
-			await createOutboxEntry("file-multi-status-1", "processing");
-			await createOutboxEntry("file-multi-status-1", "completed");
+			await createOutboxEntry(
+				upload._id.toString(),
+				"file-multi-status-1",
+				"pending",
+			);
+			await createOutboxEntry(
+				upload._id.toString(),
+				"file-multi-status-1",
+				"processing",
+			);
+			await createOutboxEntry(
+				upload._id.toString(),
+				"file-multi-status-1",
+				"completed",
+			);
 
 			await getUploadsController(mockReq as never, mockRes as never);
 
@@ -163,12 +188,92 @@ describe("getUploadsController", () => {
 			);
 		});
 
+		it("should return latest parseStatus with same processId and delayed completion", async () => {
+			// This test reproduces the real production scenario where:
+			// - All outbox entries share the same processId (event-sourcing pattern)
+			// - The completed entry is created much later (hours after initial entries)
+			const upload = await createUpload("file-delayed-completion");
+			const processId = "shared-process-id-delayed";
+
+			// Create entries with realistic timestamps - completed is ~3 hours later
+			const baseTime = new Date("2025-12-05T19:02:03.485Z");
+			await OutboxModel.create({
+				processId,
+				type: "file_upload",
+				uploadId: upload._id,
+				fileId: "file-delayed-completion",
+				userId: testUserId,
+				fileType: "PDF",
+				status: "pending",
+				createdAt: baseTime,
+				updatedAt: baseTime,
+			});
+
+			await OutboxModel.create({
+				processId,
+				type: "file_upload",
+				uploadId: upload._id,
+				fileId: "file-delayed-completion",
+				userId: testUserId,
+				fileType: "PDF",
+				status: "sending",
+				createdAt: new Date("2025-12-05T19:02:03.605Z"),
+				updatedAt: new Date("2025-12-05T19:02:03.605Z"),
+			});
+
+			await OutboxModel.create({
+				processId,
+				type: "file_upload",
+				uploadId: upload._id,
+				fileId: "file-delayed-completion",
+				userId: testUserId,
+				fileType: "PDF",
+				status: "processing",
+				createdAt: new Date("2025-12-05T19:02:03.939Z"),
+				updatedAt: new Date("2025-12-05T19:02:03.939Z"),
+			});
+
+			// Completed entry created ~3 hours later
+			await OutboxModel.create({
+				processId,
+				type: "file_upload",
+				uploadId: upload._id,
+				fileId: "file-delayed-completion",
+				userId: testUserId,
+				fileType: "PDF",
+				status: "completed",
+				createdAt: new Date("2025-12-05T21:55:19.885Z"),
+				updatedAt: new Date("2025-12-05T21:55:19.885Z"),
+			});
+
+			await getUploadsController(mockReq as never, mockRes as never);
+
+			expect(jsonMock).toHaveBeenCalledWith(
+				expect.objectContaining({
+					uploads: expect.arrayContaining([
+						expect.objectContaining({
+							fileId: "file-delayed-completion",
+							parseStatus: "completed",
+						}),
+					]),
+				}),
+			);
+		});
+
 		it("should return correct parseStatus for multiple uploads", async () => {
-			await createUpload("file-mix-1");
-			await createUpload("file-mix-2");
+			const upload1 = await createUpload("file-mix-1");
+			const upload2 = await createUpload("file-mix-2");
 			await createUpload("file-mix-3");
-			await createOutboxEntry("file-mix-1", "completed");
-			await createOutboxEntry("file-mix-2", "processing");
+			await createOutboxEntry(
+				upload1._id.toString(),
+				"file-mix-1",
+				"completed",
+			);
+			await createOutboxEntry(
+				upload2._id.toString(),
+				"file-mix-2",
+				"processing",
+			);
 			// file-mix-3 has no outbox entry
 
 			await getUploadsController(mockReq as never, mockRes as never);
@@ -193,7 +298,7 @@ describe("getUploadsController", () => {
 	});
 
 	describe("filtering", () => {
-		it("should return uploaded, deduplicated, and pending files but not failed", async () => {
+		it("should return all uploads except deleted-by-user", async () => {
 			await createUpload("file-uploaded", "uploaded");
 			await createUpload("file-dedup", "deduplicated");
 			await createUpload("file-pending", "pending");
@@ -207,7 +312,7 @@ describe("getUploadsController", () => {
 			expect(fileIds).toContain("file-uploaded");
 			expect(fileIds).toContain("file-dedup");
 			expect(fileIds).toContain("file-pending");
-			expect(fileIds).not.toContain("file-failed");
+			expect(fileIds).toContain("file-failed");
 		});
 	});
 

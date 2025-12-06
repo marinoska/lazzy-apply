@@ -1,6 +1,8 @@
+import type { FileUploadStatus, ParseStatus } from "@lazyapply/types";
 import type { ClientSession, Schema } from "mongoose";
 
 import { createLogger } from "@/app/logger.js";
+import { OUTBOX_MODEL_NAME } from "@/outbox/outbox.types.js";
 import type {
 	CreatePendingUploadParams,
 	FileUploadDocument,
@@ -60,6 +62,32 @@ export type ResolveAndClaimCanonicalParams = {
 	userId: string;
 };
 
+export type GetUploadsWithParseStatusParams = {
+	userId: string;
+	limit: number;
+	offset: number;
+	sortBy: "createdAt" | "updatedAt";
+	sortOrder: "asc" | "desc";
+};
+
+export type UploadWithParseStatus = {
+	_id: string;
+	fileId: string;
+	originalFilename: string;
+	contentType: string;
+	status: string;
+	size?: number;
+	isCanonical: boolean;
+	createdAt: Date;
+	updatedAt: Date;
+	parseStatus: ParseStatus;
+};
+
+export type GetUploadsWithParseStatusResult = {
+	uploads: UploadWithParseStatus[];
+	total: number;
+};
+
 export type CanonicalResolutionResult =
 	| {
 			action: "become_canonical";
@@ -108,6 +136,10 @@ export type FileUploadStatics = {
 		params: ResolveAndClaimCanonicalParams,
 		session: ClientSession,
 	): Promise<CanonicalResolutionResult>;
+	getUploadsWithParseStatus(
+		this: FileUploadModelWithStatics,
+		params: GetUploadsWithParseStatusParams,
+	): Promise<GetUploadsWithParseStatusResult>;
 };
 
 export type FileUploadModelWithStatics = FileUploadModelBase &
@@ -249,5 +281,73 @@ export const registerFileUploadStatics = (
 			action: "deduplicate",
 			canonicalUpload: canonical,
 		};
+	};
+
+	schema.statics.getUploadsWithParseStatus = async function (params) {
+		const { userId, limit, offset, sortBy, sortOrder } = params;
+
+		const deletedStatus: FileUploadStatus = "deleted-by-user";
+
+		const [result] = await this.aggregate<{
+			uploads: UploadWithParseStatus[];
+			total: number;
+		}>([
+			{
+				$match: {
+					userId,
+					status: { $ne: deletedStatus },
+				},
+			},
+			{
+				$facet: {
+					uploads: [
+						{ $sort: { [sortBy]: sortOrder === "desc" ? -1 : 1 } },
+						{ $skip: offset },
+						{ $limit: limit },
+						{
+							$lookup: {
+								from: OUTBOX_MODEL_NAME,
+								localField: "_id",
+								foreignField: "uploadId",
+								as: "outboxEntries",
+								pipeline: [
+									{ $sort: { createdAt: -1 } },
+									{ $limit: 1 },
+									{ $project: { status: 1 } },
+								],
+							},
+						},
+						{
+							$project: {
+								_id: { $toString: "$_id" },
+								fileId: 1,
+								originalFilename: 1,
+								contentType: 1,
+								status: 1,
+								size: 1,
+								isCanonical: 1,
+								createdAt: 1,
+								updatedAt: 1,
+								parseStatus: {
+									$ifNull: [
+										{ $arrayElemAt: ["$outboxEntries.status", 0] },
+										"pending",
+									],
+								},
+							},
+						},
+					],
+					count: [{ $count: "total" }],
+				},
+			},
+			{
+				$project: {
+					uploads: 1,
+					total: { $ifNull: [{ $arrayElemAt: ["$count.total", 0] }, 0] },
+				},
+			},
+		]);
+
+		return result ?? { uploads: [], total: 0 };
 	};
 };

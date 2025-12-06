@@ -9,6 +9,7 @@ export default defineConfig({
 		env: {
 			NODE_ENV: "test",
 			HOST: "localhost",
+			IS_LOCAL: "false",
 			MONGO_CONNECTION: "mongodb://localhost:27017/test",
 			LOG_LEVEL: "silent",
 			ALLOWED_ORIGINS: "http://localhost:3000",

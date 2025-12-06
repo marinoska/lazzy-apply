@@ -46,7 +46,7 @@ const outboxSchema = new Schema<TOutbox, OutboxModel, OutboxMethods>(
 			immutable: true,
 		},
 		uploadId: {
-			type: String,
+			type: Schema.Types.ObjectId,
 			required: true,
 			index: true,
 			immutable: true,

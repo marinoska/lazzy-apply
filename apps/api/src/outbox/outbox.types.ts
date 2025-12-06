@@ -1,5 +1,5 @@
 import type { FileUploadContentType, TokenUsage } from "@lazyapply/types";
-import type { Document, Model } from "mongoose";
+import type { Document, Model, Types } from "mongoose";
 
 export type OutboxStatus =
 	| "pending"
@@ -17,7 +17,7 @@ export type TOutbox = {
 	processId: string;
 	type: OutboxType;
 	status: OutboxStatus;
-	uploadId: string; // MongoDB _id from file_uploads
+	uploadId: Types.ObjectId;
 	fileId: string; // R2 storage filename
 	userId: string;
 	fileType: FileUploadContentType;
@@ -33,10 +33,12 @@ export type TOutbox = {
 	updatedAt: Date;
 };
 
-export type CreateOutboxParams = Pick<
-	TOutbox,
-	"processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType"
->;
+export type CreateOutboxParams = Omit<
+	Pick<TOutbox, "processId" | "type" | "fileId" | "userId" | "fileType">,
+	never
+> & {
+	uploadId: Types.ObjectId | string;
+};
 
 export type OutboxMethods = Record<string, never>;
 

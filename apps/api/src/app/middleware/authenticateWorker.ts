@@ -1,6 +1,6 @@
 import { secureCompare } from "@lazyapply/utils";
 import type { NextFunction, Request, Response } from "express";
-import { env, getEnv } from "@/app/env.js";
+import { env } from "@/app/env.js";
 import { Forbidden, Unauthorized } from "@/app/errors.js";
 import { createLogger } from "@/app/logger.js";
 
@@ -12,7 +12,7 @@ const log = createLogger("authenticateWorker");
  * In development, this check is skipped since Wrangler doesn't send the header.
  */
 function validateWorkerUrl(req: Request): void {
-	if (getEnv("IS_LOCAL") === "true") {
+	if (env.isLocal) {
 		log.debug({}, "Skipping CF-Worker validation in local mode");
 		return;
 	}
@@ -63,11 +63,7 @@ export const authenticateWorker = async (
 		throw new Unauthorized("Missing worker authentication header");
 	}
 
-	const workerSecret = getEnv("WORKER_SECRET");
-	if (!workerSecret) {
-		log.error({}, "WORKER_SECRET is not configured");
-		throw new Error("WORKER_SECRET is not configured");
-	}
+	const workerSecret = env.WORKER_SECRET;
 
 	if (!secureCompare(authHeader, workerSecret)) {
 		log.warn({}, "Invalid worker authentication token");

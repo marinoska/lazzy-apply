@@ -28,6 +28,7 @@ export async function uploadFile(file: File): Promise<UploadResponse> {
 export type { UploadResponse as CompleteUploadResponse };
 
 export type UploadDTO = {
+	_id: string;
 	fileId: string;
 	originalFilename: string;
 	contentType: "PDF" | "DOCX";
@@ -49,6 +50,7 @@ export type UploadState =
 
 export interface GetUploadsResponse {
 	uploads: UploadDTO[];
+	selectedUploadId: string | null;
 	total: number;
 	limit: number;
 	offset: number;
@@ -100,4 +102,26 @@ export async function classifyFormFields(
 	request: AutofillRequest,
 ): Promise<ClassifiedField[]> {
 	return sendApiRequest<ClassifiedField[]>("POST", "/autofill", request);
+}
+
+// Preferences types
+export interface UpdateSelectedUploadRequest {
+	selectedUploadId: string | null;
+}
+
+export interface UpdateSelectedUploadResponse {
+	selectedUploadId: string | null;
+}
+
+/**
+ * Update selected upload preference
+ */
+export async function updateSelectedUpload(
+	selectedUploadId: string | null,
+): Promise<UpdateSelectedUploadResponse> {
+	return sendApiRequest<UpdateSelectedUploadResponse>(
+		"PATCH",
+		"/preferences/selected-upload",
+		{ selectedUploadId } satisfies UpdateSelectedUploadRequest,
+	);
 }

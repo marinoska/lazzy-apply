@@ -14,6 +14,10 @@ import {
 	updateOutboxStatus,
 } from "./outbox/updateOutboxStatus.controller.js";
 import {
+	updateSelectedUploadBodySchema,
+	updateSelectedUploadController,
+} from "./preferences/preferences.controller.js";
+import {
 	deleteUploadController,
 	deleteUploadParamsSchema,
 } from "./uploads/deleteUpload.controller.js";
@@ -102,6 +106,12 @@ export const registerRoutes = (app: Express) => {
 		"/autofill",
 		validateRequest({ body: classifyFormFieldsBodySchema }),
 		autofill,
+	);
+
+	userRouter.patch(
+		"/preferences/selected-upload",
+		validateRequest({ body: updateSelectedUploadBodySchema }),
+		updateSelectedUploadController,
 	);
 
 	app.use("/api", publicRouter);

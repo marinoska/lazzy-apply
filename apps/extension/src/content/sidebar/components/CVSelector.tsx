@@ -206,7 +206,9 @@ export function CVSelector() {
 		);
 	}
 
-	if (activeUploads.length === 0 && failedUploads.length === 0) {
+	const otherCVCount = activeUploads.length + failedUploads.length;
+
+	if (!otherCVCount && !selectedUpload) {
 		return null;
 	}
 
@@ -221,12 +223,14 @@ export function CVSelector() {
 				/>
 			)}
 
-			<OtherUploads
-				otherUploads={[...activeUploads, ...failedUploads]}
-				isExpanded={isExpanded}
-				onToggleExpanded={() => setIsExpanded((prev) => !prev)}
-				onSelect={setSelectedUpload}
-			/>
+			{otherCVCount > 0 && (
+				<OtherUploads
+					otherUploads={[...activeUploads, ...failedUploads]}
+					isExpanded={isExpanded}
+					onToggleExpanded={() => setIsExpanded((prev) => !prev)}
+					onSelect={setSelectedUpload}
+				/>
+			)}
 		</Stack>
 	);
 }

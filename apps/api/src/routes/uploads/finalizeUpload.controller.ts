@@ -118,7 +118,7 @@ export const finalizeUploadController = async (
 					processId,
 					type: "file_upload",
 					status: "pending",
-					uploadId: pendingUpload._id.toString(),
+					uploadId: pendingUpload._id,
 					fileId,
 					userId: pendingUpload.userId,
 					fileType: pendingUpload.contentType,

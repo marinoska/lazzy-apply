@@ -49,6 +49,7 @@ export const useUploadsQuery = (params: GetUploadsParams = {}) => {
 		queryKey: uploadsKeys.list(params),
 		queryFn: async () => getUploads(params),
 		retry: TIMES_THREE,
+		refetchOnWindowFocus: true,
 		refetchInterval: (query) =>
 			getPollInterval(query.state.data, query.state.dataUpdatedAt),
 		throwOnError: (error) => {

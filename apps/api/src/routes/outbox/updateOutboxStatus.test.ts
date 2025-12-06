@@ -1,5 +1,6 @@
 import type { FileUploadContentType, ParsedCVData } from "@lazyapply/types";
 import type { Request, Response } from "express";
+import mongoose from "mongoose";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CVDataModel } from "@/cvData/cvData.model.js";
 import { OutboxModel } from "@/outbox/outbox.model.js";
@@ -24,12 +25,13 @@ describe("Update Outbox Status", () => {
 
 	describe("Completed Status with Transaction", () => {
 		it("should create completed outbox entry and save CV data in transaction", async () => {
+			const uploadId = new mongoose.Types.ObjectId();
 			// Create outbox entry
 			const _outbox = await OutboxModel.create({
 				processId: "test-process-txn-1",
 				type: "file_upload",
 				status: "processing",
-				uploadId: "upload-id-txn-1",
+				uploadId,
 				fileId: "test-file-txn-1",
 				userId: "test-user-txn-1",
 				fileType: "PDF" as FileUploadContentType,
@@ -93,11 +95,12 @@ describe("Update Outbox Status", () => {
 		});
 
 		it("should reject completed status without data", async () => {
+			const uploadId = new mongoose.Types.ObjectId();
 			await OutboxModel.create({
 				processId: "test-process-no-data",
 				type: "file_upload",
 				status: "pending",
-				uploadId: "upload-id-no-data",
+				uploadId,
 				fileId: "test-file-no-data",
 				userId: "test-user-no-data",
 				fileType: "DOCX" as FileUploadContentType,
@@ -126,11 +129,12 @@ describe("Update Outbox Status", () => {
 		});
 
 		it("should save all ParsedCVData fields correctly", async () => {
+			const uploadId = new mongoose.Types.ObjectId();
 			await OutboxModel.create({
 				processId: "test-process-full-data",
 				type: "file_upload",
 				status: "processing",
-				uploadId: "upload-id-full",
+				uploadId,
 				fileId: "test-file-full",
 				userId: "test-user-full",
 				fileType: "PDF" as FileUploadContentType,
@@ -202,11 +206,9 @@ describe("Update Outbox Status", () => {
 
 			await updateOutboxStatus(mockReq, mockRes);
 
-			const cvData = await CVDataModel.findOne(
-				{ uploadId: "upload-id-full" },
-				null,
-				{ skipOwnershipEnforcement: true },
-			);
+			const cvData = await CVDataModel.findOne({ uploadId }, null, {
+				skipOwnershipEnforcement: true,
+			});
 			expect(cvData).toBeDefined();
 			expect(cvData?.personal.fullName).toBe("Full Name Test");
 			expect(cvData?.personal.nationality).toBe("US");
@@ -222,11 +224,12 @@ describe("Update Outbox Status", () => {
 
 	describe("Failed Status", () => {
 		it("should create failed outbox entry with error message", async () => {
+			const uploadId = new mongoose.Types.ObjectId();
 			await OutboxModel.create({
 				processId: "test-process-failed",
 				type: "file_upload",
 				status: "processing",
-				uploadId: "upload-id-failed",
+				uploadId,
 				fileId: "test-file-failed",
 				userId: "test-user-failed",
 				fileType: "PDF",
@@ -252,22 +255,21 @@ describe("Update Outbox Status", () => {
 			expect(latestEntry.error).toBe("Processing failed due to invalid format");
 
 			// Verify no CV data was created
-			const cvData = await CVDataModel.findOne(
-				{ uploadId: "test-file-failed" },
-				null,
-				{ skipOwnershipEnforcement: true },
-			);
+			const cvData = await CVDataModel.findOne({ uploadId }, null, {
+				skipOwnershipEnforcement: true,
+			});
 			expect(cvData).toBeNull();
 		});
 	});
 
 	describe("Not-a-CV Status", () => {
 		it("should create not-a-cv outbox entry", async () => {
+			const uploadId = new mongoose.Types.ObjectId();
 			await OutboxModel.create({
 				processId: "test-process-not-a-cv",
 				type: "file_upload",
 				status: "processing",
-				uploadId: "upload-id-not-a-cv",
+				uploadId,
 				fileId: "test-file-not-a-cv",
 				userId: "test-user-not-a-cv",
 				fileType: "PDF",
@@ -299,11 +301,9 @@ describe("Update Outbox Status", () => {
 			expect(latestEntry.totalTokens).toBe(150);
 
 			// Verify no CV data was created
-			const cvData = await CVDataModel.findOne(
-				{ uploadId: "upload-id-not-a-cv" },
-				null,
-				{ skipOwnershipEnforcement: true },
-			);
+			const cvData = await CVDataModel.findOne({ uploadId }, null, {
+				skipOwnershipEnforcement: true,
+			});
 			expect(cvData).toBeNull();
 
 			// Verify response
