@@ -1,8 +1,8 @@
-import type { Request, Response } from "express";
-
-import { createLogger } from "@/app/logger.js";
-import type { AutofillRequest, AutofillResponse } from "@lazyapply/types";
 import { autofillRequestSchema } from "@lazyapply/schemas";
+import type { AutofillRequest, AutofillResponse } from "@lazyapply/types";
+import type { Request, Response } from "express";
+import { Unauthorized } from "@/app/errors.js";
+import { createLogger } from "@/app/logger.js";
 import { ClassificationManager } from "./classification.manager.js";
 
 const logger = createLogger("autofill");
@@ -13,11 +13,20 @@ export async function autofill(
 	req: Request<unknown, AutofillResponse, AutofillRequest>,
 	res: Response<AutofillResponse>,
 ): Promise<void> {
+	const user = req.user;
+	if (!user) {
+		throw new Unauthorized("Missing authenticated user");
+	}
+
 	const { form, fields } = req.body;
 
 	logger.info({ formHash: form.formHash }, "Processing form");
 
-	const classificationManager = new ClassificationManager(form, fields);
+	const classificationManager = new ClassificationManager(
+		form,
+		fields,
+		user.id,
+	);
 	const { response, fromCache } = await classificationManager.process();
 
 	if (fromCache) {

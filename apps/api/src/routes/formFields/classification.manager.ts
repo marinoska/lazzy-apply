@@ -1,30 +1,37 @@
 import type {
 	AutofillResponse,
+	AutofillResponseItem,
 	Field,
 	FormFieldRef,
 	FormInput,
+	ParsedCVData,
 } from "@lazyapply/types";
 import { createLogger } from "@/app/logger.js";
+import { CVDataModel } from "@/cvData/index.js";
 import {
 	FormFieldModel,
 	FormModel,
 	type TForm,
 	type TFormField,
 } from "@/formFields/index.js";
+import { PreferencesModel } from "@/preferences/index.js";
 
 import {
 	classifyFieldsWithAI,
+	extractValueByPath,
+	isPathInCVData,
 	persistNewFormAndFields,
 } from "./services/index.js";
 
 const logger = createLogger("classification.manager");
 
 /**
- * Builds autofill response from stored fields
+ * Builds autofill response from stored fields, enriched with CV data values
  */
 function buildResponseFromFields(
 	fields: (TFormField | FormFieldRef)[],
 	inputFields: Field[],
+	cvData: ParsedCVData | null,
 ): AutofillResponse {
 	const fieldsMap = new Map(fields.map((f) => [f.hash, f]));
 	const response: AutofillResponse = {};
@@ -32,12 +39,28 @@ function buildResponseFromFields(
 	for (const inputField of inputFields) {
 		const field = fieldsMap.get(inputField.hash);
 		if (field) {
-			response[inputField.hash] = {
+			const pathFound = isPathInCVData(field.classification);
+			const item: AutofillResponseItem = {
 				fieldId: inputField.field.id,
 				fieldName: inputField.field.name,
 				path: field.classification,
-				...(field.linkType && { linkType: field.linkType }),
+				pathFound,
 			};
+
+			if (field.linkType) {
+				item.linkType = field.linkType;
+			}
+
+			// Extract value from CV data if path exists in CV structure
+			if (isPathInCVData(field.classification) && cvData) {
+				item.value = extractValueByPath(
+					cvData,
+					field.classification,
+					field.linkType,
+				);
+			}
+
+			response[inputField.hash] = item;
 		} else {
 			logger.error({ hash: inputField.hash }, "Field hash not found");
 		}
@@ -65,12 +88,40 @@ export class ClassificationManager {
 	private inputFieldsMap: Map<string, Field>;
 	private existingFields: TFormField[] = [];
 	private fieldsToClassify: Field[] = [];
+	private cvData: ParsedCVData | null = null;
 
 	constructor(
 		readonly formInput: FormInput,
 		inputFields: Field[],
+		private readonly userId: string,
 	) {
 		this.inputFieldsMap = new Map(inputFields.map((f) => [f.hash, f]));
+	}
+
+	/**
+	 * Load CV data from user's selected upload
+	 */
+	private async loadCVData() {
+		const preferences = await PreferencesModel.findByUserId(this.userId);
+		if (!preferences?.selectedUploadId) {
+			logger.error({ userId: this.userId }, "No selected upload found");
+			return;
+		}
+
+		const cvData = await CVDataModel.findByUploadId(
+			preferences.selectedUploadId.toString(),
+			this.userId,
+		);
+		if (!cvData) {
+			logger.error(
+				{ uploadId: preferences.selectedUploadId },
+				"CV data not found for selected upload",
+			);
+			return;
+		}
+
+		this.cvData = cvData.toObject();
+		logger.info({ uploadId: preferences.selectedUploadId }, "CV data loaded");
 	}
 
 	private async loadForm() {
@@ -114,7 +165,9 @@ export class ClassificationManager {
 	}
 
 	public async process() {
-		await this.loadForm();
+		// Load CV data in parallel with form lookup
+		await Promise.all([this.loadForm(), this.loadCVData()]);
+
 		if (this.existingForm) {
 			logger.info("Form found in DB, returning cached data");
 
@@ -122,6 +175,7 @@ export class ClassificationManager {
 				response: buildResponseFromFields(
 					this.existingForm.fields,
 					Array.from(this.inputFieldsMap.values()),
+					this.cvData,
 				),
 				fromCache: true,
 			};
@@ -138,6 +192,7 @@ export class ClassificationManager {
 				response: buildResponseFromFields(
 					this.existingFields,
 					Array.from(this.inputFieldsMap.values()),
+					this.cvData,
 				),
 				fromCache: true,
 			};
@@ -156,6 +211,7 @@ export class ClassificationManager {
 		const result = buildResponseFromFields(
 			[...this.existingFields, ...classifiedFields],
 			Array.from(this.inputFieldsMap.values()),
+			this.cvData,
 		);
 
 		// Persist form with all field refs, but only insert newly classified fields

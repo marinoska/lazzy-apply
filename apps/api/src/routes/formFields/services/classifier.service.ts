@@ -2,7 +2,7 @@ import { openai } from "@ai-sdk/openai";
 import {
 	type ClassifiedField,
 	type Field,
-	FORM_FIELD_PATHS,
+	FORM_FIELD_PATH_MAP,
 	type FormFieldPath,
 	type TokenUsage,
 } from "@lazyapply/types";
@@ -10,37 +10,23 @@ import { generateText } from "ai";
 import { env } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
 
-const CLASSIFICATION_PROMPT = `You are a strict classifier for job application form fields.
+/**
+ * Generates the valid paths section of the prompt from FORM_FIELD_PATH_MAP
+ */
+function generateValidPathsSection(): string {
+	return Object.entries(FORM_FIELD_PATH_MAP)
+		.map(([path, description]) => `- "${path}" - ${description}`)
+		.join("\n");
+}
+
+const CLASSIFICATION_PROMPT_HEADER = `You are a strict classifier for job application form fields.
 
 Your goal is to map each HTML form field to a path in our ParsedCVData structure.
 
 RETURN JSON ONLY. NO explanations. If uncertain → return "unknown".
 
 VALID PATHS (use exactly these strings):
-- "personal.fullName" - Full name field
-- "personal.email" - Email address
-- "personal.phone" - Phone number
-- "personal.location" - City, address, or location
-- "personal.nationality" - Nationality or citizenship
-- "personal.rightToWork" - Right to work / visa status
-- "links" - Any URL/link field (LinkedIn, GitHub, portfolio, website, etc.)
-- "headline" - Professional headline/title (e.g., "Senior Software Engineer", "Product Manager")
-- "summary" - Professional summary, about me, bio
-- "experience" - Work experience, job history, responsibilities
-- "education" - Education, degrees, schools
-- "certifications" - Certifications, licenses, courses
-- "languages" - Language skills
-- "extras.drivingLicense" - Driving license
-- "extras.workPermit" - Work permit
-- "extras.willingToRelocate" - Relocation willingness
-- "extras.remotePreference" - Remote work preference
-- "extras.noticePeriod" - Notice period
-- "extras.availability" - Start date, availability
-- "extras.salaryExpectation" - Salary expectation
-- "resume_upload" - CV/Resume file upload
-- "cover_letter" - Cover letter text or upload
-- "motivation_text" - Why us / Why you / Motivation letter
-- "unknown" - Cannot determine
+${generateValidPathsSection()}
 
 INPUT FORMAT:
 [
@@ -80,9 +66,11 @@ If a field accepts multiple types, return MULTIPLE objects with the SAME hash:
   { "hash": "abc", "path": "cover_letter" },
 ]
 
-CLASSIFY THE FOLLOWING FIELDS:`;
+`;
 
-const VALID_PATHS = new Set<string>(FORM_FIELD_PATHS);
+const CLASSIFICATION_PROMPT = `${CLASSIFICATION_PROMPT_HEADER}CLASSIFY THE FOLLOWING FIELDS:`;
+
+const VALID_PATHS = new Set<string>(Object.keys(FORM_FIELD_PATH_MAP));
 
 const logger = createLogger("classifier.service");
 

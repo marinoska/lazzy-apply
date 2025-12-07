@@ -155,48 +155,66 @@ export type TokenUsage = {
 };
 
 /**
- * Form field classification paths matching ParsedCVData structure.
- * For links, the LLM determines the link type dynamically.
+ * CV Data paths with descriptions - single source of truth
+ * These paths exist in ParsedCVData and can be auto-filled from CV
  */
-export const FORM_FIELD_PATHS = [
-	// Personal info
-	"personal.fullName",
-	"personal.email",
-	"personal.phone",
-	"personal.location",
-	"personal.nationality",
-	"personal.rightToWork",
-	// Links - type is determined by LLM (linkedin, github, portfolio, behance, etc.)
-	"links",
-	// Headline
-	"headline",
-	// Summary
-	"summary",
-	// Experience
-	"experience",
-	// Education
-	"education",
-	// Certifications
-	"certifications",
-	// Languages
-	"languages",
-	// Extras
-	"extras.drivingLicense",
-	"extras.workPermit",
-	"extras.willingToRelocate",
-	"extras.remotePreference",
-	"extras.noticePeriod",
-	"extras.availability",
-	"extras.salaryExpectation",
-	// Special fields (not in ParsedCVData but needed for forms)
-	"resume_upload",
-	"cover_letter",
-	"motivation_text",
-	// Fallback
-	"unknown",
-] as const;
+export const CV_DATA_PATH_MAP = {
+	"personal.fullName": "Full name field",
+	"personal.email": "Email address",
+	"personal.phone": "Phone number",
+	"personal.location": "City, address, or location",
+	"personal.nationality": "Nationality or citizenship",
+	"personal.rightToWork": "Right to work / visa status",
+	links: "Any URL/link field (LinkedIn, GitHub, portfolio, website, etc.)",
+	headline: "Professional headline/title (e.g., 'Senior Software Engineer')",
+	summary: "Professional summary, about me, bio",
+	experience: "Work experience, job history, responsibilities",
+	education: "Education, degrees, schools",
+	certifications: "Certifications, licenses, courses",
+	languages: "Language skills",
+	"extras.drivingLicense": "Driving license",
+	"extras.workPermit": "Work permit",
+	"extras.willingToRelocate": "Relocation willingness",
+	"extras.remotePreference": "Remote work preference",
+	"extras.noticePeriod": "Notice period",
+	"extras.availability": "Start date, availability",
+	"extras.salaryExpectation": "Salary expectation",
+} as const;
 
-export type FormFieldPath = (typeof FORM_FIELD_PATHS)[number];
+export type CVDataPath = keyof typeof CV_DATA_PATH_MAP;
+
+/** Array of CV data paths for iteration */
+export const CV_DATA_PATHS = Object.keys(CV_DATA_PATH_MAP) as CVDataPath[];
+
+/**
+ * Inferred paths with descriptions - not in ParsedCVData, require user input
+ */
+export const INFERRED_PATH_MAP = {
+	resume_upload: "CV/Resume file upload",
+	cover_letter: "Cover letter text or upload",
+	motivation_text: "Motivation letter, why us, why you",
+	unknown: "Cannot determine",
+} as const;
+
+export type InferredPath = keyof typeof INFERRED_PATH_MAP;
+
+/** Array of inferred paths for iteration */
+export const INFERRED_PATHS = Object.keys(INFERRED_PATH_MAP) as InferredPath[];
+
+/**
+ * All form field paths (CV data + inferred)
+ */
+export const FORM_FIELD_PATH_MAP = {
+	...CV_DATA_PATH_MAP,
+	...INFERRED_PATH_MAP,
+} as const;
+
+export type FormFieldPath = keyof typeof FORM_FIELD_PATH_MAP;
+
+/** Array of all form field paths for iteration */
+export const FORM_FIELD_PATHS = Object.keys(
+	FORM_FIELD_PATH_MAP,
+) as FormFieldPath[];
 
 /**
  * Field data used for classification (stored in DB)
@@ -340,6 +358,10 @@ export interface AutofillResponseItem {
 	path: FormFieldPath;
 	/** For "links" classification, the detected link type */
 	linkType?: string;
+	/** Whether the path exists in ParsedCVData (vs inferred paths like motivation_text) */
+	pathFound: boolean;
+	/** The actual value from CV data if pathFound is true */
+	value?: string | null;
 }
 
 /**

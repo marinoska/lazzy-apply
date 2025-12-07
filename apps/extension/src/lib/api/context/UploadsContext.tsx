@@ -118,7 +118,7 @@ export function UploadsProvider({
 				selectedUpload: selected,
 			};
 		}, [uploads, data?.selectedUploadId]);
-	console.log({ selectedUpload });
+
 	const value = useMemo<UploadsContextValue>(
 		() => ({
 			uploads,
@@ -148,7 +148,6 @@ export function UploadsProvider({
 			refetch,
 		],
 	);
-	console.log({ value });
 	return (
 		<UploadsContext.Provider value={value}>{children}</UploadsContext.Provider>
 	);

@@ -1,5 +1,5 @@
-import type { Document, Model } from "mongoose";
 import type { ParsedCVData } from "@lazyapply/types";
+import type { Document, Model } from "mongoose";
 
 export const CV_DATA_MODEL_NAME = "cv_data" as const;
 
@@ -28,6 +28,7 @@ export type CVDataStatics = {
 	findByUploadId(
 		this: CVDataModelWithStatics,
 		uploadId: string,
+		userId: string,
 	): Promise<CVDataDocument | null>;
 	findByUserId(
 		this: CVDataModelWithStatics,

@@ -40,6 +40,7 @@ vi.mock("./services/classifier.service.js", () => ({
 
 describe("autofill.controller", () => {
 	let mockReq: {
+		user: { id: string };
 		body: {
 			form: {
 				formHash: string;
@@ -77,6 +78,7 @@ describe("autofill.controller", () => {
 		};
 
 		mockReq = {
+			user: { id: "test-user-id" },
 			body: {
 				form: {
 					formHash: "test-form-hash",
@@ -126,6 +128,7 @@ describe("autofill.controller", () => {
 					fieldId: "email-field",
 					fieldName: "email",
 					path: "personal.email",
+					pathFound: true,
 				},
 			});
 		});

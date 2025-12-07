@@ -1,12 +1,11 @@
 import type { Schema } from "mongoose";
-
+import type { CVDataModel } from "./cvData.model.js";
 import type {
+	CreateCVDataParams,
 	CVDataMethods,
 	CVDataStatics,
-	CreateCVDataParams,
 	TCVData,
 } from "./cvData.types.js";
-import type { CVDataModel } from "./cvData.model.js";
 
 export function registerCVDataStatics(
 	schema: Schema<TCVData, CVDataModel, CVDataMethods>,
@@ -15,8 +14,11 @@ export function registerCVDataStatics(
 		return this.create(payload);
 	};
 
-	schema.statics.findByUploadId = async function (uploadId: string) {
-		return this.findOne({ uploadId });
+	schema.statics.findByUploadId = async function (
+		uploadId: string,
+		userId: string,
+	) {
+		return this.findOne({ uploadId }).setOptions({ userId });
 	};
 
 	schema.statics.findByUserId = async function (userId: string) {

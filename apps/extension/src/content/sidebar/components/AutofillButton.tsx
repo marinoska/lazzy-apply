@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { classifyFormFields } from "@/lib/api/api.js";
 import { useUploads } from "@/lib/api/context/UploadsContext.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
+import { fillFormFields } from "../../scanner/formFiller.js";
 
 interface AutofillButtonProps {
 	onError: (message: string) => void;
@@ -68,6 +69,16 @@ export function AutofillButton({ onError }: AutofillButtonProps) {
 			const classifications = await classifyFormFields(request);
 
 			console.log("[AutofillButton] Classification results:", classifications);
+
+			// Fill form fields with the values from CV data
+			const { filled, skipped } = fillFormFields(
+				classifications,
+				applicationForm.fieldElements,
+			);
+
+			console.log(
+				`[AutofillButton] Filled ${filled} fields, skipped ${skipped}`,
+			);
 		} catch (error) {
 			console.error("[AutofillButton] Error:", error);
 			onError("Something went wrong. Please try again.");

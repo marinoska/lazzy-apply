@@ -1,6 +1,6 @@
 import type {
 	AutofillRequest,
-	ClassifiedField,
+	AutofillResponse,
 	FileUploadContentType,
 	FileUploadStatus,
 	ParseStatus,
@@ -97,11 +97,12 @@ export async function deleteUpload(
 
 /**
  * Classify form fields using AI to map them to CV data paths
+ * Returns a record keyed by field hash with classification and CV data values
  */
 export async function classifyFormFields(
 	request: AutofillRequest,
-): Promise<ClassifiedField[]> {
-	return sendApiRequest<ClassifiedField[]>("POST", "/autofill", request);
+): Promise<AutofillResponse> {
+	return sendApiRequest<AutofillResponse>("POST", "/autofill", request);
 }
 
 // Preferences types

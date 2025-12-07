@@ -9,9 +9,10 @@ import { uploadsKeys } from "../queryKeys.js";
 
 const AGGRESSIVE_POLL_INTERVAL_MS = 1500;
 const MODERATE_POLL_INTERVAL_MS = 5000;
-const SLOW_POLL_INTERVAL_MS = 30000;
+const SLOW_POLL_INTERVAL_MS = 60000;
 const AGGRESSIVE_POLL_DURATION_MS = 5 * 60 * 1000; // 5 min
 const MODERATE_POLL_DURATION_MS = 10 * 60 * 1000; // 10 min total
+const MAX_POLL_DURATION_MS = 20 * 60 * 1000; // 20 min - stop polling
 
 const hasUnfinishedUploads = (
 	data: GetUploadsResponse | undefined,
@@ -35,6 +36,9 @@ const getPollInterval = (
 	if (!hasUnfinishedUploads(data)) return false;
 
 	const pollingDuration = Date.now() - dataUpdatedAt;
+	if (pollingDuration > MAX_POLL_DURATION_MS) {
+		return false;
+	}
 	if (pollingDuration > MODERATE_POLL_DURATION_MS) {
 		return SLOW_POLL_INTERVAL_MS;
 	}

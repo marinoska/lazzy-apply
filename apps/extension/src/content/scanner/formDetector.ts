@@ -72,6 +72,8 @@ export interface ApplicationForm {
 	formDetected: boolean;
 	totalFields: number;
 	fields: FormField[];
+	/** Map of field hash to DOM element for filling */
+	fieldElements: Map<string, HTMLElement>;
 	formElement?: {
 		id: string | null;
 		name: string | null;
@@ -124,6 +126,7 @@ export function detectApplicationForm(): ApplicationForm | null {
 	if (!scanElement) return null;
 
 	const fields: FormField[] = [];
+	const fieldElements = new Map<string, HTMLElement>();
 	const inputs = scanElement.querySelectorAll(
 		"input:not([type='hidden']):not([type='checkbox']):not([type='radio']), textarea",
 	);
@@ -136,8 +139,14 @@ export function detectApplicationForm(): ApplicationForm | null {
 		// Only include fields that have an id
 		if (field.id) {
 			fields.push(field);
+			fieldElements.set(field.hash, el as HTMLElement);
 		}
 	});
+
+	// Require minimum visible fields after extraction
+	if (fields.length < MIN_FORM_FIELDS) {
+		return null;
+	}
 
 	const formElement =
 		scanElement.tagName === "FORM"
@@ -157,17 +166,52 @@ export function detectApplicationForm(): ApplicationForm | null {
 		formDetected: true,
 		totalFields: fields.length,
 		fields,
+		fieldElements,
 		formElement,
 	};
 }
 
+/** Minimum number of input fields required for a job application form */
+const MIN_FORM_FIELDS = 3;
+
+/** Job-specific label patterns that indicate an application form */
+const JOB_LABEL_PATTERNS = [
+	/resume/i,
+	/\bcv\b/i,
+	/cover\s*letter/i,
+	/sponsorship/i,
+	/work\s*authorization/i,
+	/notice\s*period/i,
+	/salary/i,
+	/portfolio/i,
+	/linkedin/i,
+	/github/i,
+];
+
+/** Job-specific field name patterns */
+const JOB_FIELD_NAMES = ["resume", "cv", "coverletter", "cover_letter"];
+
+/** Job-specific submit button patterns */
+const JOB_SUBMIT_PATTERNS = [
+	/submit\s*application/i,
+	/apply\s*now/i,
+	/apply\s*for\s*(this\s*)?(job|position|role)/i,
+	/send\s*application/i,
+	/^apply$/i, // Exact match only - avoids "Apply filters", "Apply changes"
+];
+
 /**
  * Determines if an element is likely a job application form.
- * Requires at least one strong job-specific signal to avoid false positives.
- * Generic forms (contact, support, medical) won't match because they lack job signals.
+ * Requires BOTH:
+ * 1. At least MIN_FORM_FIELDS input fields
+ * 2. At least one job-specific signal (label pattern, field name, or resume/CV upload)
  */
 function isLikelyApplicationForm(element: Element): boolean {
-	let hasStrongJobSignal = false;
+	// Requirement 1: Form must have at least MIN_FORM_FIELDS input fields
+	const inputs = element.querySelectorAll("input, textarea, select");
+	if (inputs.length < MIN_FORM_FIELDS) {
+		return false;
+	}
 
 	// Collect label text for keyword analysis
 	const labels = Array.from(element.querySelectorAll("label")).map(
@@ -176,13 +220,24 @@ function isLikelyApplicationForm(element: Element): boolean {
 	const allLabelText = labels.join(" ");
 
 	// Collect field names
-	const inputs = element.querySelectorAll("input, textarea, select");
 	const fieldNames = Array.from(inputs).map((input) =>
 		(input.getAttribute("name") || "").toLowerCase(),
 	);
 	const allFieldNames = fieldNames.join(" ");
 
-	// Strong signal 1: Resume/CV file upload explicitly labeled
+	// Requirement 2: Must have at least one job-specific signal
+
+	// Signal: Job-specific patterns in labels
+	if (JOB_LABEL_PATTERNS.some((pattern) => pattern.test(allLabelText))) {
+		return true;
+	}
+
+	// Signal: Job-specific field names
+	if (JOB_FIELD_NAMES.some((name) => allFieldNames.includes(name))) {
+		return true;
+	}
+
+	// Signal: Resume/CV file upload explicitly labeled
 	const fileInputs = element.querySelectorAll('input[type="file"]');
 	for (const fileInput of fileInputs) {
 		const name = fileInput.getAttribute("name")?.toLowerCase() ?? "";
@@ -199,57 +254,24 @@ function isLikelyApplicationForm(element: Element): boolean {
 			label.includes("cv") ||
 			label.includes("cover letter")
 		) {
-			hasStrongJobSignal = true;
-			break;
+			return true;
 		}
 	}
 
-	// Strong signal 2: Job-specific patterns in labels
-	const jobPatterns = [
-		/resume/i,
-		/\bcv\b/i,
-		/cover\s*letter/i,
-		/sponsorship/i,
-		/work\s*authorization/i,
-		/notice\s*period/i,
-		/experience/i,
-		/salary/i,
-		/portfolio/i,
-		/linkedin/i,
-		/github/i,
-	];
-
-	if (jobPatterns.some((pattern) => pattern.test(allLabelText))) {
-		hasStrongJobSignal = true;
-	}
-
-	// Strong signal 3: Job-specific field names
-	const jobFieldNames = ["resume", "cv", "coverletter", "cover_letter"];
-	if (jobFieldNames.some((name) => allFieldNames.includes(name))) {
-		hasStrongJobSignal = true;
-	}
-
-	// Strong signal 4: Job-specific submit buttons
+	// Signal: Job-specific submit button text
 	const buttons = Array.from(
 		element.querySelectorAll("button, input[type='submit']"),
 	);
-	const buttonTexts = buttons.map((b) => b.textContent?.toLowerCase() || "");
-	const jobSubmitKeywords = [
-		"submit application",
-		"apply now",
-		"apply for",
-		"apply",
-		"send application",
-	];
+	const buttonTexts = buttons.map(
+		(b) => b.textContent?.trim().toLowerCase() || "",
+	);
 	if (
-		buttonTexts.some((text) =>
-			jobSubmitKeywords.some((keyword) => text.includes(keyword)),
-		)
+		buttonTexts.some((text) => JOB_SUBMIT_PATTERNS.some((p) => p.test(text)))
 	) {
-		hasStrongJobSignal = true;
+		return true;
 	}
 
-	return hasStrongJobSignal;
+	return false;
 }
 
 /**
