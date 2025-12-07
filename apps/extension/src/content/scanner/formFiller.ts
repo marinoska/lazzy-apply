@@ -1,6 +1,44 @@
 import type { AutofillResponse } from "@lazyapply/types";
 
 /**
+ * Set value on input/textarea and trigger React-compatible events
+ */
+function setInputValue(
+	element: HTMLInputElement | HTMLTextAreaElement,
+	value: string,
+): void {
+	// Focus first
+	element.focus();
+
+	// Get the native value setter
+	const prototype =
+		element instanceof HTMLInputElement
+			? HTMLInputElement.prototype
+			: HTMLTextAreaElement.prototype;
+	const nativeSetter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+
+	if (nativeSetter) {
+		nativeSetter.call(element, value);
+	}
+
+	// Dispatch InputEvent which React 16+ listens to
+	element.dispatchEvent(
+		new InputEvent("input", {
+			bubbles: true,
+			cancelable: true,
+			inputType: "insertText",
+			data: value,
+		}),
+	);
+
+	// Also dispatch change event
+	element.dispatchEvent(new Event("change", { bubbles: true }));
+
+	// Blur to trigger validation
+	element.blur();
+}
+
+/**
  * Fill form fields with values from the autofill response
  * @returns Number of fields successfully filled
  */
@@ -86,9 +124,8 @@ function fillInputElement(element: HTMLInputElement, value: string): boolean {
 		return true;
 	}
 
-	// Standard text-like inputs
-	element.value = value;
-	dispatchInputEvents(element);
+	// Standard text-like inputs - use setInputValue for React compatibility
+	setInputValue(element, value);
 	return true;
 }
 
@@ -96,8 +133,7 @@ function fillTextAreaElement(
 	element: HTMLTextAreaElement,
 	value: string,
 ): boolean {
-	element.value = value;
-	dispatchInputEvents(element);
+	setInputValue(element, value);
 	return true;
 }
 
@@ -153,24 +189,6 @@ function dispatchInputEvents(element: HTMLElement): void {
 	// Dispatch events that frameworks typically listen to
 	element.dispatchEvent(new Event("input", { bubbles: true }));
 	element.dispatchEvent(new Event("change", { bubbles: true }));
-
-	// For React, we may need to trigger the native setter
-	if (
-		element instanceof HTMLInputElement ||
-		element instanceof HTMLTextAreaElement
-	) {
-		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-			element instanceof HTMLInputElement
-				? HTMLInputElement.prototype
-				: HTMLTextAreaElement.prototype,
-			"value",
-		)?.set;
-
-		if (nativeInputValueSetter) {
-			nativeInputValueSetter.call(element, element.value);
-			element.dispatchEvent(new Event("input", { bubbles: true }));
-		}
-	}
 
 	// Blur to trigger validation
 	element.blur();

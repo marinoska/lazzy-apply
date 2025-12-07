@@ -15,7 +15,6 @@ import {
 	type TFormField,
 } from "@/formFields/index.js";
 import { PreferencesModel } from "@/preferences/index.js";
-
 import {
 	classifyFieldsWithAI,
 	extractValueByPath,
@@ -105,7 +104,7 @@ export class ClassificationManager {
 		const preferences = await PreferencesModel.findByUserId(this.userId);
 		if (!preferences?.selectedUploadId) {
 			logger.error({ userId: this.userId }, "No selected upload found");
-			return;
+			throw new Error("No selected upload found");
 		}
 
 		const cvData = await CVDataModel.findByUploadId(
@@ -117,7 +116,7 @@ export class ClassificationManager {
 				{ uploadId: preferences.selectedUploadId },
 				"CV data not found for selected upload",
 			);
-			return;
+			throw new Error("CV data not found for selected upload");
 		}
 
 		this.cvData = cvData.toObject();
