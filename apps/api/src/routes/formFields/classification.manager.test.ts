@@ -1,5 +1,6 @@
 import type { Field, FormInput } from "@lazyapply/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CVDataModel } from "@/cvData/index.js";
 import { FormFieldModel, FormModel } from "@/formFields/index.js";
 import { ClassificationManager } from "./classification.manager.js";
 import type { EnrichedClassifiedField } from "./services/classifier.service.js";
@@ -26,17 +27,43 @@ vi.mock("./services/classifier.service.js", () => ({
 	}),
 }));
 
+const TEST_UPLOAD_ID = "507f1f77bcf86cd799439011";
+
 describe("classification.manager", () => {
 	beforeEach(async () => {
 		await FormModel.deleteMany({});
 		await FormFieldModel.deleteMany({});
+		await CVDataModel.deleteMany({}).setOptions({
+			skipOwnershipEnforcement: true,
+		});
+
+		// Create test CV data
+		await CVDataModel.createCVData({
+			uploadId: TEST_UPLOAD_ID,
+			userId: "test-user-id",
+			personal: {
+				fullName: "Test User",
+				email: "test@example.com",
+				phone: null,
+				location: null,
+			},
+			links: [],
+			headline: null,
+			summary: null,
+			experience: [],
+			education: [],
+			certifications: [],
+			languages: [],
+			extras: {},
+			rawText: "Test CV",
+		});
+
 		vi.clearAllMocks();
 	});
 
-	const createTestField = (hash: string, id: string, name: string): Field => ({
+	const createTestField = (hash: string, name: string): Field => ({
 		hash: hash,
 		field: {
-			id,
 			tag: "input",
 			type: "text",
 			name,
@@ -71,14 +98,19 @@ describe("classification.manager", () => {
 			});
 
 			const formInput = createTestFormInput();
-			const fields = [createTestField("hash-1", "field-1", "email")];
+			const fields = [createTestField("hash-1", "email")];
 
-			const manager = new ClassificationManager(formInput, fields);
+			const manager = new ClassificationManager(
+				formInput,
+				fields,
+				"test-user-id",
+				TEST_UPLOAD_ID,
+			);
 			const result = await manager.process();
 
 			expect(result.fromCache).toBe(true);
 			expect(Object.keys(result.response)).toHaveLength(1);
-			expect(result.response["hash-1"].fieldId).toBe("field-1");
+			expect(result.response["hash-1"].fieldName).toBe("email");
 			expect(result.response["hash-1"].path).toBe("personal.email");
 		});
 
@@ -100,9 +132,14 @@ describe("classification.manager", () => {
 				pageUrl: "https://example.com/new-page",
 				action: null,
 			};
-			const fields = [createTestField("hash-1", "field-1", "email")];
+			const fields = [createTestField("hash-1", "email")];
 
-			const manager = new ClassificationManager(formInput, fields);
+			const manager = new ClassificationManager(
+				formInput,
+				fields,
+				"test-user-id",
+				TEST_UPLOAD_ID,
+			);
 			await manager.process();
 
 			const updatedForm = await FormModel.findOne({
@@ -133,11 +170,16 @@ describe("classification.manager", () => {
 			formInput.fields = [{ hash: "hash-1" }, { hash: "hash-2" }];
 
 			const fields = [
-				createTestField("hash-1", "field-1", "email"),
-				createTestField("hash-2", "field-2", "phone"),
+				createTestField("hash-1", "email"),
+				createTestField("hash-2", "phone"),
 			];
 
-			const manager = new ClassificationManager(formInput, fields);
+			const manager = new ClassificationManager(
+				formInput,
+				fields,
+				"test-user-id",
+				TEST_UPLOAD_ID,
+			);
 			const result = await manager.process();
 
 			expect(result.fromCache).toBe(false);
@@ -151,9 +193,14 @@ describe("classification.manager", () => {
 
 		it("should classify all fields when none are cached", async () => {
 			const formInput = createTestFormInput();
-			const fields = [createTestField("hash-1", "field-1", "email")];
+			const fields = [createTestField("hash-1", "email")];
 
-			const manager = new ClassificationManager(formInput, fields);
+			const manager = new ClassificationManager(
+				formInput,
+				fields,
+				"test-user-id",
+				TEST_UPLOAD_ID,
+			);
 			const result = await manager.process();
 
 			expect(result.fromCache).toBe(false);

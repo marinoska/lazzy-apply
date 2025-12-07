@@ -233,10 +233,9 @@ export interface ClassificationFieldData {
 
 /**
  * Field data object containing all field metadata
+ * Note: id was removed as name is the reliable identifier for form fields
  */
-export interface FieldData extends ClassificationFieldData {
-	id: string;
-}
+export type FieldData = ClassificationFieldData;
 
 /**
  * Field collection document - stored per unique field hash
@@ -283,11 +282,10 @@ export interface Form {
 }
 
 /**
- * Form field input for classification (legacy, kept for compatibility)
+ * Form field input for classification
  */
 export interface FormFieldInput {
 	hash: string;
-	id: string;
 	tag: string;
 	type: string;
 	name: string | null;
@@ -332,6 +330,8 @@ export interface FormInputWithClassification {
 export interface AutofillRequest {
 	form: FormInput;
 	fields: Field[];
+	/** Selected upload ID to use for CV data lookup */
+	selectedUploadId: string;
 }
 
 /**
@@ -350,8 +350,6 @@ export interface ClassifiedField {
  * Autofill response item returned to the client (keyed by field hash)
  */
 export interface AutofillResponseItem {
-	/** Original field ID from DOM */
-	fieldId: string;
 	/** Original field name from DOM */
 	fieldName: string | null;
 	/** Classification path in ParsedCVData structure */

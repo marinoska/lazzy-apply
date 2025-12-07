@@ -49,7 +49,6 @@ describe("formDetector", () => {
 			expect(emailField).toMatchObject({
 				tag: "input",
 				type: "email",
-				id: "email",
 				name: "email",
 				label: "Email",
 				isFileUpload: false,
@@ -65,6 +64,9 @@ describe("formDetector", () => {
           <label for="coverLetter">Cover Letter</label>
           <input type="file" id="coverLetter" name="coverLetter" accept=".pdf" />
           
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required />
+          
           <button type="submit">Submit Application</button>
         </form>
       `;
@@ -72,13 +74,12 @@ describe("formDetector", () => {
 			const result = detectApplicationForm();
 
 			expect(result).not.toBeNull();
-			expect(result?.totalFields).toBe(2);
+			expect(result?.totalFields).toBe(3);
 
 			const resumeField = result?.fields.find((f) => f.name === "resume");
 			expect(resumeField).toMatchObject({
 				tag: "input",
 				type: "file",
-				id: "resume",
 				name: "resume",
 				label: "Resume/CV",
 				isFileUpload: true,
@@ -97,8 +98,14 @@ describe("formDetector", () => {
 		it("should not extract select inputs", () => {
 			container.innerHTML = `
         <form>
+          <label for="resume">Resume</label>
+          <input type="file" id="resume" name="resume" accept=".pdf" />
+          
           <label for="name">Name</label>
           <input type="text" id="name" name="name" />
+          
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" />
           
           <label for="experience">Years of Experience</label>
           <select id="experience" name="experience" required>
@@ -128,6 +135,9 @@ describe("formDetector", () => {
           <label for="resume">Resume</label>
           <input type="file" id="resume" name="resume" accept=".pdf" />
           
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required />
+          
           <label for="bio">Tell us about yourself</label>
           <textarea id="bio" name="bio" placeholder="Your background..." required></textarea>
           
@@ -143,7 +153,6 @@ describe("formDetector", () => {
 			expect(bioField).toMatchObject({
 				tag: "textarea",
 				type: "textarea",
-				id: "bio",
 				name: "bio",
 				label: "Tell us about yourself",
 				placeholder: "Your background...",
@@ -156,6 +165,9 @@ describe("formDetector", () => {
         <form action="/application">
           <label for="resume">Resume/CV</label>
           <input type="file" id="resume" name="resume" accept=".pdf,.doc" />
+          
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required />
           
           <label for="linkedin">LinkedIn Profile</label>
           <input 
@@ -177,7 +189,6 @@ describe("formDetector", () => {
 			const linkedinField = result?.fields.find((f) => f.name === "linkedin");
 
 			expect(linkedinField).toMatchObject({
-				id: "linkedin",
 				name: "linkedin",
 				label: "LinkedIn Profile",
 				description: "Enter your full LinkedIn profile URL",
@@ -683,7 +694,6 @@ describe("formDetector", () => {
 			expect(nameField).toMatchObject({
 				tag: "input",
 				type: "text",
-				id: "input-candidate.name-5",
 				name: "candidate.name",
 				label: expect.stringContaining("Full name"),
 				placeholder: "Full name",
@@ -696,7 +706,6 @@ describe("formDetector", () => {
 			expect(emailField).toMatchObject({
 				tag: "input",
 				type: "email",
-				id: "input-candidate.email-6",
 				name: "candidate.email",
 				label: expect.stringContaining("Email address"),
 				placeholder: "Your email address",
@@ -709,7 +718,6 @@ describe("formDetector", () => {
 			expect(phoneField).toMatchObject({
 				tag: "input",
 				type: "tel",
-				id: "input-candidate.phone-7",
 				name: "candidate.phone",
 				label: "Phone number",
 				placeholder: "Your phone number",
@@ -721,7 +729,6 @@ describe("formDetector", () => {
 			expect(cvField).toMatchObject({
 				tag: "input",
 				type: "file",
-				id: "input-candidate.cv-11",
 				name: "candidate.cv",
 				label: "CV or resume",
 				isFileUpload: true,
@@ -734,7 +741,6 @@ describe("formDetector", () => {
 			expect(coverLetterField).toMatchObject({
 				tag: "input",
 				type: "file",
-				id: "input-candidate.coverLetterFile-17",
 				name: "candidate.coverLetterFile",
 				label: "Cover letter",
 				isFileUpload: true,
@@ -892,6 +898,9 @@ describe("formDetector", () => {
           <form action="/apply">
             <label for="resume">Resume/CV</label>
             <input type="file" id="resume" name="resume" accept=".pdf" />
+            
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" required />
             
             <label for="email">Email</label>
             <input type="email" id="email" name="email" required />

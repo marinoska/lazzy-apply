@@ -56,10 +56,9 @@ function calculateFormHash(fields: FormField[]): string {
 
 export interface FormField {
 	hash: string;
-	id: string | null;
 	tag: string;
 	type: string;
-	name: string | null;
+	name: string;
 	label: string | null;
 	placeholder: string | null;
 	description: string | null;
@@ -131,17 +130,28 @@ export function detectApplicationForm(): ApplicationForm | null {
 		"input:not([type='hidden']):not([type='checkbox']):not([type='radio']), textarea",
 	);
 
-	inputs.forEach((el) => {
-		const field = extractFieldInfo(
+	for (const el of inputs) {
+		const partial = extractFieldInfo(
 			el as HTMLInputElement | HTMLTextAreaElement,
 			scanElement,
 		);
-		// Only include fields that have an id
-		if (field.id) {
+		// Only include fields that have a name (required for form submission)
+		if (partial.name && partial.hash) {
+			const field: FormField = {
+				hash: partial.hash,
+				tag: partial.tag ?? "input",
+				type: partial.type ?? "text",
+				name: partial.name,
+				label: partial.label ?? null,
+				placeholder: partial.placeholder ?? null,
+				description: partial.description ?? null,
+				isFileUpload: partial.isFileUpload ?? false,
+				accept: partial.accept,
+			};
 			fields.push(field);
 			fieldElements.set(field.hash, el as HTMLElement);
 		}
-	});
+	}
 
 	// Require minimum visible fields after extraction
 	if (fields.length < MIN_FORM_FIELDS) {
@@ -298,7 +308,7 @@ function getAssociatedLabel(
 function extractFieldInfo(
 	el: HTMLInputElement | HTMLTextAreaElement,
 	form: Element,
-): FormField {
+): Partial<FormField> {
 	const field: Partial<FormField> = {};
 
 	field.tag = el.tagName.toLowerCase();
@@ -306,11 +316,10 @@ function extractFieldInfo(
 		el.getAttribute("type") ||
 		(el.tagName === "TEXTAREA" ? "textarea" : "text");
 
-	field.id = el.id || null;
-	field.name = el.name || null;
+	field.name = el.name || undefined;
 	field.placeholder = (el as HTMLInputElement).placeholder || null;
 
-	// Find label
+	// Find label - try label[for] first, then closest label
 	let label: string | null = null;
 
 	if (el.id) {
@@ -361,5 +370,5 @@ function extractFieldInfo(
 	// Calculate field hash from stable identifying properties
 	field.hash = createPrefixedHash(gethashContent(field));
 
-	return field as FormField;
+	return field;
 }

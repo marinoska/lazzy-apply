@@ -20,9 +20,9 @@ export const jobApplicationSchema = z.object({
 
 /**
  * Field data schema - metadata for a form field
+ * Note: id was removed as name is the reliable identifier for form fields
  */
 export const fieldDataSchema = z.object({
-	id: z.string(),
 	tag: z.string(),
 	type: z.string(),
 	name: z.string().nullable(),
@@ -93,16 +93,18 @@ export const formInputWithClassificationSchema = z.object({
 export const autofillRequestSchema = z.object({
 	form: formInputSchema,
 	fields: z.array(fieldSchema).min(1),
+	selectedUploadId: z.string().min(1),
 });
 
 /**
  * Autofill response item schema
  */
 export const autofillResponseItemSchema = z.object({
-	fieldId: z.string(),
 	fieldName: z.string().nullable(),
 	path: z.string(),
 	linkType: z.string().optional(),
+	pathFound: z.boolean(),
+	value: z.string().nullable().optional(),
 });
 
 /**

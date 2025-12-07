@@ -14,7 +14,6 @@ import {
 	type TForm,
 	type TFormField,
 } from "@/formFields/index.js";
-import { PreferencesModel } from "@/preferences/index.js";
 import {
 	classifyFieldsWithAI,
 	extractValueByPath,
@@ -40,7 +39,6 @@ function buildResponseFromFields(
 		if (field) {
 			const pathFound = isPathInCVData(field.classification);
 			const item: AutofillResponseItem = {
-				fieldId: inputField.field.id,
 				fieldName: inputField.field.name,
 				path: field.classification,
 				pathFound,
@@ -93,34 +91,29 @@ export class ClassificationManager {
 		readonly formInput: FormInput,
 		inputFields: Field[],
 		private readonly userId: string,
+		private readonly selectedUploadId: string,
 	) {
 		this.inputFieldsMap = new Map(inputFields.map((f) => [f.hash, f]));
 	}
 
 	/**
-	 * Load CV data from user's selected upload
+	 * Load CV data from the provided selectedUploadId
 	 */
 	private async loadCVData() {
-		const preferences = await PreferencesModel.findByUserId(this.userId);
-		if (!preferences?.selectedUploadId) {
-			logger.error({ userId: this.userId }, "No selected upload found");
-			throw new Error("No selected upload found");
-		}
-
 		const cvData = await CVDataModel.findByUploadId(
-			preferences.selectedUploadId.toString(),
+			this.selectedUploadId,
 			this.userId,
 		);
 		if (!cvData) {
 			logger.error(
-				{ uploadId: preferences.selectedUploadId },
+				{ uploadId: this.selectedUploadId },
 				"CV data not found for selected upload",
 			);
 			throw new Error("CV data not found for selected upload");
 		}
 
 		this.cvData = cvData.toObject();
-		logger.info({ uploadId: preferences.selectedUploadId }, "CV data loaded");
+		logger.info({ uploadId: this.selectedUploadId }, "CV data loaded");
 	}
 
 	private async loadForm() {

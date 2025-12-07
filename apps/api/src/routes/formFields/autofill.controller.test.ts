@@ -1,5 +1,6 @@
 import type { Field } from "@lazyapply/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CVDataModel } from "@/cvData/index.js";
 import { FormModel } from "@/formFields/form.model.js";
 import { FormFieldModel } from "@/formFields/formField.model.js";
 import { autofill } from "./autofill.controller.js";
@@ -38,6 +39,8 @@ vi.mock("./services/classifier.service.js", () => ({
 	}),
 }));
 
+const TEST_UPLOAD_ID = "507f1f77bcf86cd799439011";
+
 describe("autofill.controller", () => {
 	let mockReq: {
 		user: { id: string };
@@ -51,7 +54,6 @@ describe("autofill.controller", () => {
 			fields: Array<{
 				hash: string;
 				field: {
-					id: string;
 					tag: string;
 					type: string;
 					name: string | null;
@@ -62,6 +64,7 @@ describe("autofill.controller", () => {
 					accept: string | null;
 				};
 			}>;
+			selectedUploadId: string;
 		};
 	};
 	let mockRes: {
@@ -71,6 +74,31 @@ describe("autofill.controller", () => {
 	beforeEach(async () => {
 		await FormModel.deleteMany({});
 		await FormFieldModel.deleteMany({});
+		await CVDataModel.deleteMany({}).setOptions({
+			skipOwnershipEnforcement: true,
+		});
+
+		// Create test CV data
+		await CVDataModel.createCVData({
+			uploadId: TEST_UPLOAD_ID,
+			userId: "test-user-id",
+			personal: {
+				fullName: "Test User",
+				email: "test@example.com",
+				phone: null,
+				location: null,
+			},
+			links: [],
+			headline: null,
+			summary: null,
+			experience: [],
+			education: [],
+			certifications: [],
+			languages: [],
+			extras: {},
+			rawText: "Test CV",
+		});
+
 		vi.clearAllMocks();
 
 		mockRes = {
@@ -90,7 +118,6 @@ describe("autofill.controller", () => {
 					{
 						hash: "hash-1",
 						field: {
-							id: "email-field",
 							tag: "input",
 							type: "email",
 							name: "email",
@@ -102,6 +129,7 @@ describe("autofill.controller", () => {
 						},
 					},
 				],
+				selectedUploadId: TEST_UPLOAD_ID,
 			},
 		};
 	});
@@ -125,10 +153,10 @@ describe("autofill.controller", () => {
 
 			expect(mockRes.json).toHaveBeenCalledWith({
 				"hash-1": {
-					fieldId: "email-field",
 					fieldName: "email",
 					path: "personal.email",
 					pathFound: true,
+					value: "test@example.com",
 				},
 			});
 		});

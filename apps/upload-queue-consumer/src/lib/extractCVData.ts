@@ -151,6 +151,8 @@ IMPORTANT RULES:
 - If any field is missing or unclear → return null for that field.
 - Dates may remain in their original format.
 - The "links" list must classify each link using best-fit category ("linkedin", "portfolio", "github", "behance", "dribbble", "twitter", "website", "other").
+- Only extract a link when it contains a valid URL (must include http:// or https:// or a domain like ".com", ".io", ".net", etc.).
+- If the text only mentions a platform name (e.g., "LinkedIn", "Github", "Portfolio") without an actual URL, do NOT return it as a link.
 - "experience.description" must contain the full text of that job's responsibilities/achievements.
 - Never invent degrees, skills, certifications, or experience.
 - Return VALID JSON ONLY. No explanations. No comments. No markdown.

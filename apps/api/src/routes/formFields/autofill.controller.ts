@@ -18,14 +18,15 @@ export async function autofill(
 		throw new Unauthorized("Missing authenticated user");
 	}
 
-	const { form, fields } = req.body;
+	const { form, fields, selectedUploadId } = req.body;
 
-	logger.info({ formHash: form.formHash }, "Processing form");
+	logger.info({ formHash: form.formHash, selectedUploadId }, "Processing form");
 
 	const classificationManager = new ClassificationManager(
 		form,
 		fields,
 		user.id,
+		selectedUploadId,
 	);
 	const { response, fromCache } = await classificationManager.process();
 

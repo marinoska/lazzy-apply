@@ -33,14 +33,12 @@ describe("formFiller", () => {
 
 			const autofillResponse: AutofillResponse = {
 				"hash:firstname": {
-					fieldId: "firstname",
 					fieldName: "firstname",
 					path: "personal.fullName",
 					pathFound: true,
 					value: "John Doe",
 				},
 				"hash:email": {
-					fieldId: "email",
 					fieldName: "email",
 					path: "personal.email",
 					pathFound: true,
@@ -69,7 +67,6 @@ describe("formFiller", () => {
 
 			const autofillResponse: AutofillResponse = {
 				"hash:summary": {
-					fieldId: "summary",
 					fieldName: "summary",
 					path: "summary",
 					pathFound: true,
@@ -96,7 +93,6 @@ describe("formFiller", () => {
 
 			const autofillResponse: AutofillResponse = {
 				"hash:city": {
-					fieldId: "city",
 					fieldName: "city",
 					path: "personal.location",
 					pathFound: true,
@@ -124,7 +120,6 @@ describe("formFiller", () => {
 
 			const autofillResponse: AutofillResponse = {
 				"hash:postcode": {
-					fieldId: "postcode",
 					fieldName: "postcode",
 					path: "unknown",
 					pathFound: false,
@@ -142,7 +137,6 @@ describe("formFiller", () => {
 
 			const autofillResponse: AutofillResponse = {
 				"hash:missing": {
-					fieldId: "missing",
 					fieldName: "missing",
 					path: "personal.email",
 					pathFound: true,
@@ -173,7 +167,6 @@ describe("formFiller", () => {
 
 			const autofillResponse: AutofillResponse = {
 				"hash:test": {
-					fieldId: "test",
 					fieldName: "test",
 					path: "personal.fullName",
 					pathFound: true,
@@ -227,7 +220,6 @@ describe("formFiller", () => {
 
 			const autofillResponse: AutofillResponse = {
 				"hash:react": {
-					fieldId: "react-input",
 					fieldName: "react-input",
 					path: "personal.fullName",
 					pathFound: true,
@@ -259,7 +251,6 @@ describe("formFiller", () => {
 
 			const autofillResponse: AutofillResponse = {
 				"hash:resume": {
-					fieldId: "resume",
 					fieldName: "resume",
 					path: "resume_upload",
 					pathFound: true,

@@ -11,10 +11,9 @@ describe("persistence.service", () => {
 		await UsageModel.deleteMany({});
 	});
 
-	const createTestField = (hash: string, id: string, name: string): Field => ({
+	const createTestField = (hash: string, name: string): Field => ({
 		hash: hash,
 		field: {
-			id,
 			tag: "input",
 			type: "text",
 			name,
@@ -36,7 +35,7 @@ describe("persistence.service", () => {
 	describe("persistNewFormAndFields", () => {
 		it("should persist form and fields", async () => {
 			const formInput = createTestFormInput();
-			const field = createTestField("hash-1", "field-1", "email");
+			const field = createTestField("hash-1", "email");
 
 			const classifiedFields: EnrichedClassifiedField[] = [
 				{
@@ -97,7 +96,7 @@ describe("persistence.service", () => {
 				...createTestFormInput(),
 				action: null,
 			};
-			const field = createTestField("hash-1", "field-1", "email");
+			const field = createTestField("hash-1", "email");
 
 			const classifiedFields: EnrichedClassifiedField[] = [
 				{
@@ -141,12 +140,8 @@ describe("persistence.service", () => {
 				action: null,
 			};
 
-			const cachedField = createTestField(
-				"hash-cached",
-				"field-cached",
-				"email",
-			);
-			const newField = createTestField("hash-new", "field-new", "phone");
+			const cachedField = createTestField("hash-cached", "email");
+			const newField = createTestField("hash-new", "phone");
 
 			// Simulate cached field from DB (TFormField-like structure)
 			const cachedFieldFromDb = {

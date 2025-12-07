@@ -14,7 +14,7 @@ interface AutofillButtonProps {
 }
 
 export function AutofillButton({ onError }: AutofillButtonProps) {
-	const { hasUploads } = useUploads();
+	const { hasUploads, selectedUpload } = useUploads();
 	const [loading, setLoading] = useState(false);
 	const [formDetected, setFormDetected] = useState<boolean | null>(null);
 
@@ -24,7 +24,7 @@ export function AutofillButton({ onError }: AutofillButtonProps) {
 		setFormDetected(form !== null && form.fields.length > 0);
 	}, [hasUploads]);
 
-	if (!hasUploads) {
+	if (!hasUploads || !selectedUpload) {
 		return null;
 	}
 
@@ -43,7 +43,6 @@ export function AutofillButton({ onError }: AutofillButtonProps) {
 			const fields: Field[] = applicationForm.fields.map((field) => ({
 				hash: field.hash,
 				field: {
-					id: field.id ?? "",
 					tag: field.tag,
 					type: field.type,
 					name: field.name,
@@ -62,7 +61,11 @@ export function AutofillButton({ onError }: AutofillButtonProps) {
 				action: applicationForm.formElement?.action ?? null,
 			};
 
-			const request: AutofillRequest = { form, fields };
+			const request: AutofillRequest = {
+				form,
+				fields,
+				selectedUploadId: selectedUpload._id,
+			};
 
 			console.log("[AutofillButton] Sending autofill request:", request);
 

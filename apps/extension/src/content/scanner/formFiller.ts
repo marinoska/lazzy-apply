@@ -60,7 +60,7 @@ export function fillFormFields(
 		// Skip fields without values or where path wasn't found in CV data
 		if (!item.pathFound || item.value == null) {
 			console.log(
-				`[FormFiller] Skipping field ${item.fieldId}: pathFound=${item.pathFound}, hasValue=${item.value != null}`,
+				`[FormFiller] Skipping field ${item.fieldName ?? hash}: pathFound=${item.pathFound}, hasValue=${item.value != null}`,
 			);
 			skipped++;
 			continue;
@@ -69,10 +69,12 @@ export function fillFormFields(
 		const success = fillElement(element, item.value);
 		if (success) {
 			filled++;
-			console.log(`[FormFiller] Filled ${item.fieldId} with path ${item.path}`);
+			console.log(
+				`[FormFiller] Filled ${item.fieldName ?? hash} with path ${item.path}`,
+			);
 		} else {
 			skipped++;
-			console.warn(`[FormFiller] Failed to fill ${item.fieldId}`);
+			console.warn(`[FormFiller] Failed to fill ${item.fieldName ?? hash}`);
 		}
 	}
 
