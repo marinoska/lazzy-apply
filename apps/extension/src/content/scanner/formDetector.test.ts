@@ -1,21 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { detectApplicationForm } from "./formDetector.js";
 
 describe("formDetector", () => {
-  let container: HTMLDivElement;
+	let container: HTMLDivElement;
 
-  beforeEach(() => {
-    container = document.createElement("div");
-    document.body.appendChild(container);
-  });
+	beforeEach(() => {
+		container = document.createElement("div");
+		document.body.appendChild(container);
+	});
 
-  afterEach(() => {
-    document.body.removeChild(container);
-  });
+	afterEach(() => {
+		document.body.removeChild(container);
+	});
 
-  describe("detectApplicationForm", () => {
-    it("should detect a basic application form with standard fields", () => {
-      container.innerHTML = `
+	describe("detectApplicationForm", () => {
+		it("should detect a basic application form with standard fields", () => {
+			container.innerHTML = `
         <form id="application-form" action="/apply" method="POST">
           <label for="firstName">First Name</label>
           <input type="text" id="firstName" name="firstName" required />
@@ -33,31 +33,31 @@ describe("formDetector", () => {
         </form>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).not.toBeNull();
-      expect(result?.formDetected).toBe(true);
-      expect(result?.totalFields).toBe(4);
-      expect(result?.formElement).toEqual({
-        id: "application-form",
-        name: null,
-        action: expect.stringContaining("/apply"),
-        method: "post",
-      });
+			expect(result).not.toBeNull();
+			expect(result?.formDetected).toBe(true);
+			expect(result?.totalFields).toBe(4);
+			expect(result?.formElement).toEqual({
+				id: "application-form",
+				name: null,
+				action: expect.stringContaining("/apply"),
+				method: "post",
+			});
 
-      const emailField = result?.fields.find(f => f.name === "email");
-      expect(emailField).toMatchObject({
-        tag: "input",
-        type: "email",
-        id: "email",
-        name: "email",
-        label: "Email",
-        isFileUpload: false,
-      });
-    });
+			const emailField = result?.fields.find((f) => f.name === "email");
+			expect(emailField).toMatchObject({
+				tag: "input",
+				type: "email",
+				id: "email",
+				name: "email",
+				label: "Email",
+				isFileUpload: false,
+			});
+		});
 
-    it("should detect file upload fields with accept attribute", () => {
-      container.innerHTML = `
+		it("should detect file upload fields with accept attribute", () => {
+			container.innerHTML = `
         <form>
           <label for="resume">Resume/CV</label>
           <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" required />
@@ -69,31 +69,33 @@ describe("formDetector", () => {
         </form>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).not.toBeNull();
-      expect(result?.totalFields).toBe(2);
+			expect(result).not.toBeNull();
+			expect(result?.totalFields).toBe(2);
 
-      const resumeField = result?.fields.find(f => f.name === "resume");
-      expect(resumeField).toMatchObject({
-        tag: "input",
-        type: "file",
-        id: "resume",
-        name: "resume",
-        label: "Resume/CV",
-        isFileUpload: true,
-        accept: ".pdf,.doc,.docx",
-      });
+			const resumeField = result?.fields.find((f) => f.name === "resume");
+			expect(resumeField).toMatchObject({
+				tag: "input",
+				type: "file",
+				id: "resume",
+				name: "resume",
+				label: "Resume/CV",
+				isFileUpload: true,
+				accept: ".pdf,.doc,.docx",
+			});
 
-      const coverLetterField = result?.fields.find(f => f.name === "coverLetter");
-      expect(coverLetterField).toMatchObject({
-        isFileUpload: true,
-        accept: ".pdf",
-      });
-    });
+			const coverLetterField = result?.fields.find(
+				(f) => f.name === "coverLetter",
+			);
+			expect(coverLetterField).toMatchObject({
+				isFileUpload: true,
+				accept: ".pdf",
+			});
+		});
 
-    it("should not extract select inputs", () => {
-      container.innerHTML = `
+		it("should not extract select inputs", () => {
+			container.innerHTML = `
         <form>
           <label for="name">Name</label>
           <input type="text" id="name" name="name" />
@@ -108,18 +110,20 @@ describe("formDetector", () => {
         </form>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).not.toBeNull();
-      // Select should not be extracted
-      const experienceField = result?.fields.find(f => f.name === "experience");
-      expect(experienceField).toBeUndefined();
-      // But input should be
-      expect(result?.fields.find(f => f.name === "name")).toBeDefined();
-    });
+			expect(result).not.toBeNull();
+			// Select should not be extracted
+			const experienceField = result?.fields.find(
+				(f) => f.name === "experience",
+			);
+			expect(experienceField).toBeUndefined();
+			// But input should be
+			expect(result?.fields.find((f) => f.name === "name")).toBeDefined();
+		});
 
-    it("should extract textarea fields", () => {
-      container.innerHTML = `
+		it("should extract textarea fields", () => {
+			container.innerHTML = `
         <form action="/apply">
           <label for="resume">Resume</label>
           <input type="file" id="resume" name="resume" accept=".pdf" />
@@ -131,24 +135,24 @@ describe("formDetector", () => {
         </form>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).not.toBeNull();
-      const bioField = result?.fields.find(f => f.name === "bio");
-      
-      expect(bioField).toMatchObject({
-        tag: "textarea",
-        type: "textarea",
-        id: "bio",
-        name: "bio",
-        label: "Tell us about yourself",
-        placeholder: "Your background...",
-        isFileUpload: false,
-      });
-    });
+			expect(result).not.toBeNull();
+			const bioField = result?.fields.find((f) => f.name === "bio");
 
-    it("should extract aria labels and descriptions", () => {
-      container.innerHTML = `
+			expect(bioField).toMatchObject({
+				tag: "textarea",
+				type: "textarea",
+				id: "bio",
+				name: "bio",
+				label: "Tell us about yourself",
+				placeholder: "Your background...",
+				isFileUpload: false,
+			});
+		});
+
+		it("should extract aria labels and descriptions", () => {
+			container.innerHTML = `
         <form action="/application">
           <label for="resume">Resume/CV</label>
           <input type="file" id="resume" name="resume" accept=".pdf,.doc" />
@@ -167,21 +171,21 @@ describe("formDetector", () => {
         </form>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).not.toBeNull();
-      const linkedinField = result?.fields.find(f => f.name === "linkedin");
-      
-      expect(linkedinField).toMatchObject({
-        id: "linkedin",
-        name: "linkedin",
-        label: "LinkedIn Profile",
-        description: "Enter your full LinkedIn profile URL",
-      });
-    });
+			expect(result).not.toBeNull();
+			const linkedinField = result?.fields.find((f) => f.name === "linkedin");
 
-    it("should detect form without form tag (React-style)", () => {
-      container.innerHTML = `
+			expect(linkedinField).toMatchObject({
+				id: "linkedin",
+				name: "linkedin",
+				label: "LinkedIn Profile",
+				description: "Enter your full LinkedIn profile URL",
+			});
+		});
+
+		it("should detect form without form tag (React-style)", () => {
+			container.innerHTML = `
         <div class="application-container">
           <input type="text" id="firstName" name="firstName" placeholder="First Name" />
           <input type="text" id="lastName" name="lastName" placeholder="Last Name" />
@@ -191,16 +195,16 @@ describe("formDetector", () => {
         </div>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).not.toBeNull();
-      expect(result?.formDetected).toBe(true);
-      expect(result?.totalFields).toBe(4);
-      expect(result?.formElement).toBeUndefined();
-    });
+			expect(result).not.toBeNull();
+			expect(result?.formDetected).toBe(true);
+			expect(result?.totalFields).toBe(4);
+			expect(result?.formElement).toBeUndefined();
+		});
 
-    it("should handle labels wrapping inputs", () => {
-      container.innerHTML = `
+		it("should handle labels wrapping inputs", () => {
+			container.innerHTML = `
         <form action="/careers/apply">
           <label>
             First Name
@@ -219,31 +223,31 @@ describe("formDetector", () => {
         </form>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).not.toBeNull();
-      const firstNameField = result?.fields.find(f => f.name === "firstName");
-      const emailField = result?.fields.find(f => f.name === "email");
-      
-      expect(firstNameField?.label).toContain("First Name");
-      expect(emailField?.label).toContain("Email Address");
-    });
+			expect(result).not.toBeNull();
+			const firstNameField = result?.fields.find((f) => f.name === "firstName");
+			const emailField = result?.fields.find((f) => f.name === "email");
 
-    it("should return null when no form is present", () => {
-      container.innerHTML = `
+			expect(firstNameField?.label).toContain("First Name");
+			expect(emailField?.label).toContain("Email Address");
+		});
+
+		it("should return null when no form is present", () => {
+			container.innerHTML = `
         <div>
           <p>Just some text content</p>
           <input type="text" name="search" />
         </div>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).toBeNull();
-    });
+			expect(result).toBeNull();
+		});
 
-    it("should prioritize form with file upload when multiple forms exist", () => {
-      container.innerHTML = `
+		it("should prioritize form with file upload when multiple forms exist", () => {
+			container.innerHTML = `
         <form id="newsletter">
           <input type="email" id="newsletter-email" name="email" />
           <button>Subscribe</button>
@@ -257,15 +261,15 @@ describe("formDetector", () => {
         </form>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).not.toBeNull();
-      expect(result?.formElement?.id).toBe("application");
-      expect(result?.fields.some(f => f.isFileUpload)).toBe(true);
-    });
+			expect(result).not.toBeNull();
+			expect(result?.formElement?.id).toBe("application");
+			expect(result?.fields.some((f) => f.isFileUpload)).toBe(true);
+		});
 
-    it("should handle fields with no labels", () => {
-      container.innerHTML = `
+		it("should handle fields with no labels", () => {
+			container.innerHTML = `
         <form action="/apply">
           <label for="resume">Resume</label>
           <input type="file" id="resume" name="resume" accept=".pdf" />
@@ -276,17 +280,17 @@ describe("formDetector", () => {
         </form>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).not.toBeNull();
-      const unlabeledField = result?.fields.find(f => f.name === "unlabeled");
-      
-      expect(unlabeledField?.label).toBeNull();
-      expect(unlabeledField?.placeholder).toBe("Enter text");
-    });
+			expect(result).not.toBeNull();
+			const unlabeledField = result?.fields.find((f) => f.name === "unlabeled");
 
-    it("should detect common application keywords in labels", () => {
-      container.innerHTML = `
+			expect(unlabeledField?.label).toBeNull();
+			expect(unlabeledField?.placeholder).toBe("Enter text");
+		});
+
+		it("should detect common application keywords in labels", () => {
+			container.innerHTML = `
         <div>
           <label>Resume</label>
           <input type="file" name="resume" />
@@ -301,14 +305,14 @@ describe("formDetector", () => {
         </div>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).not.toBeNull();
-      expect(result?.formDetected).toBe(true);
-    });
+			expect(result).not.toBeNull();
+			expect(result?.formDetected).toBe(true);
+		});
 
-    it("should handle complex nested form structure", () => {
-      container.innerHTML = `
+		it("should handle complex nested form structure", () => {
+			container.innerHTML = `
         <form>
           <div class="section">
             <h3>Personal Information</h3>
@@ -334,22 +338,22 @@ describe("formDetector", () => {
         </form>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).not.toBeNull();
-      expect(result?.totalFields).toBe(3);
-      
-      const cvField = result?.fields.find(f => f.name === "cv");
-      expect(cvField).toMatchObject({
-        type: "file",
-        label: "CV/Resume",
-        isFileUpload: true,
-        accept: ".pdf",
-      });
-    });
+			expect(result).not.toBeNull();
+			expect(result?.totalFields).toBe(3);
 
-    it("should detect real-life Recruitee application form with all sections", () => {
-      container.innerHTML = `
+			const cvField = result?.fields.find((f) => f.name === "cv");
+			expect(cvField).toMatchObject({
+				type: "file",
+				label: "CV/Resume",
+				isFileUpload: true,
+				accept: ".pdf",
+			});
+		});
+
+		it("should detect real-life Recruitee application form with all sections", () => {
+			container.innerHTML = `
         <form id="offer-application-form" autocomplete="on" novalidate="" class="sc-1mqz0cx-5 bRCACm">
           <!-- Personal Information Section -->
           <section class="sc-1mqz0cx-0 crqiBE">
@@ -664,133 +668,227 @@ describe("formDetector", () => {
         </form>
       `;
 
-      const result = detectApplicationForm();
+			const result = detectApplicationForm();
 
-      expect(result).not.toBeNull();
-      expect(result?.formDetected).toBe(true);
-      expect(result?.formElement?.id).toBe("offer-application-form");
-      
-      // Should detect all visible input fields with ids (excluding hidden inputs, selects, and checkbox without id)
-      // 3 personal info + 2 file uploads + 7 questions (4 text + 3 textarea) = 12 visible fields with ids
-      expect(result?.fields.length).toBeGreaterThanOrEqual(12);
+			expect(result).not.toBeNull();
+			expect(result?.formDetected).toBe(true);
+			expect(result?.formElement?.id).toBe("offer-application-form");
 
-      // Test personal information fields
-      const nameField = result?.fields.find(f => f.name === "candidate.name");
-      expect(nameField).toMatchObject({
-        tag: "input",
-        type: "text",
-        id: "input-candidate.name-5",
-        name: "candidate.name",
-        label: expect.stringContaining("Full name"),
-        placeholder: "Full name",
-        isFileUpload: false,
-      });
+			// Should detect all visible input fields with ids (excluding hidden inputs, selects, and checkbox without id)
+			// 3 personal info + 2 file uploads + 7 questions (4 text + 3 textarea) = 12 visible fields with ids
+			expect(result?.fields.length).toBeGreaterThanOrEqual(12);
 
-      const emailField = result?.fields.find(f => f.name === "candidate.email");
-      expect(emailField).toMatchObject({
-        tag: "input",
-        type: "email",
-        id: "input-candidate.email-6",
-        name: "candidate.email",
-        label: expect.stringContaining("Email address"),
-        placeholder: "Your email address",
-        isFileUpload: false,
-      });
+			// Test personal information fields
+			const nameField = result?.fields.find((f) => f.name === "candidate.name");
+			expect(nameField).toMatchObject({
+				tag: "input",
+				type: "text",
+				id: "input-candidate.name-5",
+				name: "candidate.name",
+				label: expect.stringContaining("Full name"),
+				placeholder: "Full name",
+				isFileUpload: false,
+			});
 
-      const phoneField = result?.fields.find(f => f.name === "candidate.phone");
-      expect(phoneField).toMatchObject({
-        tag: "input",
-        type: "tel",
-        id: "input-candidate.phone-7",
-        name: "candidate.phone",
-        label: "Phone number",
-        placeholder: "Your phone number",
-        isFileUpload: false,
-      });
+			const emailField = result?.fields.find(
+				(f) => f.name === "candidate.email",
+			);
+			expect(emailField).toMatchObject({
+				tag: "input",
+				type: "email",
+				id: "input-candidate.email-6",
+				name: "candidate.email",
+				label: expect.stringContaining("Email address"),
+				placeholder: "Your email address",
+				isFileUpload: false,
+			});
 
-      // Test file upload fields
-      const cvField = result?.fields.find(f => f.name === "candidate.cv");
-      expect(cvField).toMatchObject({
-        tag: "input",
-        type: "file",
-        id: "input-candidate.cv-11",
-        name: "candidate.cv",
-        label: "CV or resume",
-        isFileUpload: true,
-        accept: expect.stringContaining("application/pdf"),
-      });
+			const phoneField = result?.fields.find(
+				(f) => f.name === "candidate.phone",
+			);
+			expect(phoneField).toMatchObject({
+				tag: "input",
+				type: "tel",
+				id: "input-candidate.phone-7",
+				name: "candidate.phone",
+				label: "Phone number",
+				placeholder: "Your phone number",
+				isFileUpload: false,
+			});
 
-      const coverLetterField = result?.fields.find(f => f.name === "candidate.coverLetterFile");
-      expect(coverLetterField).toMatchObject({
-        tag: "input",
-        type: "file",
-        id: "input-candidate.coverLetterFile-17",
-        name: "candidate.coverLetterFile",
-        label: "Cover letter",
-        isFileUpload: true,
-        accept: expect.stringContaining("application/pdf"),
-      });
+			// Test file upload fields
+			const cvField = result?.fields.find((f) => f.name === "candidate.cv");
+			expect(cvField).toMatchObject({
+				tag: "input",
+				type: "file",
+				id: "input-candidate.cv-11",
+				name: "candidate.cv",
+				label: "CV or resume",
+				isFileUpload: true,
+				accept: expect.stringContaining("application/pdf"),
+			});
 
-      // Test custom question fields
-      const availabilityField = result?.fields.find(f => 
-        f.name === "candidate.openQuestionAnswers.2593511.content"
-      );
-      expect(availabilityField).toMatchObject({
-        tag: "input",
-        type: "text",
-        label: expect.stringContaining("earliest possible date of availability"),
-        isFileUpload: false,
-      });
+			const coverLetterField = result?.fields.find(
+				(f) => f.name === "candidate.coverLetterFile",
+			);
+			expect(coverLetterField).toMatchObject({
+				tag: "input",
+				type: "file",
+				id: "input-candidate.coverLetterFile-17",
+				name: "candidate.coverLetterFile",
+				label: "Cover letter",
+				isFileUpload: true,
+				accept: expect.stringContaining("application/pdf"),
+			});
 
-      const salaryField = result?.fields.find(f => 
-        f.name === "candidate.openQuestionAnswers.2593512.content"
-      );
-      expect(salaryField).toMatchObject({
-        tag: "input",
-        type: "text",
-        label: expect.stringContaining("salary expectations"),
-        isFileUpload: false,
-      });
+			// Test custom question fields
+			const availabilityField = result?.fields.find(
+				(f) => f.name === "candidate.openQuestionAnswers.2593511.content",
+			);
+			expect(availabilityField).toMatchObject({
+				tag: "input",
+				type: "text",
+				label: expect.stringContaining(
+					"earliest possible date of availability",
+				),
+				isFileUpload: false,
+			});
 
-      // Test textarea fields
-      const whyEpilotField = result?.fields.find(f => 
-        f.name === "candidate.openQuestionAnswers.3352052.content"
-      );
-      expect(whyEpilotField).toMatchObject({
-        tag: "textarea",
-        type: "textarea",
-        label: expect.stringContaining("Why do you want to start at epilot"),
-        isFileUpload: false,
-      });
+			const salaryField = result?.fields.find(
+				(f) => f.name === "candidate.openQuestionAnswers.2593512.content",
+			);
+			expect(salaryField).toMatchObject({
+				tag: "input",
+				type: "text",
+				label: expect.stringContaining("salary expectations"),
+				isFileUpload: false,
+			});
 
-      const achievementField = result?.fields.find(f => 
-        f.name === "candidate.openQuestionAnswers.3352053.content"
-      );
-      expect(achievementField).toMatchObject({
-        tag: "textarea",
-        type: "textarea",
-        label: expect.stringContaining("achievement in your career"),
-        isFileUpload: false,
-      });
+			// Test textarea fields
+			const whyEpilotField = result?.fields.find(
+				(f) => f.name === "candidate.openQuestionAnswers.3352052.content",
+			);
+			expect(whyEpilotField).toMatchObject({
+				tag: "textarea",
+				type: "textarea",
+				label: expect.stringContaining("Why do you want to start at epilot"),
+				isFileUpload: false,
+			});
 
-      const principlesField = result?.fields.find(f => 
-        f.name === "candidate.openQuestionAnswers.4536168.content"
-      );
-      expect(principlesField).toMatchObject({
-        tag: "textarea",
-        type: "textarea",
-        label: expect.stringContaining("engineering principles"),
-        isFileUpload: false,
-      });
+			const achievementField = result?.fields.find(
+				(f) => f.name === "candidate.openQuestionAnswers.3352053.content",
+			);
+			expect(achievementField).toMatchObject({
+				tag: "textarea",
+				type: "textarea",
+				label: expect.stringContaining("achievement in your career"),
+				isFileUpload: false,
+			});
 
-      // Verify file upload detection worked
-      const fileUploadFields = result?.fields.filter(f => f.isFileUpload);
-      expect(fileUploadFields?.length).toBe(2);
-    });
+			const principlesField = result?.fields.find(
+				(f) => f.name === "candidate.openQuestionAnswers.4536168.content",
+			);
+			expect(principlesField).toMatchObject({
+				tag: "textarea",
+				type: "textarea",
+				label: expect.stringContaining("engineering principles"),
+				isFileUpload: false,
+			});
 
-    describe("hash generation", () => {
-      it("should generate hash for each field with domain prefix", () => {
-        container.innerHTML = `
+			// Verify file upload detection worked
+			const fileUploadFields = result?.fields.filter((f) => f.isFileUpload);
+			expect(fileUploadFields?.length).toBe(2);
+		});
+
+		describe("exclusion of non-job forms", () => {
+			it("should NOT detect medical/health query forms", () => {
+				container.innerHTML = `
+          <form>
+            <h2>Email</h2>
+            <p>Make your queries regarding general health matters in a confidential manner. You will receive a reply from a professional in a maximum period of 48 hours.</p>
+            
+            <label for="subject">Subject</label>
+            <input type="text" id="subject" name="affair" maxlength="100" placeholder="Subject" />
+            
+            <label for="query">Query</label>
+            <textarea id="query" name="consult" maxlength="250" placeholder="Briefly describe your query*"></textarea>
+            
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" name="phone" maxlength="9" placeholder="Phone" />
+            
+            <h2>Attach images or additional documentation</h2>
+            <p>Fe: lab tests, test results, etc.</p>
+            <input type="file" accept="application/pdf,image/jpeg,image/png,.png,.jpg,.jpeg,.pdf,.doc,.docx,.gif,.ppt,.pptx" />
+            
+            <button type="submit">Send</button>
+          </form>
+        `;
+
+				const result = detectApplicationForm();
+
+				// Should NOT detect this as a job application form
+				expect(result).toBeNull();
+			});
+
+			it("should NOT detect customer support/contact forms", () => {
+				container.innerHTML = `
+          <form>
+            <h2>Contact Us</h2>
+            <p>We'd love to hear your feedback</p>
+            
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" />
+            
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" />
+            
+            <label for="message">Message</label>
+            <textarea id="message" name="message" placeholder="Your message"></textarea>
+            
+            <label for="attachment">Attachment</label>
+            <input type="file" id="attachment" name="attachment" accept=".pdf,.doc,.docx" />
+            
+            <button type="submit">Submit</button>
+          </form>
+        `;
+
+				const result = detectApplicationForm();
+
+				// Should NOT detect this as a job application form
+				expect(result).toBeNull();
+			});
+
+			it("should NOT detect appointment booking forms", () => {
+				container.innerHTML = `
+          <form>
+            <h2>Book an Appointment</h2>
+            
+            <label for="name">Patient Name</label>
+            <input type="text" id="name" name="name" />
+            
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" />
+            
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" name="phone" />
+            
+            <label for="date">Preferred Date</label>
+            <input type="date" id="date" name="date" />
+            
+            <button type="submit">Book Now</button>
+          </form>
+        `;
+
+				const result = detectApplicationForm();
+
+				// Should NOT detect this as a job application form
+				expect(result).toBeNull();
+			});
+		});
+
+		describe("hash generation", () => {
+			it("should generate hash for each field with domain prefix", () => {
+				container.innerHTML = `
           <form action="/apply">
             <label for="resume">Resume/CV</label>
             <input type="file" id="resume" name="resume" accept=".pdf" />
@@ -801,19 +899,19 @@ describe("formDetector", () => {
           </form>
         `;
 
-        const result = detectApplicationForm();
+				const result = detectApplicationForm();
 
-        expect(result).not.toBeNull();
-        const emailField = result?.fields.find(f => f.name === "email");
-        
-        // Hash should be in format "[SLD].[TLD]:hash:[hashValue]"
-        expect(emailField?.hash).toMatch(/^[a-z0-9.-]+:hash:.+$/);
-        // In test environment, hostname is "localhost"
-        expect(emailField?.hash).toMatch(/^localhost:hash:.+$/);
-      });
+				expect(result).not.toBeNull();
+				const emailField = result?.fields.find((f) => f.name === "email");
 
-      it("should generate formHash from all field hashes", () => {
-        container.innerHTML = `
+				// Hash should be in format "[SLD].[TLD]:hash:[hashValue]"
+				expect(emailField?.hash).toMatch(/^[a-z0-9.-]+:hash:.+$/);
+				// In test environment, hostname is "localhost"
+				expect(emailField?.hash).toMatch(/^localhost:hash:.+$/);
+			});
+
+			it("should generate formHash from all field hashes", () => {
+				container.innerHTML = `
           <form action="/careers/apply">
             <label for="resume">Resume</label>
             <input type="file" id="resume" name="resume" accept=".pdf" />
@@ -828,15 +926,15 @@ describe("formDetector", () => {
           </form>
         `;
 
-        const result = detectApplicationForm();
+				const result = detectApplicationForm();
 
-        expect(result).not.toBeNull();
-        // formHash should be in format "[SLD].[TLD]:hash:[hashValue]"
-        expect(result?.formHash).toMatch(/^localhost:hash:.+$/);
-      });
+				expect(result).not.toBeNull();
+				// formHash should be in format "[SLD].[TLD]:hash:[hashValue]"
+				expect(result?.formHash).toMatch(/^localhost:hash:.+$/);
+			});
 
-      it("should generate consistent hashes for identical fields", () => {
-        container.innerHTML = `
+			it("should generate consistent hashes for identical fields", () => {
+				container.innerHTML = `
           <form>
             <label for="email">Email</label>
             <input type="email" id="email" name="email" placeholder="Enter email" />
@@ -844,17 +942,17 @@ describe("formDetector", () => {
           </form>
         `;
 
-        const result1 = detectApplicationForm();
-        
-        // Re-detect the same form
-        const result2 = detectApplicationForm();
+				const result1 = detectApplicationForm();
 
-        expect(result1?.fields[0].hash).toBe(result2?.fields[0].hash);
-        expect(result1?.formHash).toBe(result2?.formHash);
-      });
+				// Re-detect the same form
+				const result2 = detectApplicationForm();
 
-      it("should generate different hashes for different fields", () => {
-        container.innerHTML = `
+				expect(result1?.fields[0].hash).toBe(result2?.fields[0].hash);
+				expect(result1?.formHash).toBe(result2?.formHash);
+			});
+
+			it("should generate different hashes for different fields", () => {
+				container.innerHTML = `
           <form action="/application">
             <label for="resume">Resume/CV</label>
             <input type="file" id="resume" name="resume" accept=".pdf" />
@@ -869,18 +967,18 @@ describe("formDetector", () => {
           </form>
         `;
 
-        const result = detectApplicationForm();
+				const result = detectApplicationForm();
 
-        expect(result).not.toBeNull();
-        const emailField = result?.fields.find(f => f.name === "email");
-        const phoneField = result?.fields.find(f => f.name === "phone");
-        
-        expect(emailField?.hash).not.toBe(phoneField?.hash);
-      });
+				expect(result).not.toBeNull();
+				const emailField = result?.fields.find((f) => f.name === "email");
+				const phoneField = result?.fields.find((f) => f.name === "phone");
 
-      it("should generate same formHash regardless of field order in DOM", () => {
-        // First form with fields in order: email, phone
-        container.innerHTML = `
+				expect(emailField?.hash).not.toBe(phoneField?.hash);
+			});
+
+			it("should generate same formHash regardless of field order in DOM", () => {
+				// First form with fields in order: email, phone
+				container.innerHTML = `
           <form action="/apply">
             <label for="resume">Resume</label>
             <input type="file" id="resume" name="resume" accept=".pdf" />
@@ -895,10 +993,10 @@ describe("formDetector", () => {
           </form>
         `;
 
-        const result1 = detectApplicationForm();
+				const result1 = detectApplicationForm();
 
-        // Second form with fields in order: phone, email (reversed)
-        container.innerHTML = `
+				// Second form with fields in order: phone, email (reversed)
+				container.innerHTML = `
           <form action="/apply">
             <label for="resume">Resume</label>
             <input type="file" id="resume" name="resume" accept=".pdf" />
@@ -913,13 +1011,13 @@ describe("formDetector", () => {
           </form>
         `;
 
-        const result2 = detectApplicationForm();
+				const result2 = detectApplicationForm();
 
-        expect(result1).not.toBeNull();
-        expect(result2).not.toBeNull();
-        // formHash should be the same because it's derived from sorted field hashes
-        expect(result1?.formHash).toBe(result2?.formHash);
-      });
-    });
-  });
+				expect(result1).not.toBeNull();
+				expect(result2).not.toBeNull();
+				// formHash should be the same because it's derived from sorted field hashes
+				expect(result1?.formHash).toBe(result2?.formHash);
+			});
+		});
+	});
 });

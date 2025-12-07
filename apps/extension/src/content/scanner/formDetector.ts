@@ -162,17 +162,29 @@ export function detectApplicationForm(): ApplicationForm | null {
 }
 
 /**
- * Determines if an element is likely an application form based on high-confidence signals.
- * Requires multiple strong signals to avoid false positives on non-job sites.
+ * Determines if an element is likely a job application form.
+ * Requires at least one strong job-specific signal to avoid false positives.
+ * Generic forms (contact, support, medical) won't match because they lack job signals.
  */
 function isLikelyApplicationForm(element: Element): boolean {
-	let score = 0;
-	const THRESHOLD = 3; // Require multiple signals
+	let hasStrongJobSignal = false;
 
-	// Strong signal: Resume/CV file upload (score: 3)
+	// Collect label text for keyword analysis
+	const labels = Array.from(element.querySelectorAll("label")).map(
+		(l) => l.textContent?.toLowerCase() || "",
+	);
+	const allLabelText = labels.join(" ");
+
+	// Collect field names
+	const inputs = element.querySelectorAll("input, textarea, select");
+	const fieldNames = Array.from(inputs).map((input) =>
+		(input.getAttribute("name") || "").toLowerCase(),
+	);
+	const allFieldNames = fieldNames.join(" ");
+
+	// Strong signal 1: Resume/CV file upload explicitly labeled
 	const fileInputs = element.querySelectorAll('input[type="file"]');
 	for (const fileInput of fileInputs) {
-		const accept = fileInput.getAttribute("accept")?.toLowerCase() ?? "";
 		const name = fileInput.getAttribute("name")?.toLowerCase() ?? "";
 		const label =
 			getAssociatedLabel(
@@ -181,74 +193,52 @@ function isLikelyApplicationForm(element: Element): boolean {
 			)?.toLowerCase() ?? "";
 
 		if (
-			accept.includes("pdf") ||
-			accept.includes("doc") ||
 			name.includes("resume") ||
 			name.includes("cv") ||
 			label.includes("resume") ||
-			label.includes("cv")
+			label.includes("cv") ||
+			label.includes("cover letter")
 		) {
-			score += 3;
+			hasStrongJobSignal = true;
 			break;
 		}
 	}
 
-	// Collect all text content for analysis
-	const labels = Array.from(element.querySelectorAll("label")).map(
-		(l) => l.textContent?.toLowerCase() || "",
-	);
-	const allLabelText = labels.join(" ");
-
-	// Strong signal: Job application specific labels (score: 2 each)
-	const strongKeywords = [
-		"resume",
-		"cv",
-		"cover letter",
-		"coverletter",
-		"work experience",
-		"years of experience",
-		"salary expectation",
-		"expected salary",
-		"visa status",
-		"work authorization",
-		"sponsorship",
-		"notice period",
-		"start date",
-		"availability",
+	// Strong signal 2: Job-specific patterns in labels
+	const jobPatterns = [
+		/resume/i,
+		/\bcv\b/i,
+		/cover\s*letter/i,
+		/sponsorship/i,
+		/work\s*authorization/i,
+		/notice\s*period/i,
+		/experience/i,
+		/salary/i,
+		/portfolio/i,
+		/linkedin/i,
+		/github/i,
 	];
 
-	for (const keyword of strongKeywords) {
-		if (allLabelText.includes(keyword)) {
-			score += 2;
-		}
+	if (jobPatterns.some((pattern) => pattern.test(allLabelText))) {
+		hasStrongJobSignal = true;
 	}
 
-	// Medium signal: Personal info fields in job context (score: 1 each, max 2)
-	const personalKeywords = [
-		"first name",
-		"last name",
-		"phone number",
-		"linkedin",
-		"portfolio",
-	];
-	let personalCount = 0;
-	for (const keyword of personalKeywords) {
-		if (allLabelText.includes(keyword) && personalCount < 2) {
-			score += 1;
-			personalCount++;
-		}
+	// Strong signal 3: Job-specific field names
+	const jobFieldNames = ["resume", "cv", "coverletter", "cover_letter"];
+	if (jobFieldNames.some((name) => allFieldNames.includes(name))) {
+		hasStrongJobSignal = true;
 	}
 
-	// Check for submit buttons with job-specific text (score: 2)
+	// Strong signal 4: Job-specific submit buttons
 	const buttons = Array.from(
 		element.querySelectorAll("button, input[type='submit']"),
 	);
 	const buttonTexts = buttons.map((b) => b.textContent?.toLowerCase() || "");
-
 	const jobSubmitKeywords = [
 		"submit application",
 		"apply now",
 		"apply for",
+		"apply",
 		"send application",
 	];
 	if (
@@ -256,48 +246,10 @@ function isLikelyApplicationForm(element: Element): boolean {
 			jobSubmitKeywords.some((keyword) => text.includes(keyword)),
 		)
 	) {
-		score += 2;
+		hasStrongJobSignal = true;
 	}
 
-	// Check form action URL for job-related paths (score: 2)
-	if (element.tagName === "FORM") {
-		const action = (element as HTMLFormElement).action?.toLowerCase() ?? "";
-		const jobPaths = [
-			"/apply",
-			"/application",
-			"/career",
-			"/job",
-			"/recruit",
-			"/talent",
-		];
-		if (jobPaths.some((path) => action.includes(path))) {
-			score += 2;
-		}
-	}
-
-	// Check for common job application field names (score: 1 each, max 2)
-	const inputs = element.querySelectorAll("input, textarea, select");
-	const fieldNames = Array.from(inputs).map((input) =>
-		(input.getAttribute("name") || "").toLowerCase(),
-	);
-
-	const jobFieldNames = [
-		"resume",
-		"cv",
-		"coverletter",
-		"cover_letter",
-		"experience",
-		"salary",
-	];
-	let fieldCount = 0;
-	for (const name of fieldNames) {
-		if (jobFieldNames.some((jf) => name.includes(jf)) && fieldCount < 2) {
-			score += 1;
-			fieldCount++;
-		}
-	}
-
-	return score >= THRESHOLD;
+	return hasStrongJobSignal;
 }
 
 /**
