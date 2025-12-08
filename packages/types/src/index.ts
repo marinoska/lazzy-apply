@@ -364,6 +364,12 @@ export interface AutofillResponseItem {
 	pathFound: boolean;
 	/** The actual value from CV data if pathFound is true */
 	value?: string | null;
+	/** Presigned URL for file download (for resume_upload fields) */
+	fileUrl?: string;
+	/** Original filename for file uploads */
+	fileName?: string;
+	/** Content type for file uploads (e.g., "PDF", "DOCX") */
+	fileContentType?: string;
 }
 
 /**

@@ -6,6 +6,8 @@ import type {
 	FormInput,
 	ParsedCVData,
 } from "@lazyapply/types";
+import { getPresignedDownloadUrl } from "@/app/cloudflare.js";
+import { getEnv } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
 import { CVDataModel } from "@/cvData/index.js";
 import {
@@ -14,6 +16,8 @@ import {
 	type TForm,
 	type TFormField,
 } from "@/formFields/index.js";
+import { FileUploadModel } from "@/uploads/fileUpload.model.js";
+import type { TFileUpload } from "@/uploads/fileUpload.types.js";
 import {
 	classifyFieldsWithAI,
 	extractValueByPath,
@@ -23,6 +27,12 @@ import {
 
 const logger = createLogger("classification.manager");
 
+type FileInfo = {
+	fileUrl: string;
+	fileName: string;
+	fileContentType: string;
+};
+
 /**
  * Builds autofill response from stored fields, enriched with CV data values
  */
@@ -30,6 +40,7 @@ function buildResponseFromFields(
 	fields: (TFormField | FormFieldRef)[],
 	inputFields: Field[],
 	cvData: ParsedCVData | null,
+	fileInfo: FileInfo | null,
 ): AutofillResponse {
 	const fieldsMap = new Map(fields.map((f) => [f.hash, f]));
 	const response: AutofillResponse = {};
@@ -55,6 +66,14 @@ function buildResponseFromFields(
 					field.classification,
 					field.linkType,
 				);
+			}
+
+			// Add file info for resume_upload fields
+			if (field.classification === "resume_upload" && fileInfo) {
+				item.fileUrl = fileInfo.fileUrl;
+				item.fileName = fileInfo.fileName;
+				item.fileContentType = fileInfo.fileContentType;
+				item.pathFound = true;
 			}
 
 			response[inputField.hash] = item;
@@ -86,6 +105,7 @@ export class ClassificationManager {
 	private existingFields: TFormField[] = [];
 	private fieldsToClassify: Field[] = [];
 	private cvData: ParsedCVData | null = null;
+	private fileUpload: TFileUpload | null = null;
 
 	constructor(
 		readonly formInput: FormInput,
@@ -97,13 +117,16 @@ export class ClassificationManager {
 	}
 
 	/**
-	 * Load CV data from the provided selectedUploadId
+	 * Load CV data and file upload info from the provided selectedUploadId
 	 */
 	private async loadCVData() {
-		const cvData = await CVDataModel.findByUploadId(
-			this.selectedUploadId,
-			this.userId,
-		);
+		const [cvData, fileUpload] = await Promise.all([
+			CVDataModel.findByUploadId(this.selectedUploadId, this.userId),
+			FileUploadModel.findOne({ _id: this.selectedUploadId }).setOptions({
+				userId: this.userId,
+			}),
+		]);
+
 		if (!cvData) {
 			logger.error(
 				{ uploadId: this.selectedUploadId },
@@ -113,6 +136,7 @@ export class ClassificationManager {
 		}
 
 		this.cvData = cvData.toObject();
+		this.fileUpload = fileUpload;
 		logger.info({ uploadId: this.selectedUploadId }, "CV data loaded");
 	}
 
@@ -160,6 +184,9 @@ export class ClassificationManager {
 		// Load CV data in parallel with form lookup
 		await Promise.all([this.loadForm(), this.loadCVData()]);
 
+		// Generate file info for resume_upload fields
+		const fileInfo = await this.getFileInfo();
+
 		if (this.existingForm) {
 			logger.info("Form found in DB, returning cached data");
 
@@ -168,6 +195,7 @@ export class ClassificationManager {
 					this.existingForm.fields,
 					Array.from(this.inputFieldsMap.values()),
 					this.cvData,
+					fileInfo,
 				),
 				fromCache: true,
 			};
@@ -185,6 +213,7 @@ export class ClassificationManager {
 					this.existingFields,
 					Array.from(this.inputFieldsMap.values()),
 					this.cvData,
+					fileInfo,
 				),
 				fromCache: true,
 			};
@@ -204,6 +233,7 @@ export class ClassificationManager {
 			[...this.existingFields, ...classifiedFields],
 			Array.from(this.inputFieldsMap.values()),
 			this.cvData,
+			fileInfo,
 		);
 
 		// Persist form with all field refs, but only insert newly classified fields
@@ -219,5 +249,38 @@ export class ClassificationManager {
 			fromCache: false,
 			usage,
 		};
+	}
+
+	/**
+	 * Generate presigned URL and file info for resume uploads
+	 */
+	private async getFileInfo(): Promise<FileInfo | null> {
+		if (!this.fileUpload) {
+			logger.warn(
+				{ uploadId: this.selectedUploadId },
+				"File upload not found for presigned URL generation",
+			);
+			return null;
+		}
+
+		try {
+			const bucket = getEnv("CLOUDFLARE_BUCKET");
+			const fileUrl = await getPresignedDownloadUrl(
+				bucket,
+				this.fileUpload.objectKey,
+			);
+
+			return {
+				fileUrl,
+				fileName: this.fileUpload.originalFilename,
+				fileContentType: this.fileUpload.contentType,
+			};
+		} catch (error) {
+			logger.error(
+				{ uploadId: this.selectedUploadId, error },
+				"Failed to generate presigned URL",
+			);
+			return null;
+		}
 	}
 }

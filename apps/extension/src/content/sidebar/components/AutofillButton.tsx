@@ -1,4 +1,9 @@
-import type { AutofillRequest, Field, FormInput } from "@lazyapply/types";
+import type {
+	AutofillRequest,
+	AutofillResponseItem,
+	Field,
+	FormInput,
+} from "@lazyapply/types";
 import Alert from "@mui/joy/Alert";
 import Button from "@mui/joy/Button";
 import Divider from "@mui/joy/Divider";
@@ -43,6 +48,69 @@ function fillElementWithValue(element: HTMLElement, value: string): void {
 	// Dispatch events
 	input.dispatchEvent(new Event("input", { bubbles: true }));
 	input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+/**
+ * Map file content type to MIME type
+ */
+function getMimeType(fileContentType: string): string {
+	switch (fileContentType) {
+		case "PDF":
+			return "application/pdf";
+		case "DOCX":
+			return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+		default:
+			return "application/octet-stream";
+	}
+}
+
+/**
+ * Fill a file input by fetching the file from a presigned URL
+ */
+async function fillFileInput(
+	element: HTMLInputElement,
+	item: AutofillResponseItem,
+): Promise<boolean> {
+	if (!item.fileUrl || !item.fileName) {
+		console.warn("[AutofillButton] Missing fileUrl or fileName for file input");
+		return false;
+	}
+
+	try {
+		console.log(`[AutofillButton] Fetching file from: ${item.fileUrl}`);
+
+		// Fetch the file from the presigned URL
+		const response = await fetch(item.fileUrl);
+		if (!response.ok) {
+			console.error(
+				`[AutofillButton] Failed to fetch file: ${response.status} ${response.statusText}`,
+			);
+			return false;
+		}
+
+		const blob = await response.blob();
+		const mimeType = getMimeType(item.fileContentType ?? "PDF");
+
+		// Create a File object from the blob
+		const file = new File([blob], item.fileName, { type: mimeType });
+
+		// Create a DataTransfer to set the file on the input
+		const dataTransfer = new DataTransfer();
+		dataTransfer.items.add(file);
+		element.files = dataTransfer.files;
+
+		// Dispatch events to notify the form of the change
+		element.dispatchEvent(new Event("input", { bubbles: true }));
+		element.dispatchEvent(new Event("change", { bubbles: true }));
+
+		console.log(
+			`[AutofillButton] Successfully set file: ${item.fileName} (${blob.size} bytes)`,
+		);
+		return true;
+	} catch (error) {
+		console.error("[AutofillButton] Error filling file input:", error);
+		return false;
+	}
 }
 
 export function AutofillButton({ onError }: AutofillButtonProps) {
@@ -140,8 +208,48 @@ export function AutofillButton({ onError }: AutofillButtonProps) {
 			// Fill form fields
 			let filled = 0;
 			let skipped = 0;
+			const fileUploadPromises: Promise<boolean>[] = [];
 
 			for (const [hash, classification] of Object.entries(classifications)) {
+				const element = applicationForm.fieldElements.get(hash);
+
+				// Handle file inputs with resume_upload path
+				if (classification.path === "resume_upload" && classification.fileUrl) {
+					console.log(
+						`[AutofillButton] Queueing file upload for ${classification.fieldName ?? hash}`,
+					);
+					if (isIframeForm) {
+						// Send file info to iframe for it to handle the upload
+						formStore.fillFileInIframe(hash, classification);
+						filled++;
+					} else if (
+						element instanceof HTMLInputElement &&
+						element.type === "file"
+					) {
+						// For local forms with file input element
+						fileUploadPromises.push(
+							fillFileInput(element, classification).then((success) => {
+								if (success) {
+									console.log(
+										`[AutofillButton] File uploaded for ${classification.fieldName ?? hash}`,
+									);
+								} else {
+									console.warn(
+										`[AutofillButton] Failed to upload file for ${classification.fieldName ?? hash}`,
+									);
+								}
+								return success;
+							}),
+						);
+					} else {
+						console.warn(
+							`[AutofillButton] Element for ${hash} is not a file input`,
+						);
+						skipped++;
+					}
+					continue;
+				}
+
 				if (!classification.pathFound || !classification.value) {
 					skipped++;
 					continue;
@@ -153,7 +261,6 @@ export function AutofillButton({ onError }: AutofillButtonProps) {
 					filled++;
 				} else {
 					// Fill directly in local document
-					const element = applicationForm.fieldElements.get(hash);
 					if (element) {
 						fillElementWithValue(element, classification.value);
 						filled++;
@@ -161,6 +268,14 @@ export function AutofillButton({ onError }: AutofillButtonProps) {
 						skipped++;
 					}
 				}
+			}
+
+			// Wait for all file uploads to complete
+			if (fileUploadPromises.length > 0) {
+				const results = await Promise.all(fileUploadPromises);
+				const successfulUploads = results.filter(Boolean).length;
+				filled += successfulUploads;
+				skipped += results.length - successfulUploads;
 			}
 
 			console.log(

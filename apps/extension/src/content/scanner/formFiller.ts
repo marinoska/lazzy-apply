@@ -1,4 +1,4 @@
-import type { AutofillResponse } from "@lazyapply/types";
+import type { AutofillResponse, AutofillResponseItem } from "@lazyapply/types";
 
 /**
  * Set value on input/textarea and trigger React-compatible events
@@ -38,22 +38,58 @@ function setInputValue(
 	element.blur();
 }
 
+export type FillFormFieldsResult = {
+	filled: number;
+	skipped: number;
+	pendingFileUploads: number;
+};
+
 /**
  * Fill form fields with values from the autofill response
- * @returns Number of fields successfully filled
+ * File inputs are filled asynchronously - the returned pendingFileUploads count
+ * indicates how many file uploads are in progress
+ * @returns Number of fields successfully filled and pending file uploads
  */
-export function fillFormFields(
+export async function fillFormFields(
 	autofillResponse: AutofillResponse,
 	fieldElements: Map<string, HTMLElement>,
-): { filled: number; skipped: number } {
+): Promise<FillFormFieldsResult> {
 	let filled = 0;
 	let skipped = 0;
+	const fileUploadPromises: Promise<boolean>[] = [];
 
 	for (const [hash, item] of Object.entries(autofillResponse)) {
 		const element = fieldElements.get(hash);
 		if (!element) {
 			console.warn(`[FormFiller] Element not found for hash: ${hash}`);
 			skipped++;
+			continue;
+		}
+
+		// Handle file inputs with resume_upload path
+		if (
+			element instanceof HTMLInputElement &&
+			element.type === "file" &&
+			item.path === "resume_upload" &&
+			item.fileUrl
+		) {
+			console.log(
+				`[FormFiller] Queueing file upload for ${item.fieldName ?? hash}`,
+			);
+			fileUploadPromises.push(
+				fillFileInput(element, item).then((success) => {
+					if (success) {
+						console.log(
+							`[FormFiller] File uploaded for ${item.fieldName ?? hash}`,
+						);
+					} else {
+						console.warn(
+							`[FormFiller] Failed to upload file for ${item.fieldName ?? hash}`,
+						);
+					}
+					return success;
+				}),
+			);
 			continue;
 		}
 
@@ -78,7 +114,15 @@ export function fillFormFields(
 		}
 	}
 
-	return { filled, skipped };
+	// Wait for all file uploads to complete
+	if (fileUploadPromises.length > 0) {
+		const results = await Promise.all(fileUploadPromises);
+		const successfulUploads = results.filter(Boolean).length;
+		filled += successfulUploads;
+		skipped += results.length - successfulUploads;
+	}
+
+	return { filled, skipped, pendingFileUploads: fileUploadPromises.length };
 }
 
 /**
@@ -109,9 +153,11 @@ function fillElement(element: HTMLElement, value: string): boolean {
 function fillInputElement(element: HTMLInputElement, value: string): boolean {
 	const type = element.type.toLowerCase();
 
-	// Skip file inputs - they require special handling
+	// Skip file inputs - they are handled separately via fillFileInput
 	if (type === "file") {
-		console.log("[FormFiller] Skipping file input - requires manual upload");
+		console.log(
+			"[FormFiller] Skipping file input in fillInputElement - handled separately",
+		);
 		return false;
 	}
 
@@ -194,4 +240,67 @@ function dispatchInputEvents(element: HTMLElement): void {
 
 	// Blur to trigger validation
 	element.blur();
+}
+
+/**
+ * Map file content type to MIME type
+ */
+function getMimeType(fileContentType: string): string {
+	switch (fileContentType) {
+		case "PDF":
+			return "application/pdf";
+		case "DOCX":
+			return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+		default:
+			return "application/octet-stream";
+	}
+}
+
+/**
+ * Fill a file input by fetching the file from a presigned URL
+ */
+async function fillFileInput(
+	element: HTMLInputElement,
+	item: AutofillResponseItem,
+): Promise<boolean> {
+	if (!item.fileUrl || !item.fileName) {
+		console.warn("[FormFiller] Missing fileUrl or fileName for file input");
+		return false;
+	}
+
+	try {
+		console.log(`[FormFiller] Fetching file from: ${item.fileUrl}`);
+
+		// Fetch the file from the presigned URL
+		const response = await fetch(item.fileUrl);
+		if (!response.ok) {
+			console.error(
+				`[FormFiller] Failed to fetch file: ${response.status} ${response.statusText}`,
+			);
+			return false;
+		}
+
+		const blob = await response.blob();
+		const mimeType = getMimeType(item.fileContentType ?? "PDF");
+
+		// Create a File object from the blob
+		const file = new File([blob], item.fileName, { type: mimeType });
+
+		// Create a DataTransfer to set the file on the input
+		const dataTransfer = new DataTransfer();
+		dataTransfer.items.add(file);
+		element.files = dataTransfer.files;
+
+		// Dispatch events to notify the form of the change
+		element.dispatchEvent(new Event("input", { bubbles: true }));
+		element.dispatchEvent(new Event("change", { bubbles: true }));
+
+		console.log(
+			`[FormFiller] Successfully set file: ${item.fileName} (${blob.size} bytes)`,
+		);
+		return true;
+	} catch (error) {
+		console.error("[FormFiller] Error filling file input:", error);
+		return false;
+	}
 }

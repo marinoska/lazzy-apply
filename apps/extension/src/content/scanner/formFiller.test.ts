@@ -1,5 +1,5 @@
 import type { AutofillResponse } from "@lazyapply/types";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fillFormFields } from "./formFiller.js";
 
 describe("formFiller", () => {
@@ -15,7 +15,7 @@ describe("formFiller", () => {
 	});
 
 	describe("fillFormFields", () => {
-		it("should fill text input fields with values", () => {
+		it("should fill text input fields with values", async () => {
 			container.innerHTML = `
 				<input type="text" id="firstname" name="firstname" />
 				<input type="email" id="email" name="email" />
@@ -46,7 +46,7 @@ describe("formFiller", () => {
 				},
 			};
 
-			const result = fillFormFields(autofillResponse, fieldElements);
+			const result = await fillFormFields(autofillResponse, fieldElements);
 
 			expect(result.filled).toBe(2);
 			expect(result.skipped).toBe(0);
@@ -54,7 +54,7 @@ describe("formFiller", () => {
 			expect(emailInput.value).toBe("john@example.com");
 		});
 
-		it("should fill textarea fields with values", () => {
+		it("should fill textarea fields with values", async () => {
 			container.innerHTML = `<textarea id="summary" name="summary"></textarea>`;
 
 			const summaryTextarea = container.querySelector(
@@ -74,7 +74,7 @@ describe("formFiller", () => {
 				},
 			};
 
-			const result = fillFormFields(autofillResponse, fieldElements);
+			const result = await fillFormFields(autofillResponse, fieldElements);
 
 			expect(result.filled).toBe(1);
 			expect(summaryTextarea.value).toBe(
@@ -82,7 +82,7 @@ describe("formFiller", () => {
 			);
 		});
 
-		it("should skip fields without values", () => {
+		it("should skip fields without values", async () => {
 			container.innerHTML = `<input type="text" id="city" name="city" />`;
 
 			const cityInput = container.querySelector("#city") as HTMLInputElement;
@@ -100,14 +100,14 @@ describe("formFiller", () => {
 				},
 			};
 
-			const result = fillFormFields(autofillResponse, fieldElements);
+			const result = await fillFormFields(autofillResponse, fieldElements);
 
 			expect(result.filled).toBe(0);
 			expect(result.skipped).toBe(1);
 			expect(cityInput.value).toBe("");
 		});
 
-		it("should skip fields where pathFound is false", () => {
+		it("should skip fields where pathFound is false", async () => {
 			container.innerHTML = `<input type="text" id="postcode" name="postcode" />`;
 
 			const postcodeInput = container.querySelector(
@@ -126,13 +126,13 @@ describe("formFiller", () => {
 				},
 			};
 
-			const result = fillFormFields(autofillResponse, fieldElements);
+			const result = await fillFormFields(autofillResponse, fieldElements);
 
 			expect(result.filled).toBe(0);
 			expect(result.skipped).toBe(1);
 		});
 
-		it("should skip fields when element not found in map", () => {
+		it("should skip fields when element not found in map", async () => {
 			const fieldElements = new Map<string, HTMLElement>();
 
 			const autofillResponse: AutofillResponse = {
@@ -144,13 +144,13 @@ describe("formFiller", () => {
 				},
 			};
 
-			const result = fillFormFields(autofillResponse, fieldElements);
+			const result = await fillFormFields(autofillResponse, fieldElements);
 
 			expect(result.filled).toBe(0);
 			expect(result.skipped).toBe(1);
 		});
 
-		it("should dispatch input and change events when filling", () => {
+		it("should dispatch input and change events when filling", async () => {
 			container.innerHTML = `<input type="text" id="test" name="test" />`;
 
 			const testInput = container.querySelector("#test") as HTMLInputElement;
@@ -174,7 +174,7 @@ describe("formFiller", () => {
 				},
 			};
 
-			fillFormFields(autofillResponse, fieldElements);
+			await fillFormFields(autofillResponse, fieldElements);
 
 			expect(inputEvents.length).toBe(1);
 			expect(changeEvents.length).toBe(1);
@@ -182,7 +182,7 @@ describe("formFiller", () => {
 			expect((inputEvents[0] as InputEvent).data).toBe("Test Value");
 		});
 
-		it("should use native value setter for React compatibility", () => {
+		it("should use native value setter for React compatibility", async () => {
 			container.innerHTML = `<input type="text" id="react-input" name="react-input" />`;
 
 			const reactInput = container.querySelector(
@@ -227,7 +227,7 @@ describe("formFiller", () => {
 				},
 			};
 
-			fillFormFields(autofillResponse, fieldElements);
+			await fillFormFields(autofillResponse, fieldElements);
 
 			// Restore original setter
 			Object.defineProperty(HTMLInputElement.prototype, "value", {
@@ -240,7 +240,7 @@ describe("formFiller", () => {
 			expect(nativeSetterValue).toBe("React Value");
 		});
 
-		it("should skip file inputs", () => {
+		it("should skip file inputs without fileUrl", async () => {
 			container.innerHTML = `<input type="file" id="resume" name="resume" />`;
 
 			const fileInput = container.querySelector("#resume") as HTMLInputElement;
@@ -258,10 +258,83 @@ describe("formFiller", () => {
 				},
 			};
 
-			const result = fillFormFields(autofillResponse, fieldElements);
+			const result = await fillFormFields(autofillResponse, fieldElements);
 
 			expect(result.filled).toBe(0);
 			expect(result.skipped).toBe(1);
+		});
+
+		it("should fill file inputs with fileUrl", async () => {
+			container.innerHTML = `<input type="file" id="resume" name="resume" accept=".pdf,.docx" />`;
+
+			const fileInput = container.querySelector("#resume") as HTMLInputElement;
+
+			const fieldElements = new Map<string, HTMLElement>([
+				["hash:resume", fileInput],
+			]);
+
+			// Mock fetch to return a fake PDF blob
+			const mockBlob = new Blob(["fake pdf content"], {
+				type: "application/pdf",
+			});
+			globalThis.fetch = vi.fn().mockResolvedValue({
+				ok: true,
+				blob: () => Promise.resolve(mockBlob),
+			});
+
+			// Track if files property was set (jsdom doesn't support DataTransfer properly)
+			let filesSet = false;
+			let setFileName = "";
+			const mockFile = new File([mockBlob], "my-cv.pdf", {
+				type: "application/pdf",
+			});
+			const mockFileList = {
+				length: 1,
+				item: () => mockFile,
+				0: mockFile,
+				[Symbol.iterator]: function* () {
+					yield mockFile;
+				},
+			};
+
+			// Mock DataTransfer
+			globalThis.DataTransfer = vi.fn(() => ({
+				items: { add: vi.fn() },
+				files: mockFileList,
+			})) as unknown as typeof DataTransfer;
+
+			// Spy on files setter
+			Object.defineProperty(fileInput, "files", {
+				set(value) {
+					filesSet = true;
+					if (value?.[0]) {
+						setFileName = value[0].name;
+					}
+				},
+				get() {
+					return filesSet ? mockFileList : null;
+				},
+				configurable: true,
+			});
+
+			const autofillResponse: AutofillResponse = {
+				"hash:resume": {
+					fieldName: "resume",
+					path: "resume_upload",
+					pathFound: true,
+					fileUrl: "https://example.com/presigned-url",
+					fileName: "my-cv.pdf",
+					fileContentType: "PDF",
+				},
+			};
+
+			const result = await fillFormFields(autofillResponse, fieldElements);
+
+			expect(result.filled).toBe(1);
+			expect(result.skipped).toBe(0);
+			expect(result.pendingFileUploads).toBe(1);
+			expect(filesSet).toBe(true);
+			expect(setFileName).toBe("my-cv.pdf");
 		});
 	});
 });

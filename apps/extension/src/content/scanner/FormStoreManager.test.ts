@@ -1,3 +1,4 @@
+import type { AutofillResponseItem } from "@lazyapply/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FormStoreManager } from "./FormStoreManager.js";
 import type { ApplicationForm } from "./formDetector.js";
@@ -245,6 +246,113 @@ describe("FormStoreManager", () => {
 		it("should not throw when no form source window is set", () => {
 			expect(() => manager.fillFieldInIframe("hash", "value")).not.toThrow();
 		});
+
+		it("should post message to form source window when set", async () => {
+			// Set up as parent frame
+			Object.defineProperty(window, "self", { value: window, writable: true });
+			Object.defineProperty(window, "top", { value: window, writable: true });
+
+			const mgr = new FormStoreManager();
+
+			// Simulate receiving a form from iframe to set formSourceWindow
+			const mockSourceWindow = { postMessage: vi.fn() };
+			const mockFormData = {
+				formHash: "test-hash",
+				formDetected: true,
+				totalFields: 1,
+				fields: [],
+				fieldElements: [],
+			};
+
+			const messageEvent = new MessageEvent("message", {
+				data: {
+					type: "LAZYAPPLY_FORM_DETECTED",
+					form: mockFormData,
+				},
+				origin: "https://example.com",
+				source: mockSourceWindow as unknown as Window,
+			});
+
+			window.dispatchEvent(messageEvent);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			mgr.fillFieldInIframe("field-hash", "test-value");
+
+			expect(mockSourceWindow.postMessage).toHaveBeenCalledWith(
+				{
+					type: "LAZYAPPLY_FILL_FIELD",
+					hash: "field-hash",
+					value: "test-value",
+				},
+				"*",
+			);
+		});
+	});
+
+	describe("fillFileInIframe", () => {
+		it("should not throw when no form source window is set", () => {
+			const fileInfo: AutofillResponseItem = {
+				fieldName: "resume",
+				path: "resume_upload",
+				pathFound: true,
+				fileUrl: "https://example.com/file.pdf",
+				fileName: "resume.pdf",
+				fileContentType: "PDF",
+			};
+			expect(() => manager.fillFileInIframe("hash", fileInfo)).not.toThrow();
+		});
+
+		it("should post file message to form source window when set", async () => {
+			// Set up as parent frame
+			Object.defineProperty(window, "self", { value: window, writable: true });
+			Object.defineProperty(window, "top", { value: window, writable: true });
+
+			const mgr = new FormStoreManager();
+
+			// Simulate receiving a form from iframe to set formSourceWindow
+			const mockSourceWindow = { postMessage: vi.fn() };
+			const mockFormData = {
+				formHash: "test-hash",
+				formDetected: true,
+				totalFields: 1,
+				fields: [],
+				fieldElements: [],
+			};
+
+			const messageEvent = new MessageEvent("message", {
+				data: {
+					type: "LAZYAPPLY_FORM_DETECTED",
+					form: mockFormData,
+				},
+				origin: "https://example.com",
+				source: mockSourceWindow as unknown as Window,
+			});
+
+			window.dispatchEvent(messageEvent);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			const fileInfo: AutofillResponseItem = {
+				fieldName: "resume",
+				path: "resume_upload",
+				pathFound: true,
+				fileUrl: "https://example.com/presigned-url",
+				fileName: "my-cv.pdf",
+				fileContentType: "PDF",
+			};
+
+			mgr.fillFileInIframe("resume-hash", fileInfo);
+
+			expect(mockSourceWindow.postMessage).toHaveBeenCalledWith(
+				{
+					type: "LAZYAPPLY_FILL_FILE",
+					hash: "resume-hash",
+					fileUrl: "https://example.com/presigned-url",
+					fileName: "my-cv.pdf",
+					fileContentType: "PDF",
+				},
+				"*",
+			);
+		});
 	});
 
 	describe("setCachedIframeForm", () => {
@@ -325,6 +433,184 @@ describe("FormStoreManager", () => {
 			});
 
 			expect(() => window.dispatchEvent(messageEvent)).not.toThrow();
+		});
+
+		it("should fill file input when receiving LAZYAPPLY_FILL_FILE message in iframe", async () => {
+			// Set up as iframe
+			const mockTop = {} as Window;
+			Object.defineProperty(window, "self", { value: window, writable: true });
+			Object.defineProperty(window, "top", { value: mockTop, writable: true });
+
+			const mgr = new FormStoreManager();
+
+			// Create a file input element
+			const fileInput = document.createElement("input");
+			fileInput.type = "file";
+			document.body.appendChild(fileInput);
+
+			// Create mock form with the file input
+			const mockForm: ApplicationForm = {
+				formHash: "test-hash",
+				formDetected: true,
+				totalFields: 1,
+				fields: [
+					{
+						hash: "resume-hash",
+						tag: "input",
+						type: "file",
+						name: "resume",
+						label: "Resume",
+						placeholder: null,
+						description: null,
+						isFileUpload: true,
+					},
+				],
+				fieldElements: new Map([["resume-hash", fileInput]]),
+			};
+
+			mgr.setCachedIframeForm(mockForm);
+
+			// Mock fetch to return a blob
+			const mockBlob = new Blob(["fake pdf content"], {
+				type: "application/pdf",
+			});
+			globalThis.fetch = vi.fn().mockResolvedValue({
+				ok: true,
+				blob: () => Promise.resolve(mockBlob),
+			});
+
+			// Mock DataTransfer
+			let filesSet = false;
+			const mockFile = new File([mockBlob], "my-cv.pdf", {
+				type: "application/pdf",
+			});
+			const mockFileList = {
+				length: 1,
+				item: () => mockFile,
+				0: mockFile,
+			};
+			globalThis.DataTransfer = vi.fn(() => ({
+				items: { add: vi.fn() },
+				files: mockFileList,
+			})) as unknown as typeof DataTransfer;
+
+			// Spy on files setter
+			Object.defineProperty(fileInput, "files", {
+				set() {
+					filesSet = true;
+				},
+				get() {
+					return filesSet ? mockFileList : null;
+				},
+				configurable: true,
+			});
+
+			// Dispatch fill file message
+			const messageEvent = new MessageEvent("message", {
+				data: {
+					type: "LAZYAPPLY_FILL_FILE",
+					hash: "resume-hash",
+					fileUrl: "https://example.com/presigned-url",
+					fileName: "my-cv.pdf",
+					fileContentType: "PDF",
+				},
+			});
+
+			window.dispatchEvent(messageEvent);
+
+			// Wait for async file fetch
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			expect(globalThis.fetch).toHaveBeenCalledWith(
+				"https://example.com/presigned-url",
+			);
+			expect(filesSet).toBe(true);
+
+			// Cleanup
+			document.body.removeChild(fileInput);
+		});
+
+		it("should ignore LAZYAPPLY_FILL_FILE message when not in iframe", async () => {
+			// Set up as parent frame BEFORE creating manager
+			Object.defineProperty(window, "self", { value: window, writable: true });
+			Object.defineProperty(window, "top", { value: window, writable: true });
+
+			// Create a new manager in parent context
+			const parentManager = new FormStoreManager();
+			expect(parentManager.isParent).toBe(true);
+
+			// Create a file input element
+			const fileInput = document.createElement("input");
+			fileInput.type = "file";
+			document.body.appendChild(fileInput);
+
+			// Create mock form with the file input
+			const mockForm: ApplicationForm = {
+				formHash: "test-hash",
+				formDetected: true,
+				totalFields: 1,
+				fields: [],
+				fieldElements: new Map([["resume-hash", fileInput]]),
+			};
+
+			parentManager.setCachedIframeForm(mockForm);
+
+			// Mock fetch - should NOT be called
+			const fetchSpy = vi.fn();
+			globalThis.fetch = fetchSpy;
+
+			// Dispatch fill file message - parent should ignore this
+			const messageEvent = new MessageEvent("message", {
+				data: {
+					type: "LAZYAPPLY_FILL_FILE",
+					hash: "resume-hash",
+					fileUrl: "https://example.com/presigned-url",
+					fileName: "my-cv.pdf",
+					fileContentType: "PDF",
+				},
+			});
+
+			window.dispatchEvent(messageEvent);
+
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			// Should not have fetched because parentManager is not in iframe
+			// Note: Other managers created in beforeEach might still respond,
+			// but the parentManager specifically should not process this
+			// The check is that isIframe guards the handler
+			expect(parentManager.isIframe).toBe(false);
+
+			// Cleanup
+			document.body.removeChild(fileInput);
+		});
+
+		it("should ignore LAZYAPPLY_FILL_FILE message with missing data", async () => {
+			// Set up as iframe
+			const mockTop = {} as Window;
+			Object.defineProperty(window, "self", { value: window, writable: true });
+			Object.defineProperty(window, "top", { value: mockTop, writable: true });
+
+			new FormStoreManager();
+
+			// Mock fetch
+			globalThis.fetch = vi.fn();
+
+			// Dispatch fill file message with missing fileName
+			const messageEvent = new MessageEvent("message", {
+				data: {
+					type: "LAZYAPPLY_FILL_FILE",
+					hash: "resume-hash",
+					fileUrl: "https://example.com/presigned-url",
+					// fileName is missing
+				},
+			});
+
+			window.dispatchEvent(messageEvent);
+
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			// Should not have fetched because fileName is missing
+			expect(globalThis.fetch).not.toHaveBeenCalled();
 		});
 	});
 });

@@ -7,6 +7,7 @@ import {
 	type HeadObjectCommandOutput,
 	S3Client,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { getEnv } from "./env.js";
 
@@ -51,10 +52,7 @@ export const fetchHeadObject = async (
 	}
 };
 
-export const deleteRemoteObject = async (
-	bucket: string,
-	objectKey: string,
-) => {
+export const deleteRemoteObject = async (bucket: string, objectKey: string) => {
 	const deleteCommand = new DeleteObjectCommand({
 		Bucket: bucket,
 		Key: objectKey,
@@ -85,4 +83,23 @@ export const hashRemoteObject = async (
 	}
 
 	return hash.digest("hex");
+};
+
+/** Default expiration for presigned download URLs (15 minutes) */
+const PRESIGNED_URL_EXPIRATION_SECONDS = 900;
+
+/**
+ * Generate a presigned URL for downloading a file from R2
+ */
+export const getPresignedDownloadUrl = async (
+	bucket: string,
+	objectKey: string,
+	expiresIn: number = PRESIGNED_URL_EXPIRATION_SECONDS,
+): Promise<string> => {
+	const command = new GetObjectCommand({
+		Bucket: bucket,
+		Key: objectKey,
+	});
+
+	return getSignedUrl(getCloudflareClient(), command, { expiresIn });
 };

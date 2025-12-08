@@ -1,3 +1,4 @@
+import type { AutofillResponseItem } from "@lazyapply/types";
 import { type ApplicationForm, detectApplicationForm } from "./formDetector.js";
 
 /**
@@ -6,6 +7,7 @@ import { type ApplicationForm, detectApplicationForm } from "./formDetector.js";
 const FORM_DETECTED_MESSAGE = "LAZYAPPLY_FORM_DETECTED";
 const FORM_REQUEST_MESSAGE = "LAZYAPPLY_FORM_REQUEST";
 const FILL_FIELD_MESSAGE = "LAZYAPPLY_FILL_FIELD";
+const FILL_FILE_MESSAGE = "LAZYAPPLY_FILL_FILE";
 
 /**
  * Stored form data with metadata
@@ -137,6 +139,24 @@ export class FormStoreManager {
 	}
 
 	/**
+	 * Fill a file input in the form's iframe context
+	 */
+	fillFileInIframe(hash: string, fileInfo: AutofillResponseItem): void {
+		if (!this.formSourceWindow) return;
+
+		this.formSourceWindow.postMessage(
+			{
+				type: FILL_FILE_MESSAGE,
+				hash,
+				fileUrl: fileInfo.fileUrl,
+				fileName: fileInfo.fileName,
+				fileContentType: fileInfo.fileContentType,
+			},
+			"*",
+		);
+	}
+
+	/**
 	 * Get cached form or detect it (for iframe context)
 	 */
 	private getOrDetectIframeForm(): ApplicationForm | null {
@@ -164,6 +184,10 @@ export class FormStoreManager {
 
 			case FILL_FIELD_MESSAGE:
 				this.handleFillField(data);
+				break;
+
+			case FILL_FILE_MESSAGE:
+				this.handleFillFile(data);
 				break;
 		}
 	}
@@ -217,6 +241,84 @@ export class FormStoreManager {
 		const element = form.fieldElements.get(data.hash);
 		if (element) {
 			this.fillElement(element, data.value);
+		}
+	}
+
+	/**
+	 * Handle fill file request from parent (iframe receives)
+	 */
+	private handleFillFile(data: {
+		hash?: string;
+		fileUrl?: string;
+		fileName?: string;
+		fileContentType?: string;
+	}): void {
+		if (!this.isIframe || !data.hash || !data.fileUrl || !data.fileName) return;
+
+		const form = this.getOrDetectIframeForm();
+		if (!form) return;
+
+		const element = form.fieldElements.get(data.hash);
+		if (element instanceof HTMLInputElement && element.type === "file") {
+			this.fillFileElement(
+				element,
+				data.fileUrl,
+				data.fileName,
+				data.fileContentType,
+			);
+		}
+	}
+
+	/**
+	 * Fill a file input element by fetching from URL
+	 */
+	private async fillFileElement(
+		element: HTMLInputElement,
+		fileUrl: string,
+		fileName: string,
+		fileContentType?: string,
+	): Promise<void> {
+		try {
+			console.log(`[FormStore] Fetching file from: ${fileUrl}`);
+
+			const response = await fetch(fileUrl);
+			if (!response.ok) {
+				console.error(
+					`[FormStore] Failed to fetch file: ${response.status} ${response.statusText}`,
+				);
+				return;
+			}
+
+			const blob = await response.blob();
+			const mimeType = this.getMimeType(fileContentType ?? "PDF");
+
+			const file = new File([blob], fileName, { type: mimeType });
+			const dataTransfer = new DataTransfer();
+			dataTransfer.items.add(file);
+			element.files = dataTransfer.files;
+
+			element.dispatchEvent(new Event("input", { bubbles: true }));
+			element.dispatchEvent(new Event("change", { bubbles: true }));
+
+			console.log(
+				`[FormStore] Successfully set file: ${fileName} (${blob.size} bytes)`,
+			);
+		} catch (error) {
+			console.error("[FormStore] Error filling file input:", error);
+		}
+	}
+
+	/**
+	 * Map file content type to MIME type
+	 */
+	private getMimeType(fileContentType: string): string {
+		switch (fileContentType) {
+			case "PDF":
+				return "application/pdf";
+			case "DOCX":
+				return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+			default:
+				return "application/octet-stream";
 		}
 	}
 
