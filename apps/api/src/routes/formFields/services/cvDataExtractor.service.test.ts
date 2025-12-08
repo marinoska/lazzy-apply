@@ -8,6 +8,8 @@ import {
 const mockCVData: ParsedCVData = {
 	personal: {
 		fullName: "John Doe",
+		firstName: "John",
+		lastName: "Doe",
 		email: "john@example.com",
 		phone: "+1234567890",
 		location: "New York, NY",
@@ -120,6 +122,33 @@ describe("cvDataExtractor.service", () => {
 				expect(extractValueByPath(mockCVData, "personal.rightToWork")).toBe(
 					"US Citizen",
 				);
+			});
+
+			it("should extract personal.firstName", () => {
+				expect(extractValueByPath(mockCVData, "personal.firstName")).toBe(
+					"John",
+				);
+			});
+
+			it("should extract personal.lastName", () => {
+				expect(extractValueByPath(mockCVData, "personal.lastName")).toBe("Doe");
+			});
+
+			it("should return null for missing firstName/lastName", () => {
+				const cvDataWithoutNames: ParsedCVData = {
+					...mockCVData,
+					personal: {
+						...mockCVData.personal,
+						firstName: undefined,
+						lastName: undefined,
+					},
+				};
+				expect(
+					extractValueByPath(cvDataWithoutNames, "personal.firstName"),
+				).toBeNull();
+				expect(
+					extractValueByPath(cvDataWithoutNames, "personal.lastName"),
+				).toBeNull();
 			});
 		});
 

@@ -115,6 +115,7 @@ async function callClassificationModel(
 	const result = await generateText({
 		model: openai(env.OPENAI_MODEL),
 		prompt,
+		temperature: 0,
 	});
 
 	const promptTokens = result.usage.inputTokens ?? 0;

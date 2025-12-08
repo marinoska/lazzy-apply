@@ -46,6 +46,8 @@ const extractedCVDataSchema = z.object({
 	personal: z
 		.object({
 			fullName: z.string().nullable().optional(),
+			firstName: z.string().nullable().optional(),
+			lastName: z.string().nullable().optional(),
 			email: z.string().nullable().optional(),
 			phone: z.string().nullable().optional(),
 			location: z.string().nullable().optional(),
@@ -163,6 +165,8 @@ OUTPUT SCHEMA:
   "parseStatus": "completed",  // Use "completed" for valid CVs, "not-a-cv" for non-CV documents
   "personal": {
     "fullName": string | null,
+    "firstName": string | null,  // First name / given name
+    "lastName": string | null,   // Last name / surname / family name
     "email": string | null,
     "phone": string | null,
     "location": string | null,
@@ -280,6 +284,7 @@ export async function extractCVData(
 			model: openai(modelName),
 			schema: zodSchema(extractedCVDataSchema),
 			prompt: `${EXTRACTION_PROMPT}\n\nCV TEXT:\n"""\n${cvText}\n"""`,
+			temperature: 0,
 		});
 
 		// Extract and cast to our inferred type
@@ -327,6 +332,8 @@ export async function extractCVData(
 		const parsedData: ParsedCVData = {
 			personal: {
 				fullName: personal.fullName ?? null,
+				firstName: personal.firstName ?? null,
+				lastName: personal.lastName ?? null,
 				email: personal.email ?? null,
 				phone: personal.phone ?? null,
 				location: personal.location ?? null,

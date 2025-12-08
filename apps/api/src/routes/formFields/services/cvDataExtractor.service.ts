@@ -26,6 +26,10 @@ export function extractValueByPath(
 		// Personal fields
 		case "personal.fullName":
 			return cvData.personal.fullName;
+		case "personal.firstName":
+			return cvData.personal.firstName ?? null;
+		case "personal.lastName":
+			return cvData.personal.lastName ?? null;
 		case "personal.email":
 			return cvData.personal.email;
 		case "personal.phone":

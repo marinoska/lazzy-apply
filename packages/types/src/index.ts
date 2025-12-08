@@ -94,6 +94,8 @@ export interface ParseCVQueueMessage {
 export interface ParsedCVData {
 	personal: {
 		fullName: string | null;
+		firstName?: string | null;
+		lastName?: string | null;
 		email: string | null;
 		phone: string | null;
 		location: string | null;
@@ -160,6 +162,8 @@ export type TokenUsage = {
  */
 export const CV_DATA_PATH_MAP = {
 	"personal.fullName": "Full name field",
+	"personal.firstName": "First name field",
+	"personal.lastName": "Last name / surname / family name field",
 	"personal.email": "Email address",
 	"personal.phone": "Phone number",
 	"personal.location": "City, address, or location",

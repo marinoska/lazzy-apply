@@ -31,6 +31,8 @@ const cvDataSchema = new Schema<TCVData, CVDataModel, CVDataMethods>(
 		personal: {
 			type: {
 				fullName: { type: String, default: null },
+				firstName: { type: String, default: null },
+				lastName: { type: String, default: null },
 				email: { type: String, default: null },
 				phone: { type: String, default: null },
 				location: { type: String, default: null },
@@ -46,6 +48,7 @@ const cvDataSchema = new Schema<TCVData, CVDataModel, CVDataMethods>(
 				url: { type: String, required: true },
 			},
 		],
+		headline: { type: String, default: null },
 		summary: { type: String, default: null },
 		experience: [
 			{

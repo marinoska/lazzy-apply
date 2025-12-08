@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { CVDataModel } from "@/cvData/cvData.model.js";
 import type { ParsedCVData } from "@lazyapply/types";
+import { describe, expect, it } from "vitest";
+import { CVDataModel } from "@/cvData/cvData.model.js";
 
 describe("CVData Model", () => {
 	describe("Create CV Data", () => {
@@ -8,6 +8,8 @@ describe("CVData Model", () => {
 			const mockParsedData: Omit<ParsedCVData, "fileId"> = {
 				personal: {
 					fullName: "John Doe",
+					firstName: "John",
+					lastName: "Doe",
 					email: "john@example.com",
 					phone: "+1234567890",
 					location: "New York, USA",
@@ -18,6 +20,7 @@ describe("CVData Model", () => {
 					{ type: "linkedin", url: "https://linkedin.com/in/johndoe" },
 					{ type: "github", url: "https://github.com/johndoe" },
 				],
+				headline: "Senior Software Engineer",
 				summary: "Experienced software engineer",
 				experience: [
 					{
@@ -69,6 +72,8 @@ describe("CVData Model", () => {
 			expect(cvData.uploadId).toBe("test-upload-1");
 			expect(cvData.userId).toBe("test-user-1");
 			expect(cvData.personal.fullName).toBe("John Doe");
+			expect(cvData.personal.firstName).toBe("John");
+			expect(cvData.personal.lastName).toBe("Doe");
 			expect(cvData.personal.email).toBe("john@example.com");
 			expect(cvData.links).toHaveLength(2);
 			expect(cvData.experience).toHaveLength(1);
@@ -82,11 +87,14 @@ describe("CVData Model", () => {
 			const minimalData: Omit<ParsedCVData, "fileId"> = {
 				personal: {
 					fullName: "Jane Smith",
+					firstName: "Jane",
+					lastName: "Smith",
 					email: null,
 					phone: null,
 					location: null,
 				},
 				links: [],
+				headline: null,
 				summary: null,
 				experience: [],
 				education: [],
@@ -114,8 +122,16 @@ describe("CVData Model", () => {
 			await CVDataModel.createCVData({
 				uploadId: "test-upload-3",
 				userId: "test-user-3",
-				personal: { fullName: "Test User", email: null, phone: null, location: null },
+				personal: {
+					fullName: "Test User",
+					firstName: "Test",
+					lastName: "User",
+					email: null,
+					phone: null,
+					location: null,
+				},
 				links: [],
+				headline: null,
 				summary: null,
 				experience: [],
 				education: [],
@@ -139,8 +155,16 @@ describe("CVData Model", () => {
 			await CVDataModel.createCVData({
 				uploadId: "test-upload-4a",
 				userId,
-				personal: { fullName: "User 4A", email: null, phone: null, location: null },
+				personal: {
+					fullName: "User 4A",
+					firstName: "User",
+					lastName: "4A",
+					email: null,
+					phone: null,
+					location: null,
+				},
 				links: [],
+				headline: null,
 				summary: null,
 				experience: [],
 				education: [],
@@ -153,8 +177,16 @@ describe("CVData Model", () => {
 			await CVDataModel.createCVData({
 				uploadId: "test-upload-4b",
 				userId,
-				personal: { fullName: "User 4B", email: null, phone: null, location: null },
+				personal: {
+					fullName: "User 4B",
+					firstName: "User",
+					lastName: "4B",
+					email: null,
+					phone: null,
+					location: null,
+				},
 				links: [],
+				headline: null,
 				summary: null,
 				experience: [],
 				education: [],
@@ -164,11 +196,9 @@ describe("CVData Model", () => {
 				rawText: "Test B",
 			});
 
-			const found = await CVDataModel.find(
-				{ userId },
-				null,
-				{ skipOwnershipEnforcement: true },
-			);
+			const found = await CVDataModel.find({ userId }, null, {
+				skipOwnershipEnforcement: true,
+			});
 			expect(found).toHaveLength(2);
 		});
 	});
