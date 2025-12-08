@@ -224,14 +224,19 @@ function isLikelyApplicationForm(element: Element): boolean {
 	}
 
 	// Collect label text for keyword analysis
-	const labels = Array.from(element.querySelectorAll("label")).map(
-		(l) => l.textContent?.toLowerCase() || "",
-	);
+	// Include both <label> elements and elements with class "label" (common in React forms)
+	const labels = Array.from(
+		element.querySelectorAll("label, .label, [class*='label']"),
+	).map((l) => l.textContent?.toLowerCase() || "");
 	const allLabelText = labels.join(" ");
 
-	// Collect field names
+	// Collect field names and ids (React forms often use id instead of name)
 	const fieldNames = Array.from(inputs).map((input) =>
-		(input.getAttribute("name") || "").toLowerCase(),
+		(
+			input.getAttribute("name") ||
+			input.getAttribute("id") ||
+			""
+		).toLowerCase(),
 	);
 	const allFieldNames = fieldNames.join(" ");
 
@@ -251,6 +256,7 @@ function isLikelyApplicationForm(element: Element): boolean {
 	const fileInputs = element.querySelectorAll('input[type="file"]');
 	for (const fileInput of fileInputs) {
 		const name = fileInput.getAttribute("name")?.toLowerCase() ?? "";
+		const id = fileInput.getAttribute("id")?.toLowerCase() ?? "";
 		const label =
 			getAssociatedLabel(
 				fileInput as HTMLInputElement,
@@ -260,6 +266,8 @@ function isLikelyApplicationForm(element: Element): boolean {
 		if (
 			name.includes("resume") ||
 			name.includes("cv") ||
+			id.includes("resume") ||
+			id.includes("cv") ||
 			label.includes("resume") ||
 			label.includes("cv") ||
 			label.includes("cover letter")
@@ -303,6 +311,151 @@ function getAssociatedLabel(
 }
 
 /**
+ * Finds the label text for an input element using multiple strategies:
+ * 1. label[for="id"] - standard HTML label association
+ * 2. aria-label attribute
+ * 3. aria-labelledby attribute
+ * 4. Wrapping <label> element
+ * 5. Previous sibling elements (div, span, label, p)
+ * 6. Parent container's first text-containing child before the input
+ */
+function findLabelForElement(
+	el: HTMLInputElement | HTMLTextAreaElement,
+	form: Element,
+): string | null {
+	// Strategy 1: label[for="id"]
+	if (el.id) {
+		const lbl = form.querySelector(`label[for="${el.id}"]`);
+		if (lbl) {
+			const text = lbl.textContent?.trim();
+			if (text) return text;
+		}
+	}
+
+	// Strategy 2: aria-label attribute
+	const ariaLabel = el.getAttribute("aria-label");
+	if (ariaLabel?.trim()) {
+		return ariaLabel.trim();
+	}
+
+	// Strategy 3: aria-labelledby attribute
+	const ariaLabelledBy = el.getAttribute("aria-labelledby");
+	if (ariaLabelledBy) {
+		const labelEl = document.getElementById(ariaLabelledBy);
+		if (labelEl) {
+			const text = labelEl.textContent?.trim();
+			if (text) return text;
+		}
+	}
+
+	// Strategy 4: Wrapping <label> element
+	const closestLabel = el.closest("label");
+	if (closestLabel) {
+		// Get label text without the input's value
+		const text =
+			Array.from(closestLabel.childNodes)
+				.filter((node) => node.nodeType === Node.TEXT_NODE)
+				.map((node) => node.textContent?.trim())
+				.filter(Boolean)
+				.join(" ") || closestLabel.textContent?.trim();
+		if (text) return text;
+	}
+
+	// Strategy 5: Previous sibling elements
+	const labelText = findLabelFromSiblings(el);
+	if (labelText) return labelText;
+
+	// Strategy 6: Look in parent wrapper for label-like elements before the input
+	const labelFromParent = findLabelFromParentWrapper(el);
+	if (labelFromParent) return labelFromParent;
+
+	return null;
+}
+
+/**
+ * Looks for label text in previous sibling elements
+ */
+function findLabelFromSiblings(el: Element): string | null {
+	let sibling = el.previousElementSibling;
+
+	// Check up to 3 previous siblings
+	for (let i = 0; i < 3 && sibling; i++) {
+		const tag = sibling.tagName.toLowerCase();
+
+		// Common label-like elements
+		if (["label", "span", "div", "p", "legend"].includes(tag)) {
+			// Skip if it's an input wrapper or contains inputs
+			if (sibling.querySelector("input, textarea, select")) {
+				sibling = sibling.previousElementSibling;
+				continue;
+			}
+
+			const text = sibling.textContent?.trim();
+			// Must have text and be reasonably short (labels are typically short)
+			if (text && text.length > 0 && text.length < 200) {
+				return text;
+			}
+		}
+
+		sibling = sibling.previousElementSibling;
+	}
+
+	return null;
+}
+
+/**
+ * Looks for label text in the parent wrapper element
+ * Handles cases like:
+ * <div class="field-wrapper">
+ *   <div class="label-text">First Name</div>
+ *   <input id="first_name" />
+ * </div>
+ */
+function findLabelFromParentWrapper(el: Element): string | null {
+	// Look up to 3 levels of parent wrappers
+	let parent = el.parentElement;
+
+	for (let level = 0; level < 3 && parent; level++) {
+		// Find all text-containing elements before the input in this parent
+		const children = Array.from(parent.children);
+		const inputIndex = children.indexOf(el);
+
+		if (inputIndex === -1) {
+			// Input might be nested deeper, try to find its container
+			const inputContainer = children.find((child) => child.contains(el));
+			if (inputContainer) {
+				const containerIndex = children.indexOf(inputContainer);
+				// Look at elements before the input container
+				for (let i = containerIndex - 1; i >= 0; i--) {
+					const candidate = children[i];
+					if (!candidate.querySelector("input, textarea, select")) {
+						const text = candidate.textContent?.trim();
+						if (text && text.length > 0 && text.length < 200) {
+							return text;
+						}
+					}
+				}
+			}
+		} else {
+			// Look at elements before the input
+			for (let i = inputIndex - 1; i >= 0; i--) {
+				const candidate = children[i];
+				if (!candidate.querySelector("input, textarea, select")) {
+					const text = candidate.textContent?.trim();
+					if (text && text.length > 0 && text.length < 200) {
+						return text;
+					}
+				}
+			}
+		}
+
+		parent = parent.parentElement;
+	}
+
+	return null;
+}
+
+/**
  * Extracts comprehensive information about a form field.
  */
 function extractFieldInfo(
@@ -316,32 +469,11 @@ function extractFieldInfo(
 		el.getAttribute("type") ||
 		(el.tagName === "TEXTAREA" ? "textarea" : "text");
 
-	field.name = el.name || undefined;
+	field.name = el.name || el.id || undefined;
 	field.placeholder = (el as HTMLInputElement).placeholder || null;
 
-	// Find label - try label[for] first, then closest label
-	let label: string | null = null;
-
-	if (el.id) {
-		const lbl = form.querySelector(`label[for="${el.id}"]`);
-		if (lbl) label = lbl.textContent?.trim() || null;
-	}
-	if (!label && el.closest("label")) {
-		const closestLabel = el.closest("label");
-		if (closestLabel) {
-			// Get label text without the input's value
-			label =
-				Array.from(closestLabel.childNodes)
-					.filter((node) => node.nodeType === Node.TEXT_NODE)
-					.map((node) => node.textContent?.trim())
-					.filter(Boolean)
-					.join(" ") ||
-				closestLabel.textContent?.trim() ||
-				null;
-		}
-	}
-
-	field.label = label;
+	// Find label using multiple strategies
+	field.label = findLabelForElement(el, form);
 
 	// Description text from aria-describedby
 	let description: string | null = null;

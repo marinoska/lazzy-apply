@@ -3,14 +3,46 @@ import Alert from "@mui/joy/Alert";
 import Button from "@mui/joy/Button";
 import Divider from "@mui/joy/Divider";
 import Stack from "@mui/joy/Stack";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { classifyFormFields } from "@/lib/api/api.js";
 import { useUploads } from "@/lib/api/context/UploadsContext.js";
+import { formStore } from "../../scanner/FormStoreManager.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
-import { fillFormFields } from "../../scanner/formFiller.js";
 
 interface AutofillButtonProps {
 	onError: (message: string) => void;
+}
+
+/**
+ * Fill an element with a value (handles React compatibility)
+ */
+function fillElementWithValue(element: HTMLElement, value: string): void {
+	const input = element as HTMLInputElement | HTMLTextAreaElement;
+
+	// Use native setter for React compatibility
+	const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+		window.HTMLInputElement.prototype,
+		"value",
+	)?.set;
+	const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
+		window.HTMLTextAreaElement.prototype,
+		"value",
+	)?.set;
+
+	const setter =
+		input.tagName === "TEXTAREA"
+			? nativeTextAreaValueSetter
+			: nativeInputValueSetter;
+
+	if (setter) {
+		setter.call(input, value);
+	} else {
+		input.value = value;
+	}
+
+	// Dispatch events
+	input.dispatchEvent(new Event("input", { bubbles: true }));
+	input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 export function AutofillButton({ onError }: AutofillButtonProps) {
@@ -18,11 +50,40 @@ export function AutofillButton({ onError }: AutofillButtonProps) {
 	const [loading, setLoading] = useState(false);
 	const [formDetected, setFormDetected] = useState<boolean | null>(null);
 
+	// Function to check for forms (local + iframe)
+	const checkForForms = useCallback(() => {
+		// First check local document
+		const localForm = detectApplicationForm();
+		if (localForm && localForm.fields.length > 0) {
+			setFormDetected(true);
+			return;
+		}
+
+		// Check for form received from iframe
+		const storedForm = formStore.getStoredForm();
+		if (storedForm && storedForm.fields.length > 0) {
+			setFormDetected(true);
+			return;
+		}
+
+		// Request form from iframes (they'll respond via postMessage)
+		formStore.requestFormFromIframes();
+		setFormDetected(false);
+	}, []);
+
 	useEffect(() => {
 		if (!hasUploads) return;
-		const form = detectApplicationForm();
-		setFormDetected(form !== null && form.fields.length > 0);
-	}, [hasUploads]);
+		checkForForms();
+
+		// Listen for form updates from iframes
+		const handleMessage = (event: MessageEvent) => {
+			if (event.data?.type === "LAZYAPPLY_FORM_DETECTED") {
+				setFormDetected(true);
+			}
+		};
+		window.addEventListener("message", handleMessage);
+		return () => window.removeEventListener("message", handleMessage);
+	}, [hasUploads, checkForForms]);
 
 	if (!hasUploads || !selectedUpload) {
 		return null;
@@ -32,7 +93,10 @@ export function AutofillButton({ onError }: AutofillButtonProps) {
 		setLoading(true);
 
 		try {
-			const applicationForm = detectApplicationForm();
+			// Try local form first, then stored form from iframe
+			const localForm = detectApplicationForm();
+			const applicationForm = localForm ?? formStore.getStoredForm();
+			const isIframeForm = !localForm && !!applicationForm;
 
 			if (!applicationForm || applicationForm.fields.length === 0) {
 				setFormDetected(false);
@@ -73,11 +137,31 @@ export function AutofillButton({ onError }: AutofillButtonProps) {
 
 			console.log("[AutofillButton] Classification results:", classifications);
 
-			// Fill form fields with the values from CV data
-			const { filled, skipped } = fillFormFields(
-				classifications,
-				applicationForm.fieldElements,
-			);
+			// Fill form fields
+			let filled = 0;
+			let skipped = 0;
+
+			for (const [hash, classification] of Object.entries(classifications)) {
+				if (!classification.pathFound || !classification.value) {
+					skipped++;
+					continue;
+				}
+
+				if (isIframeForm) {
+					// Fill via postMessage to iframe
+					formStore.fillFieldInIframe(hash, classification.value);
+					filled++;
+				} else {
+					// Fill directly in local document
+					const element = applicationForm.fieldElements.get(hash);
+					if (element) {
+						fillElementWithValue(element, classification.value);
+						filled++;
+					} else {
+						skipped++;
+					}
+				}
+			}
 
 			console.log(
 				`[AutofillButton] Filled ${filled} fields, skipped ${skipped}`,

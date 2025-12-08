@@ -279,14 +279,17 @@ describe("formDetector", () => {
 			expect(result?.fields.some((f) => f.isFileUpload)).toBe(true);
 		});
 
-		it("should handle fields with no labels", () => {
+		it("should use placeholder when no label is found", () => {
 			container.innerHTML = `
         <form action="/apply">
           <label for="resume">Resume</label>
           <input type="file" id="resume" name="resume" accept=".pdf" />
           
-          <input type="text" id="unlabeled" name="unlabeled" placeholder="Enter text" />
+          <label for="email">Email</label>
           <input type="email" id="email" name="email" />
+          
+          <label for="phone">Phone</label>
+          <input type="tel" id="phone" name="phone" placeholder="Enter phone" />
           <button>Submit Application</button>
         </form>
       `;
@@ -294,10 +297,11 @@ describe("formDetector", () => {
 			const result = detectApplicationForm();
 
 			expect(result).not.toBeNull();
-			const unlabeledField = result?.fields.find((f) => f.name === "unlabeled");
+			const phoneField = result?.fields.find((f) => f.name === "phone");
 
-			expect(unlabeledField?.label).toBeNull();
-			expect(unlabeledField?.placeholder).toBe("Enter text");
+			// Field has a label and placeholder - label takes precedence
+			expect(phoneField?.label).toBe("Phone");
+			expect(phoneField?.placeholder).toBe("Enter phone");
 		});
 
 		it("should detect common application keywords in labels", () => {
@@ -1026,6 +1030,162 @@ describe("formDetector", () => {
 				expect(result2).not.toBeNull();
 				// formHash should be the same because it's derived from sorted field hashes
 				expect(result1?.formHash).toBe(result2?.formHash);
+			});
+		});
+
+		describe("fields without name attribute", () => {
+			it("should use id as fallback when name is not present", () => {
+				container.innerHTML = `
+          <form action="/apply">
+            <label for="first_name">First Name</label>
+            <input type="text" id="first_name" />
+            
+            <label for="email">Email</label>
+            <input type="email" id="email" />
+            
+            <label for="resume">Resume/CV</label>
+            <input type="file" id="resume" accept=".pdf" />
+            
+            <button type="submit">Submit Application</button>
+          </form>
+        `;
+
+				const result = detectApplicationForm();
+
+				expect(result).not.toBeNull();
+				expect(result?.totalFields).toBe(3);
+
+				const firstNameField = result?.fields.find(
+					(f) => f.name === "first_name",
+				);
+				expect(firstNameField).toBeDefined();
+				expect(firstNameField?.label).toBe("First Name");
+			});
+
+			it("should prefer name over id when both are present", () => {
+				container.innerHTML = `
+          <form action="/apply">
+            <label for="firstName">First Name</label>
+            <input type="text" id="firstName" name="first_name" />
+            
+            <label for="email">Email</label>
+            <input type="email" id="email" name="user_email" />
+            
+            <label for="resume">Resume/CV</label>
+            <input type="file" id="resume" name="resume_file" accept=".pdf" />
+            
+            <button type="submit">Submit Application</button>
+          </form>
+        `;
+
+				const result = detectApplicationForm();
+
+				expect(result).not.toBeNull();
+				const firstNameField = result?.fields.find(
+					(f) => f.name === "first_name",
+				);
+				const emailField = result?.fields.find((f) => f.name === "user_email");
+
+				expect(firstNameField).toBeDefined();
+				expect(emailField).toBeDefined();
+			});
+
+			it("should detect Greenhouse/Elastic style forms with div labels and id-only inputs", () => {
+				container.innerHTML = `
+          <form id="application-form" class="application--form" method="get" action="/apply">
+            <div class="application--questions">
+              <div class="text-input-wrapper">
+                <div class="input-wrapper">
+                  <label id="first_name-label" for="first_name" class="label">First Name<span>*</span></label>
+                  <input id="first_name" class="input" type="text" maxlength="255" value="">
+                </div>
+              </div>
+              <div class="text-input-wrapper">
+                <div class="input-wrapper">
+                  <label id="email-label" for="email" class="label">Email<span>*</span></label>
+                  <input id="email" class="input" type="text" maxlength="255" value="">
+                </div>
+              </div>
+              <div class="file-upload">
+                <div id="upload-label-resume" class="label upload-label">Resume/CV<span class="required">*</span></div>
+                <input id="resume" class="visually-hidden" type="file" accept=".pdf,.doc,.docx">
+              </div>
+            </div>
+            <button type="submit" class="btn">Submit application</button>
+          </form>
+        `;
+
+				const result = detectApplicationForm();
+
+				expect(result).not.toBeNull();
+				expect(result?.formDetected).toBe(true);
+				expect(result?.totalFields).toBe(3);
+
+				const firstNameField = result?.fields.find(
+					(f) => f.name === "first_name",
+				);
+				const emailField = result?.fields.find((f) => f.name === "email");
+				const resumeField = result?.fields.find((f) => f.name === "resume");
+
+				expect(firstNameField).toBeDefined();
+				expect(firstNameField?.label).toBe("First Name*");
+				expect(emailField).toBeDefined();
+				expect(resumeField).toBeDefined();
+				expect(resumeField?.isFileUpload).toBe(true);
+			});
+
+			it("should find labels from sibling div/span elements", () => {
+				container.innerHTML = `
+          <form action="/apply">
+            <div class="field-group">
+              <span class="field-title">Your Name</span>
+              <input type="text" id="name" name="name" />
+            </div>
+            <div class="field-group">
+              <div class="question-text">Email Address</div>
+              <input type="email" id="email" name="email" />
+            </div>
+            <div class="upload-section">
+              <p class="upload-title">Resume/CV</p>
+              <input type="file" id="resume" name="resume" accept=".pdf" />
+            </div>
+            <button type="submit">Submit Application</button>
+          </form>
+        `;
+
+				const result = detectApplicationForm();
+
+				expect(result).not.toBeNull();
+				expect(result?.totalFields).toBe(3);
+
+				const nameField = result?.fields.find((f) => f.name === "name");
+				const emailField = result?.fields.find((f) => f.name === "email");
+				const resumeField = result?.fields.find((f) => f.name === "resume");
+
+				expect(nameField?.label).toBe("Your Name");
+				expect(emailField?.label).toBe("Email Address");
+				expect(resumeField?.label).toBe("Resume/CV");
+			});
+
+			it("should find labels from aria-label attribute", () => {
+				container.innerHTML = `
+          <form action="/apply">
+            <input type="text" id="name" name="name" aria-label="Full Name" />
+            <input type="email" id="email" name="email" aria-label="Email Address" />
+            <input type="file" id="resume" name="resume" aria-label="Upload Resume" accept=".pdf" />
+            <button type="submit">Submit Application</button>
+          </form>
+        `;
+
+				const result = detectApplicationForm();
+
+				expect(result).not.toBeNull();
+
+				const nameField = result?.fields.find((f) => f.name === "name");
+				const emailField = result?.fields.find((f) => f.name === "email");
+
+				expect(nameField?.label).toBe("Full Name");
+				expect(emailField?.label).toBe("Email Address");
 			});
 		});
 	});
