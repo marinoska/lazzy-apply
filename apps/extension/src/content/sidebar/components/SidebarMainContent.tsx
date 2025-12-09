@@ -1,6 +1,5 @@
 import Button from "@mui/joy/Button";
 import { useState } from "react";
-import { UploadsProvider } from "@/lib/api/context/UploadsContext.js";
 import { Snackbar } from "../../../components/Snackbar.js";
 import { ApplicationSection } from "./ApplicationSection.js";
 import { CVSelector } from "./CVSelector.js";
@@ -39,7 +38,7 @@ export function SidebarMainContent({
 	}
 
 	return (
-		<UploadsProvider>
+		<>
 			<CVSelector />
 
 			{!showDropzone && (
@@ -66,6 +65,6 @@ export function SidebarMainContent({
 				type={alertType}
 				onClose={() => setAlertMessage("")}
 			/>
-		</UploadsProvider>
+		</>
 	);
 }

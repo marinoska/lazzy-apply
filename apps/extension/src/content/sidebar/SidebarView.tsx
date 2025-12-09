@@ -1,6 +1,7 @@
 import Divider from "@mui/joy/Divider";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
+import { UploadsProvider } from "@/lib/api/context/UploadsContext.js";
 import {
 	LoadingIndicator,
 	LoginButton,
@@ -8,6 +9,7 @@ import {
 	SidebarMainContent,
 	StatusMessage,
 } from "./components/index.js";
+import { AutofillProvider } from "./context/AutofillContext.js";
 import type { SidebarViewProps } from "./types.js";
 
 export function SidebarView({
@@ -39,7 +41,11 @@ export function SidebarView({
 					<LoadingIndicator loading={loading} />
 
 					{session ? (
-						<SidebarMainContent loading={loading} />
+						<UploadsProvider>
+							<AutofillProvider>
+								<SidebarMainContent loading={loading} />
+							</AutofillProvider>
+						</UploadsProvider>
 					) : (
 						<LoginButton onClick={onSignIn} disabled={loading} />
 					)}

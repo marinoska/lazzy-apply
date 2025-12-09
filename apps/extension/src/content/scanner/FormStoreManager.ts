@@ -8,6 +8,7 @@ const FORM_DETECTED_MESSAGE = "LAZYAPPLY_FORM_DETECTED";
 const FORM_REQUEST_MESSAGE = "LAZYAPPLY_FORM_REQUEST";
 const FILL_FIELD_MESSAGE = "LAZYAPPLY_FILL_FIELD";
 const FILL_FILE_MESSAGE = "LAZYAPPLY_FILL_FILE";
+const FILL_COVER_LETTER_FILE_MESSAGE = "LAZYAPPLY_FILL_COVER_LETTER_FILE";
 
 /**
  * Stored form data with metadata
@@ -157,6 +158,33 @@ export class FormStoreManager {
 	}
 
 	/**
+	 * Fill a cover letter file input in the form's iframe context with a blob
+	 */
+	fillCoverLetterFileInIframe(
+		hash: string,
+		pdfBlob: Blob,
+		fileName: string,
+	): void {
+		if (!this.formSourceWindow) return;
+
+		// Convert blob to base64 for postMessage transfer
+		const reader = new FileReader();
+		reader.onload = () => {
+			const base64Data = reader.result;
+			this.formSourceWindow?.postMessage(
+				{
+					type: FILL_COVER_LETTER_FILE_MESSAGE,
+					hash,
+					base64Data,
+					fileName,
+				},
+				"*",
+			);
+		};
+		reader.readAsDataURL(pdfBlob);
+	}
+
+	/**
 	 * Get cached form or detect it (for iframe context)
 	 */
 	private getOrDetectIframeForm(): ApplicationForm | null {
@@ -188,6 +216,10 @@ export class FormStoreManager {
 
 			case FILL_FILE_MESSAGE:
 				this.handleFillFile(data);
+				break;
+
+			case FILL_COVER_LETTER_FILE_MESSAGE:
+				this.handleFillCoverLetterFile(data);
 				break;
 		}
 	}
@@ -270,6 +302,26 @@ export class FormStoreManager {
 	}
 
 	/**
+	 * Handle fill cover letter file request from parent (iframe receives)
+	 */
+	private handleFillCoverLetterFile(data: {
+		hash?: string;
+		base64Data?: string;
+		fileName?: string;
+	}): void {
+		if (!this.isIframe || !data.hash || !data.base64Data || !data.fileName)
+			return;
+
+		const form = this.getOrDetectIframeForm();
+		if (!form) return;
+
+		const element = form.fieldElements.get(data.hash);
+		if (element instanceof HTMLInputElement && element.type === "file") {
+			this.fillFileElementFromBase64(element, data.base64Data, data.fileName);
+		}
+	}
+
+	/**
 	 * Fill a file input element by fetching from URL
 	 */
 	private async fillFileElement(
@@ -305,6 +357,46 @@ export class FormStoreManager {
 			);
 		} catch (error) {
 			console.error("[FormStore] Error filling file input:", error);
+		}
+	}
+
+	/**
+	 * Fill a file input element from base64 data
+	 */
+	private fillFileElementFromBase64(
+		element: HTMLInputElement,
+		base64Data: string,
+		fileName: string,
+	): void {
+		try {
+			// Convert base64 data URL to blob
+			const [header, data] = base64Data.split(",");
+			const mimeMatch = header.match(/data:([^;]+)/);
+			const mimeType = mimeMatch ? mimeMatch[1] : "application/pdf";
+
+			const binaryString = atob(data);
+			const bytes = new Uint8Array(binaryString.length);
+			for (let i = 0; i < binaryString.length; i++) {
+				bytes[i] = binaryString.charCodeAt(i);
+			}
+			const blob = new Blob([bytes], { type: mimeType });
+
+			const file = new File([blob], fileName, { type: mimeType });
+			const dataTransfer = new DataTransfer();
+			dataTransfer.items.add(file);
+			element.files = dataTransfer.files;
+
+			element.dispatchEvent(new Event("input", { bubbles: true }));
+			element.dispatchEvent(new Event("change", { bubbles: true }));
+
+			console.log(
+				`[FormStore] Successfully set cover letter file: ${fileName} (${blob.size} bytes)`,
+			);
+		} catch (error) {
+			console.error(
+				"[FormStore] Error filling cover letter file input:",
+				error,
+			);
 		}
 	}
 

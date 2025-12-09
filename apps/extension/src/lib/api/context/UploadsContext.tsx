@@ -43,6 +43,7 @@ export function UploadsProvider({
 	children,
 	limit = 20,
 }: UploadsProviderProps) {
+	console.log("[UploadsProvider] render");
 	const { data, isLoading, error, refetch } = useUploadsQuery({ limit });
 	const updateSelectedUploadMutation = useUpdateSelectedUploadMutation();
 
