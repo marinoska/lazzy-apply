@@ -22,6 +22,10 @@ import {
 	deleteUploadParamsSchema,
 } from "./uploads/deleteUpload.controller.js";
 import {
+	downloadUploadController,
+	downloadUploadParamsSchema,
+} from "./uploads/downloadUpload.controller.js";
+import {
 	finalizeUploadController,
 	finalizeUploadRequestSchema,
 } from "./uploads/finalizeUpload.controller.js";
@@ -100,6 +104,12 @@ export const registerRoutes = (app: Express) => {
 		"/uploads/:fileId",
 		validateRequest({ params: deleteUploadParamsSchema }),
 		deleteUploadController,
+	);
+
+	userRouter.get(
+		"/uploads/:fileId/download",
+		validateRequest({ params: downloadUploadParamsSchema }),
+		downloadUploadController,
 	);
 
 	userRouter.post(

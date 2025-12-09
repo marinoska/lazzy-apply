@@ -126,3 +126,20 @@ export async function updateSelectedUpload(
 		{ selectedUploadId } satisfies UpdateSelectedUploadRequest,
 	);
 }
+
+export interface DownloadUploadResponse {
+	downloadUrl: string;
+	filename: string;
+}
+
+/**
+ * Get a presigned download URL for an uploaded file
+ */
+export async function getDownloadUrl(
+	fileId: string,
+): Promise<DownloadUploadResponse> {
+	return sendApiRequest<DownloadUploadResponse>(
+		"GET",
+		`/uploads/${fileId}/download`,
+	);
+}

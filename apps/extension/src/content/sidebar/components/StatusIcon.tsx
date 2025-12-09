@@ -1,12 +1,15 @@
 import CheckIcon from "@mui/icons-material/Check";
+import DownloadIcon from "@mui/icons-material/Download";
 import NotACVIcon from "@mui/icons-material/ErrorOutline";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
-import Chip from "@mui/joy/Chip";
+import { Chip, IconButton, Stack, Typography } from "@mui/joy";
 import CircularProgress from "@mui/joy/CircularProgress";
-import type { UploadState } from "@/lib/api/api.js";
+import { useState } from "react";
+import { getDownloadUrl } from "@/lib/api/api.js";
+import type { EnhancedUploadDTO } from "@/lib/api/context/UploadsContext.js";
 
 interface StatusIconProps {
-	upload: UploadState;
+	upload: EnhancedUploadDTO;
 }
 
 type StatusInfo = {
@@ -20,7 +23,52 @@ type StatusInfo = {
 	isNotACV?: boolean;
 };
 
-function getStatusInfo(upload: UploadState): StatusInfo | null {
+interface DownloadButtonProps {
+	fileId: string;
+}
+
+function DownloadButton({ fileId }: DownloadButtonProps) {
+	const [isLoading, setIsLoading] = useState(false);
+
+	const handleDownload = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setIsLoading(true);
+		try {
+			const { downloadUrl } = await getDownloadUrl(fileId);
+			window.open(downloadUrl, "_blank");
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	return (
+		<IconButton
+			size="sm"
+			variant="soft"
+			color="success"
+			onClick={handleDownload}
+			disabled={isLoading}
+			aria-label="Download CV"
+			sx={{ minWidth: 24, minHeight: 24 }}
+		>
+			{isLoading ? (
+				<CircularProgress
+					size="sm"
+					sx={{ "--CircularProgress-size": "14px" }}
+				/>
+			) : (
+				<Stack direction="row" alignItems="center" gap={0.5}>
+					<DownloadIcon sx={{ fontSize: 16 }} />
+					<Typography level="body-xs" sx={{ fontSize: 10 }}>
+						Open
+					</Typography>
+				</Stack>
+			)}
+		</IconButton>
+	);
+}
+
+function getStatusInfo(upload: EnhancedUploadDTO): StatusInfo | null {
 	switch (upload.status) {
 		case "pending":
 			return { label: "Pending", color: "neutral", isProcessing: true };
@@ -61,33 +109,36 @@ export function StatusChip({ upload }: StatusIconProps) {
 	if (!info) return null;
 
 	return (
-		<Chip
-			size="sm"
-			variant="outlined"
-			color={info.color}
-			startDecorator={
-				info.isProcessing ? (
-					<CircularProgress
-						color={info.color}
-						size="sm"
-						sx={{ "--CircularProgress-size": "12px" }}
-					/>
-				) : info.isDone ? (
-					<CheckIcon sx={{ fontSize: 12 }} />
-				) : info.isDuplicate ? (
-					<RemoveCircleOutlineIcon sx={{ fontSize: 12 }} />
-				) : info.isFailed ? (
-					<RemoveCircleOutlineIcon sx={{ fontSize: 12 }} />
-				) : info.isDeleted ? (
-					<RemoveCircleOutlineIcon sx={{ fontSize: 12 }} />
-				) : info.isNotACV ? (
-					<NotACVIcon sx={{ fontSize: 12 }} />
-				) : undefined
-			}
-			sx={{ fontSize: "10px", fontWeight: 600 }}
-		>
-			{info.label}
-		</Chip>
+		<Stack direction="column" alignItems="center" gap={0.5}>
+			<Chip
+				size="sm"
+				variant="outlined"
+				color={info.color}
+				startDecorator={
+					info.isProcessing ? (
+						<CircularProgress
+							color={info.color}
+							size="sm"
+							sx={{ "--CircularProgress-size": "12px" }}
+						/>
+					) : info.isDone ? (
+						<CheckIcon sx={{ fontSize: 12 }} />
+					) : info.isDuplicate ? (
+						<RemoveCircleOutlineIcon sx={{ fontSize: 12 }} />
+					) : info.isFailed ? (
+						<RemoveCircleOutlineIcon sx={{ fontSize: 12 }} />
+					) : info.isDeleted ? (
+						<RemoveCircleOutlineIcon sx={{ fontSize: 12 }} />
+					) : info.isNotACV ? (
+						<NotACVIcon sx={{ fontSize: 12 }} />
+					) : undefined
+				}
+				sx={{ fontSize: "10px", fontWeight: 600 }}
+			>
+				{info.label}
+			</Chip>
+			{info.isDone && <DownloadButton fileId={upload.fileId} />}
+		</Stack>
 	);
 }
 
