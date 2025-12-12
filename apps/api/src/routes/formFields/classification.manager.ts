@@ -5,6 +5,7 @@ import type {
 	FormFieldRef,
 	FormInput,
 	ParsedCVData,
+	TokenUsage,
 } from "@lazyapply/types";
 import { getPresignedDownloadUrl } from "@/app/cloudflare.js";
 import { getEnv } from "@/app/env.js";
@@ -21,6 +22,9 @@ import type { TFileUpload } from "@/uploads/fileUpload.types.js";
 import {
 	classifyFieldsWithAI,
 	extractValueByPath,
+	type InferenceField,
+	type InferenceResult,
+	inferFieldValues,
 	isPathInCVData,
 	persistNewFormAndFields,
 } from "./services/index.js";
@@ -32,6 +36,50 @@ type FileInfo = {
 	fileName: string;
 	fileContentType: string;
 };
+
+function createEmptyUsage(): TokenUsage {
+	return {
+		promptTokens: 0,
+		completionTokens: 0,
+		totalTokens: 0,
+		inputCost: 0,
+		outputCost: 0,
+		totalCost: 0,
+	};
+}
+
+/**
+ * Collects fields that require inference from the autofill response
+ */
+function collectInferenceFields(response: AutofillResponse): InferenceField[] {
+	const fields: InferenceField[] = [];
+
+	for (const [hash, item] of Object.entries(response)) {
+		if (item.path === "unknown" && item.inferenceHint === "text_from_jd_cv") {
+			fields.push({
+				hash,
+				fieldName: item.fieldName,
+			});
+		}
+	}
+
+	return fields;
+}
+
+/**
+ * Applies inferred answers to the autofill response
+ */
+function applyInferredAnswers(
+	response: AutofillResponse,
+	answers: Record<string, string>,
+): void {
+	for (const [hash, value] of Object.entries(answers)) {
+		if (response[hash]) {
+			response[hash].value = value;
+			response[hash].pathFound = true;
+		}
+	}
+}
 
 /**
  * Builds autofill response from stored fields, enriched with CV data values
@@ -117,6 +165,7 @@ export class ClassificationManager {
 		inputFields: Field[],
 		private readonly userId: string,
 		private readonly selectedUploadId: string,
+		private readonly jdRawText: string,
 	) {
 		this.inputFieldsMap = new Map(inputFields.map((f) => [f.hash, f]));
 	}
@@ -241,12 +290,22 @@ export class ClassificationManager {
 			fileInfo,
 		);
 
+		// Handle inference for fields with inferenceHint
+		let inferenceUsage: TokenUsage | undefined;
+		const inferenceFields = collectInferenceFields(result);
+		if (inferenceFields.length > 0) {
+			const inferenceResult = await this.inferFields(inferenceFields);
+			applyInferredAnswers(result, inferenceResult.answers);
+			inferenceUsage = inferenceResult.usage;
+		}
+
 		// Persist form with all field refs, but only insert newly classified fields
 		await persistNewFormAndFields(
 			this.formInput,
 			[...this.existingFields, ...classifiedFields],
 			classifiedFields,
 			usage,
+			inferenceUsage,
 		);
 
 		return {
@@ -254,6 +313,33 @@ export class ClassificationManager {
 			fromCache: false,
 			usage,
 		};
+	}
+
+	/**
+	 * Infer field values using CV and JD text
+	 */
+	private async inferFields(
+		fields: InferenceField[],
+	): Promise<InferenceResult> {
+		if (!this.cvData?.rawText) {
+			logger.error("No CV raw text available for inference");
+			return { answers: {}, usage: createEmptyUsage() };
+		}
+
+		logger.info({ fieldCount: fields.length }, "Processing inference fields");
+
+		const result = await inferFieldValues({
+			cvRawText: this.cvData.rawText,
+			jdRawText: this.jdRawText,
+			fields,
+		});
+
+		logger.info(
+			{ answeredCount: Object.keys(result.answers).length },
+			"Inference completed",
+		);
+
+		return result;
 	}
 
 	/**

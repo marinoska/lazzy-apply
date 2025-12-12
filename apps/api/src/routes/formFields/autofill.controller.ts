@@ -18,7 +18,7 @@ export async function autofill(
 		throw new Unauthorized("Missing authenticated user");
 	}
 
-	const { form, fields, selectedUploadId } = req.body;
+	const { form, fields, selectedUploadId, jdRawText } = req.body;
 
 	logger.info({ formHash: form.formHash, selectedUploadId }, "Processing form");
 
@@ -27,6 +27,7 @@ export async function autofill(
 		fields,
 		user.id,
 		selectedUploadId,
+		jdRawText ?? "",
 	);
 	const { response, fromCache } = await classificationManager.process();
 

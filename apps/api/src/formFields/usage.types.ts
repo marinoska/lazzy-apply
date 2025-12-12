@@ -5,7 +5,10 @@ export const USAGE_MODEL_NAME = "usage" as const;
 /**
  * Usage type enum - identifies what operation generated the usage
  */
-export const USAGE_TYPES = ["form_fields_classification"] as const;
+export const USAGE_TYPES = [
+	"form_fields_classification",
+	"form_fields_inference",
+] as const;
 export type UsageType = (typeof USAGE_TYPES)[number];
 
 /**

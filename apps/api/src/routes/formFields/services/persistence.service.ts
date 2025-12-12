@@ -67,12 +67,15 @@ function buildFormFieldDocuments(
  * Persists a new form and its fields to the database in a single transaction.
  * @param allClassifiedFields - All fields for form references (cached + new)
  * @param newlyClassifiedFields - Only new fields to insert into FormField collection
+ * @param classificationUsage - Token usage from classification LLM call
+ * @param inferenceUsage - Optional token usage from inference LLM call
  */
 export async function persistNewFormAndFields(
 	formInput: FormInput,
 	allClassifiedFields: (TFormField | EnrichedClassifiedField)[],
 	newlyClassifiedFields: EnrichedClassifiedField[],
-	tokenUsage: TokenUsage,
+	classificationUsage: TokenUsage,
+	inferenceUsage?: TokenUsage,
 ): Promise<void> {
 	const session = await mongoose.startSession();
 
@@ -95,18 +98,33 @@ export async function persistNewFormAndFields(
 				await FormFieldModel.insertMany(fieldDocs, { session, ordered: false });
 			}
 
-			const usageData: CreateUsageParams = {
+			const classificationUsageData: CreateUsageParams = {
 				referenceTable: "forms",
 				reference: savedForm._id,
 				type: "form_fields_classification",
-				promptTokens: tokenUsage.promptTokens,
-				completionTokens: tokenUsage.completionTokens,
-				totalTokens: tokenUsage.totalTokens,
-				inputCost: tokenUsage.inputCost ?? 0,
-				outputCost: tokenUsage.outputCost ?? 0,
-				totalCost: tokenUsage.totalCost ?? 0,
+				promptTokens: classificationUsage.promptTokens,
+				completionTokens: classificationUsage.completionTokens,
+				totalTokens: classificationUsage.totalTokens,
+				inputCost: classificationUsage.inputCost ?? 0,
+				outputCost: classificationUsage.outputCost ?? 0,
+				totalCost: classificationUsage.totalCost ?? 0,
 			};
-			await UsageModel.create([usageData], { session });
+			await UsageModel.create([classificationUsageData], { session });
+
+			if (inferenceUsage && inferenceUsage.totalTokens > 0) {
+				const inferenceUsageData: CreateUsageParams = {
+					referenceTable: "forms",
+					reference: savedForm._id,
+					type: "form_fields_inference",
+					promptTokens: inferenceUsage.promptTokens,
+					completionTokens: inferenceUsage.completionTokens,
+					totalTokens: inferenceUsage.totalTokens,
+					inputCost: inferenceUsage.inputCost ?? 0,
+					outputCost: inferenceUsage.outputCost ?? 0,
+					totalCost: inferenceUsage.totalCost ?? 0,
+				};
+				await UsageModel.create([inferenceUsageData], { session });
+			}
 		});
 	} finally {
 		await session.endSession();

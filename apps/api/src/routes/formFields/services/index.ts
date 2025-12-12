@@ -6,4 +6,10 @@ export {
 	extractValueByPath,
 	isPathInCVData,
 } from "./cvDataExtractor.service.js";
+export {
+	type InferenceField,
+	type InferenceInput,
+	type InferenceResult,
+	inferFieldValues,
+} from "./inference.service.js";
 export { persistNewFormAndFields } from "./persistence.service.js";

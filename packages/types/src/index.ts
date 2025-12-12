@@ -346,6 +346,8 @@ export interface AutofillRequest {
 	fields: Field[];
 	/** Selected upload ID to use for CV data lookup */
 	selectedUploadId: string;
+	/** Raw job description text for inference (optional) */
+	jdRawText?: string;
 }
 
 /**
