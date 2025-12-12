@@ -2,6 +2,7 @@ import type {
 	ClassificationFieldData,
 	FormFieldPath,
 	FormFieldRef,
+	InferenceHint,
 } from "@lazyapply/types";
 import type { Document, Model } from "mongoose";
 
@@ -18,6 +19,8 @@ export type TFormField = {
 	field: ClassificationFieldData;
 	classification: FormFieldPath;
 	linkType?: string;
+	/** Inference hint for fields requiring JD + CV generation (only when classification is "unknown") */
+	inferenceHint?: InferenceHint;
 	createdAt: Date;
 	updatedAt: Date;
 };

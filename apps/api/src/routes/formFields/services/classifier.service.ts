@@ -4,6 +4,8 @@ import {
 	type Field,
 	FORM_FIELD_PATH_MAP,
 	type FormFieldPath,
+	INFERENCE_HINTS,
+	type InferenceHint,
 	type TokenUsage,
 } from "@lazyapply/types";
 import { generateText } from "ai";
@@ -51,12 +53,31 @@ INSTRUCTIONS:
 - Summary / about me → "summary".
 - If unclear → "unknown".
 
+INFERENCE HINT RULES:
+For open-ended text fields that do NOT map to any existing path but CAN be answered using Job Description + CV data:
+- Set path to "unknown"
+- Set inferenceHint to "text_from_jd_cv"
+
+Examples of fields requiring inferenceHint:
+- "Why do you want this role?"
+- "Why are you a good fit?"
+- "Describe relevant experience"
+- "Motivation"
+- "Additional information"
+
+Do NOT set inferenceHint for:
+- Fields that map to existing paths
+- Consent/checkbox fields
+- Unclear or irrelevant fields
+- Fields that cannot be inferred from JD + CV
+
 OUTPUT FORMAT:
 [
   {
     "hash": string,
     "path": string,
-    "linkType": string | undefined  // Only for "links" path
+    "linkType": string | undefined,  // Only for "links" path
+    "inferenceHint": "text_from_jd_cv" | undefined  // Only when path is "unknown" and field is answerable via JD + CV
   }
 ]
 
@@ -78,7 +99,10 @@ interface RawClassificationItem {
 	hash: string;
 	path: string;
 	linkType?: string;
+	inferenceHint?: string;
 }
+
+const VALID_INFERENCE_HINTS = new Set<string>(INFERENCE_HINTS);
 
 export type EnrichedClassifiedField = ClassifiedField & Field;
 
@@ -192,6 +216,15 @@ function parseClassificationResponse(
 
 		if (classification === "links" && typeof item.linkType === "string") {
 			result.linkType = item.linkType;
+		}
+
+		// Only set inferenceHint when classification is "unknown" and hint is valid
+		if (
+			classification === "unknown" &&
+			typeof item.inferenceHint === "string" &&
+			VALID_INFERENCE_HINTS.has(item.inferenceHint)
+		) {
+			result.inferenceHint = item.inferenceHint as InferenceHint;
 		}
 
 		results.push(result);

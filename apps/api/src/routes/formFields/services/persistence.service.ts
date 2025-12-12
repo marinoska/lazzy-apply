@@ -1,8 +1,4 @@
-import type {
-	FormFieldRef,
-	FormInput,
-	TokenUsage,
-} from "@lazyapply/types";
+import type { FormFieldRef, FormInput, TokenUsage } from "@lazyapply/types";
 import mongoose from "mongoose";
 import { FormModel } from "@/formFields/form.model.js";
 import {
@@ -21,11 +17,14 @@ import type { EnrichedClassifiedField } from "./classifier.service.js";
 function buildFormFieldRefs(
 	classifiedFields: (EnrichedClassifiedField | TFormField)[],
 ): FormFieldRef[] {
-	return classifiedFields.map(({ hash, classification, linkType }) => ({
-		hash,
-		classification,
-		...(linkType && { linkType }),
-	}));
+	return classifiedFields.map(
+		({ hash, classification, linkType, inferenceHint }) => ({
+			hash,
+			classification,
+			...(linkType && { linkType }),
+			...(inferenceHint && { inferenceHint }),
+		}),
+	);
 }
 
 /**
@@ -36,7 +35,13 @@ function buildFormFieldDocuments(
 ): CreateFormFieldParams[] {
 	const fieldDocs: CreateFormFieldParams[] = [];
 
-	for (const { hash, classification, linkType, field } of classifiedFields) {
+	for (const {
+		hash,
+		classification,
+		linkType,
+		inferenceHint,
+		field,
+	} of classifiedFields) {
 		fieldDocs.push({
 			hash: hash,
 			field: {
@@ -51,6 +56,7 @@ function buildFormFieldDocuments(
 			},
 			classification,
 			linkType,
+			inferenceHint,
 		});
 	}
 

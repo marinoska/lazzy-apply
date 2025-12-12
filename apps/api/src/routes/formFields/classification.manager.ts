@@ -59,6 +59,11 @@ function buildResponseFromFields(
 				item.linkType = field.linkType;
 			}
 
+			// Include inferenceHint for fields that can be answered via JD + CV
+			if ("inferenceHint" in field && field.inferenceHint) {
+				item.inferenceHint = field.inferenceHint;
+			}
+
 			// Extract value from CV data if path exists in CV structure
 			if (isPathInCVData(field.classification) && cvData) {
 				item.value = extractValueByPath(

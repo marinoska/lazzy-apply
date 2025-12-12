@@ -1,4 +1,4 @@
-import { FORM_FIELD_PATHS } from "@lazyapply/types";
+import { FORM_FIELD_PATHS, INFERENCE_HINTS } from "@lazyapply/types";
 import { model, Schema } from "mongoose";
 
 import {
@@ -41,6 +41,10 @@ const formFieldSchema = new Schema<
 		linkType: {
 			type: String,
 			default: undefined,
+		},
+		inferenceHint: {
+			type: String,
+			enum: INFERENCE_HINTS,
 		},
 	},
 	{ timestamps: true },

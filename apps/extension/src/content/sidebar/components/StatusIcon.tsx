@@ -101,11 +101,7 @@ function getStatusInfo(upload: EnhancedUploadDTO): StatusInfo | null {
 
 export function StatusChip({ upload }: StatusIconProps) {
 	const info = getStatusInfo(upload);
-	console.log({
-		status: upload.status,
-		parseStatus: upload.status === "uploaded" ? upload.parseStatus : undefined,
-		info: info?.label,
-	});
+
 	if (!info) return null;
 
 	return (

@@ -200,6 +200,14 @@ export const INFERRED_PATH_MAP = {
 	unknown: "Cannot determine",
 } as const;
 
+/**
+ * Inference hints for fields that require JD + CV generation
+ * Used when path is "unknown" but the field can be answered via inference
+ */
+export const INFERENCE_HINTS = ["text_from_jd_cv"] as const;
+
+export type InferenceHint = (typeof INFERENCE_HINTS)[number];
+
 export type InferredPath = keyof typeof INFERRED_PATH_MAP;
 
 /** Array of inferred paths for iteration */
@@ -261,6 +269,8 @@ export interface FormFieldRef {
 	classification: FormFieldPath;
 	/** Link type for the field (e.g., LinkedIn, GitHub) */
 	linkType?: string;
+	/** Inference hint for fields requiring JD + CV generation (only when classification is "unknown") */
+	inferenceHint?: InferenceHint;
 }
 
 /**
@@ -348,6 +358,8 @@ export interface ClassifiedField {
 	classification: FormFieldPath;
 	/** For "links" path, the detected link type */
 	linkType?: string;
+	/** Inference hint for fields requiring JD + CV generation (only when classification is "unknown") */
+	inferenceHint?: InferenceHint;
 }
 
 /**
@@ -360,6 +372,8 @@ export interface AutofillResponseItem {
 	path: FormFieldPath;
 	/** For "links" classification, the detected link type */
 	linkType?: string;
+	/** Inference hint for fields requiring JD + CV generation (only when path is "unknown") */
+	inferenceHint?: InferenceHint;
 	/** Whether the path exists in ParsedCVData (vs inferred paths like motivation_text) */
 	pathFound: boolean;
 	/** The actual value from CV data if pathFound is true */
@@ -390,6 +404,8 @@ export interface StoredField {
 	classification: FormFieldPath;
 	/** For "links" classification, the detected link type */
 	linkType?: string;
+	/** Inference hint for fields requiring JD + CV generation (only when classification is "unknown") */
+	inferenceHint?: InferenceHint;
 }
 
 /**
