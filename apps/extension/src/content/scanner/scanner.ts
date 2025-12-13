@@ -12,10 +12,10 @@ export function scanPage() {
 			return;
 		}
 
-		// Extract text for classification, preserving order
+		// Extract text for JD analysis, preserving order
 		const paragraphs = blocks.map((block) => block.text);
-		const classification = classifyDocument(paragraphs);
-		console.log({ classification });
+		const jobDescriptionAnalysis = classifyDocument(paragraphs);
+		console.log({ jobDescriptionAnalysis });
 
 		// Detect application form
 		const applicationForm = detectApplicationForm();
@@ -31,9 +31,8 @@ export function scanPage() {
 			chrome.runtime.sendMessage({
 				type: "JD_SCAN",
 				url: location.href,
-				classification,
-				blocks, // Include structured blocks with type information
-				applicationForm, // Include detected form data
+				jobDescriptionAnalysis,
+				blocks,
 			});
 		} catch (sendError) {
 			// Extension context invalidated - extension was reloaded/updated

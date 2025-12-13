@@ -1,4 +1,3 @@
-import type { ApplicationForm } from "../content/scanner/formDetector.js";
 import type { StoredSession } from "../lib/supabase";
 
 // Message types received by background script
@@ -8,7 +7,8 @@ export type IncomingMessageType =
 	| "LOGOUT"
 	| "API_REQUEST"
 	| "UPLOAD_FILE"
-	| "JD_SCAN";
+	| "JD_SCAN"
+	| "GET_LAST_JD";
 
 export interface BackgroundMessage {
 	type: IncomingMessageType;
@@ -29,12 +29,28 @@ export interface UploadFileMessage extends BackgroundMessage {
 	fileData: string; // base64 encoded
 }
 
+export interface DocumentClassification {
+	totalParagraphs: number;
+	jobDescriptionParagraphs: number;
+	paragraphRatio: number;
+	sectionRatio: number;
+	confidence: number;
+	signalDensity: number;
+	dominantSignals: string[];
+}
+
 export interface JdScanMessage extends BackgroundMessage {
 	type: "JD_SCAN";
 	url: string;
-	classification: unknown;
+	jobDescriptionAnalysis: DocumentClassification;
 	blocks: unknown[];
-	applicationForm: ApplicationForm | null;
+}
+
+export interface StoredJD {
+	url: string;
+	jobDescriptionAnalysis: DocumentClassification;
+	blocks: unknown[];
+	detectedAt: number;
 }
 
 export interface MessageResponse {

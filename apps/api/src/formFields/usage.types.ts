@@ -8,6 +8,7 @@ export const USAGE_MODEL_NAME = "usage" as const;
 export const USAGE_TYPES = [
 	"form_fields_classification",
 	"form_fields_inference",
+	"jd_form_match",
 ] as const;
 export type UsageType = (typeof USAGE_TYPES)[number];
 
@@ -26,6 +27,10 @@ export type TUsage = {
 	referenceTable: UsageReferenceTable;
 	/** Reference to the entity that generated this usage (dynamic relationship via refPath) */
 	reference: Types.ObjectId;
+	/** User who triggered this usage */
+	userId: string;
+	/** Shared ID for all LLM calls within a single autofill request */
+	autofillId: string;
 	/** Type of usage - determines what operation generated the usage */
 	type: UsageType;
 	/** Token usage from AI processing */

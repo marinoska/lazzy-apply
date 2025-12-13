@@ -95,6 +95,7 @@ export const autofillRequestSchema = z.object({
 	fields: z.array(fieldSchema).min(1),
 	selectedUploadId: z.string().min(1),
 	jdRawText: z.string().optional(),
+	jdUrl: z.string().url().optional(),
 });
 
 /**

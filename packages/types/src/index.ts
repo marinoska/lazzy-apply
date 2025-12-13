@@ -348,6 +348,8 @@ export interface AutofillRequest {
 	selectedUploadId: string;
 	/** Raw job description text for inference (optional) */
 	jdRawText?: string;
+	/** URL where the JD was extracted from (optional) */
+	jdUrl?: string;
 }
 
 /**

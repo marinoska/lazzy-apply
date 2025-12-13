@@ -236,6 +236,8 @@ export class FormStoreManager {
 		this.storedFormData = {
 			form: {
 				...data.form,
+				// Use parent page URL, not iframe URL
+				url: location.href,
 				fieldElements: new Map(),
 			},
 			sourceOrigin: event.origin,
@@ -243,10 +245,12 @@ export class FormStoreManager {
 		};
 		this.formSourceWindow = event.source as Window;
 
-		console.log(
-			"[FormStore] Received form from iframe:",
-			this.storedFormData.form.formHash,
-		);
+		console.log("[FormStore] Received form from iframe:", {
+			formHash: this.storedFormData.form.formHash,
+			fieldsCount: this.storedFormData.form.totalFields,
+			iframeOrigin: event.origin,
+			parentUrl: this.storedFormData.form.url,
+		});
 	}
 
 	/**

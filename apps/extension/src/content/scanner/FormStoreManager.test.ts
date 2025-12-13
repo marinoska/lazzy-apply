@@ -98,6 +98,7 @@ describe("FormStoreManager", () => {
 				formDetected: true,
 				totalFields: 1,
 				fields: [],
+				url: "https://example.com/apply",
 				fieldElements: new Map(),
 			};
 
@@ -136,6 +137,7 @@ describe("FormStoreManager", () => {
 						isFileUpload: false,
 					},
 				],
+				url: "https://example.com/apply",
 				fieldElements: new Map([["field-1", document.createElement("input")]]),
 			};
 
@@ -362,6 +364,7 @@ describe("FormStoreManager", () => {
 				formDetected: true,
 				totalFields: 1,
 				fields: [],
+				url: "https://example.com/apply",
 				fieldElements: new Map(),
 			};
 
@@ -465,6 +468,7 @@ describe("FormStoreManager", () => {
 						isFileUpload: true,
 					},
 				],
+				url: "https://example.com/apply",
 				fieldElements: new Map([["resume-hash", fileInput]]),
 			};
 
@@ -550,6 +554,7 @@ describe("FormStoreManager", () => {
 				formDetected: true,
 				totalFields: 1,
 				fields: [],
+				url: "https://example.com/apply",
 				fieldElements: new Map([["resume-hash", fileInput]]),
 			};
 

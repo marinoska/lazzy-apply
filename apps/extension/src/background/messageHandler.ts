@@ -2,13 +2,16 @@ import { apiClient } from "../lib/api/client.js";
 import { logout } from "./auth.js";
 import { OAUTH_PROVIDER } from "./constants.js";
 import { startOAuth } from "./oauth.js";
-import { getStoredSession } from "./storage.js";
+import {
+	getLastDetectedJD,
+	getStoredSession,
+	saveLastDetectedJD,
+} from "./storage.js";
 import type {
 	ApiRequestMessage,
 	BackgroundMessage,
 	JdScanMessage,
 	MessageResponse,
-	ShowModalMessage,
 	UploadFileMessage,
 } from "./types.js";
 
@@ -54,7 +57,7 @@ export function isValidMessage(msg: unknown): msg is BackgroundMessage {
  */
 export async function handleMessage(
 	msg: BackgroundMessage,
-	sender: chrome.runtime.MessageSender,
+	_sender: chrome.runtime.MessageSender,
 	sendResponse: (response: MessageResponse) => void,
 ): Promise<void> {
 	try {
@@ -66,6 +69,10 @@ export async function handleMessage(
 
 			case "GET_AUTH":
 				sendResponse({ ok: true, session: await getStoredSession() });
+				break;
+
+			case "GET_LAST_JD":
+				sendResponse({ ok: true, data: await getLastDetectedJD() });
 				break;
 
 			case "LOGOUT":
@@ -120,28 +127,22 @@ export async function handleMessage(
 
 			case "JD_SCAN": {
 				const scanMsg = msg as JdScanMessage;
-				console.log("[MessageHandler] Handling JD_SCAN:", scanMsg);
+				const { jobDescriptionAnalysis } = scanMsg;
 
-				// Check if an application form was detected
-				if (scanMsg.applicationForm?.formDetected) {
-					console.log(
-						"[MessageHandler] Application form detected, showing sidebar",
-					);
+				// Store the last detected JD
+				await saveLastDetectedJD({
+					url: scanMsg.url,
+					jobDescriptionAnalysis,
+					blocks: scanMsg.blocks,
+					detectedAt: Date.now(),
+				});
 
-					// Send SHOW_MODAL message to the tab that sent the scan
-					if (sender.tab?.id) {
-						const showModalMsg: ShowModalMessage = { type: "SHOW_MODAL" };
-						chrome.tabs.sendMessage(sender.tab.id, showModalMsg, () => {
-							const error = chrome.runtime.lastError;
-							if (error) {
-								console.warn(
-									"[MessageHandler] Failed to show sidebar:",
-									error.message,
-								);
-							}
-						});
-					}
-				}
+				console.log("[MessageHandler] Stored JD:", {
+					url: scanMsg.url,
+					confidence: jobDescriptionAnalysis.confidence,
+					paragraphs: `${jobDescriptionAnalysis.jobDescriptionParagraphs}/${jobDescriptionAnalysis.totalParagraphs}`,
+					dominantSignals: jobDescriptionAnalysis.dominantSignals,
+				});
 
 				sendResponse({ ok: true });
 				break;

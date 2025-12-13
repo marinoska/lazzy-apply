@@ -12,4 +12,9 @@ export {
 	type InferenceResult,
 	inferFieldValues,
 } from "./inference.service.js";
+export {
+	type JdMatchInput,
+	type JdMatchResult,
+	validateJdFormMatch,
+} from "./jdMatcher.service.js";
 export { persistNewFormAndFields } from "./persistence.service.js";

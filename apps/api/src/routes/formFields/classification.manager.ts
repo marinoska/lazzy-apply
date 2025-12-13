@@ -27,6 +27,7 @@ import {
 	inferFieldValues,
 	isPathInCVData,
 	persistNewFormAndFields,
+	validateJdFormMatch,
 } from "./services/index.js";
 
 const logger = createLogger("classification.manager");
@@ -162,10 +163,11 @@ export class ClassificationManager {
 
 	constructor(
 		readonly formInput: FormInput,
-		inputFields: Field[],
+		private readonly inputFields: Field[],
 		private readonly userId: string,
 		private readonly selectedUploadId: string,
 		private readonly jdRawText: string,
+		private readonly jdUrl: string | null,
 	) {
 		this.inputFieldsMap = new Map(inputFields.map((f) => [f.hash, f]));
 	}
@@ -273,15 +275,28 @@ export class ClassificationManager {
 			};
 		}
 
-		// Step 3: Classify only missing fields
+		// Step 3: Classify fields and optionally validate JD match in parallel
 		logger.info(
 			{ count: this.fieldsToClassify.length },
 			"Classifying missing fields",
 		);
 
-		const { classifiedFields, usage } = await classifyFieldsWithAI(
-			this.fieldsToClassify,
-		);
+		const hasJdText = this.jdRawText.length > 0;
+		const sameUrl = this.jdUrl === this.formInput.pageUrl;
+		const shouldValidateJdMatch = hasJdText && !sameUrl;
+		const [classificationResult, jdMatchResult] = await Promise.all([
+			classifyFieldsWithAI(this.fieldsToClassify),
+			shouldValidateJdMatch
+				? validateJdFormMatch({
+						jdText: this.jdRawText,
+						formFields: this.inputFields,
+						jdUrl: this.jdUrl,
+						formUrl: this.formInput.pageUrl,
+					})
+				: Promise.resolve({ isMatch: !sameUrl, usage: createEmptyUsage() }),
+		]);
+
+		const { classifiedFields, usage } = classificationResult;
 
 		const result = buildResponseFromFields(
 			[...this.existingFields, ...classifiedFields],
@@ -291,10 +306,14 @@ export class ClassificationManager {
 		);
 
 		// Handle inference for fields with inferenceHint
+		// Only provide JD text if it matches the form
 		let inferenceUsage: TokenUsage | undefined;
 		const inferenceFields = collectInferenceFields(result);
 		if (inferenceFields.length > 0) {
-			const inferenceResult = await this.inferFields(inferenceFields);
+			const inferenceResult = await this.inferFields(
+				inferenceFields,
+				jdMatchResult.isMatch,
+			);
 			applyInferredAnswers(result, inferenceResult.answers);
 			inferenceUsage = inferenceResult.usage;
 		}
@@ -304,8 +323,10 @@ export class ClassificationManager {
 			this.formInput,
 			[...this.existingFields, ...classifiedFields],
 			classifiedFields,
+			this.userId,
 			usage,
 			inferenceUsage,
+			shouldValidateJdMatch ? jdMatchResult.usage : undefined,
 		);
 
 		return {
@@ -320,17 +341,27 @@ export class ClassificationManager {
 	 */
 	private async inferFields(
 		fields: InferenceField[],
+		jdMatches: boolean,
 	): Promise<InferenceResult> {
 		if (!this.cvData?.rawText) {
 			logger.error("No CV raw text available for inference");
 			return { answers: {}, usage: createEmptyUsage() };
 		}
 
-		logger.info({ fieldCount: fields.length }, "Processing inference fields");
+		logger.info(
+			{ fieldCount: fields.length, jdMatches },
+			"Processing inference fields",
+		);
 
+		// Only provide JD text if it matches the form
+		const jdRawText = jdMatches ? this.jdRawText : "";
+		logger.debug(
+			{ cvRawText: this.cvData.rawText, jdRawText, fields },
+			"Inference input",
+		);
 		const result = await inferFieldValues({
 			cvRawText: this.cvData.rawText,
-			jdRawText: this.jdRawText,
+			jdRawText,
 			fields,
 		});
 

@@ -71,6 +71,8 @@ export interface ApplicationForm {
 	formDetected: boolean;
 	totalFields: number;
 	fields: FormField[];
+	/** URL where the form was detected */
+	url: string;
 	/** Map of field hash to DOM element for filling */
 	fieldElements: Map<string, HTMLElement>;
 	formElement?: {
@@ -176,6 +178,7 @@ export function detectApplicationForm(): ApplicationForm | null {
 		formDetected: true,
 		totalFields: fields.length,
 		fields,
+		url: location.href,
 		fieldElements,
 		formElement,
 	};

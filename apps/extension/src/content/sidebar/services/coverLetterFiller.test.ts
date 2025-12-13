@@ -77,6 +77,7 @@ describe("coverLetterFiller", () => {
 				formDetected: true,
 				totalFields: 1,
 				fields: [],
+				url: "https://example.com/apply",
 				fieldElements: new Map(),
 			};
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
@@ -107,6 +108,7 @@ describe("coverLetterFiller", () => {
 				formDetected: true,
 				totalFields: 1,
 				fields: [],
+				url: "https://example.com/apply",
 				fieldElements: new Map([["hash1", textArea]]),
 			};
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
@@ -141,6 +143,7 @@ describe("coverLetterFiller", () => {
 				formDetected: true,
 				totalFields: 1,
 				fields: [],
+				url: "https://example.com/apply",
 				fieldElements: new Map([["hash1", textInput]]),
 			};
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
@@ -178,6 +181,7 @@ describe("coverLetterFiller", () => {
 				formDetected: true,
 				totalFields: 1,
 				fields: [],
+				url: "https://example.com/apply",
 				fieldElements: new Map([["hash1", fileInput]]),
 			};
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
@@ -211,6 +215,7 @@ describe("coverLetterFiller", () => {
 				formDetected: true,
 				totalFields: 1,
 				fields: [],
+				url: "https://example.com/apply",
 				fieldElements: new Map([["hash1", fileInput]]),
 			};
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
@@ -245,6 +250,7 @@ describe("coverLetterFiller", () => {
 				formDetected: true,
 				totalFields: 1,
 				fields: [],
+				url: "https://example.com/apply",
 				fieldElements: new Map([["hash1", fileInput]]),
 			};
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
@@ -284,6 +290,7 @@ describe("coverLetterFiller", () => {
 						isFileUpload: false,
 					},
 				],
+				url: "https://example.com/apply",
 				fieldElements: new Map<string, HTMLElement>(),
 			};
 			vi.mocked(formStore.getStoredForm).mockReturnValue(mockStoredForm);
@@ -328,6 +335,7 @@ describe("coverLetterFiller", () => {
 						accept: ".pdf",
 					},
 				],
+				url: "https://example.com/apply",
 				fieldElements: new Map<string, HTMLElement>(),
 			};
 			vi.mocked(formStore.getStoredForm).mockReturnValue(mockStoredForm);
@@ -373,6 +381,7 @@ describe("coverLetterFiller", () => {
 						accept: ".doc,.docx",
 					},
 				],
+				url: "https://example.com/apply",
 				fieldElements: new Map<string, HTMLElement>(),
 			};
 			vi.mocked(formStore.getStoredForm).mockReturnValue(mockStoredForm);
@@ -402,6 +411,7 @@ describe("coverLetterFiller", () => {
 				formDetected: true,
 				totalFields: 1,
 				fields: [], // No field metadata
+				url: "https://example.com/apply",
 				fieldElements: new Map<string, HTMLElement>(),
 			};
 			vi.mocked(formStore.getStoredForm).mockReturnValue(mockStoredForm);
@@ -428,6 +438,7 @@ describe("coverLetterFiller", () => {
 				formDetected: true,
 				totalFields: 1,
 				fields: [],
+				url: "https://example.com/apply",
 				fieldElements: new Map<string, HTMLElement>(),
 			};
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);

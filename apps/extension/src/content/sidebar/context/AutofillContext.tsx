@@ -113,7 +113,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 			const form: FormInput = {
 				formHash: applicationForm.formHash,
 				fields: fields.map((f) => ({ hash: f.hash })),
-				pageUrl: window.location.href,
+				pageUrl: applicationForm.url,
 				action: applicationForm.formElement?.action ?? null,
 			};
 
