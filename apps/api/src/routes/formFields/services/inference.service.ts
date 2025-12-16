@@ -16,14 +16,19 @@ INPUT:
 TASK:
 For each field:
 - Generate a concise, professional answer
-- Base the answer on the CV
-- Use the JD only if it is provided and relevant
-- Do not invent experience not supported by the CV
-- If JD is empty, rely only on CV
+- Determine the intent of the field (e.g., experience, motivation, source, logistics)
+- Base factual content on the CV
+- Use the JD only if provided and relevant to the field’s intent
+- Do not invent skills, tools, responsibilities, or experience not supported by the CV
+- If the JD is empty, rely only on the CV
 - Each answer must be independent
-- The answer must directly address the intent of the field.
-- If the field asks "why", the answer must explain motivation or alignment, not list skills alone.
-- If the field asks "how" or "what", respond accordingly and do not shift intent.
+- The answer must directly address the intent of the field
+
+Intent handling:
+- If the field asks "why", explain motivation or alignment, not background alone
+- If the field asks to describe experience "in this role", summarize and synthesize relevant CV experience instead of listing roles
+- If the field asks "how" or "what", respond directly and do not shift intent
+- If the field asks about source or discovery (e.g., "How did you hear about this job?"), do not use the CV to describe experience
 
 RETURN JSON ONLY.
 
@@ -34,44 +39,68 @@ OUTPUT FORMAT:
   }
 }
 
-RULES:
-- Do not include explanations
+General:
+- Do not include explanations or meta commentary
 - Do not include field labels in the answer
 - Do not reference the CV or JD explicitly
-- Never use the long dash character "—". Use "-" instead.
-- Base all answers strictly on the CV content. Use the JD only if provided and only to adjust wording or emphasis when the CV already clearly supports the claim.
-- Do not introduce new skills, responsibilities, experience, preferences, seniority, availability, motivation, or intent from the JD or from assumptions.
-- Do not infer or upgrade specialization, primary focus, deep expertise, leadership, ownership, seniority, or mastery unless explicitly stated in the CV using equivalent wording (e.g., "specialized in", "primary focus", "expert in", "led as").
-- If something is mentioned only as experience, exposure, or participation, describe it using neutral wording such as "experience with", "worked on", or "was involved in".
-- Do not upgrade participation into ownership, collaboration into leadership, or exposure into expertise unless clearly supported by the CV.
-- Do not elevate the frequency, depth, importance, or recency of any skill, responsibility, or achievement beyond what is explicitly supported by the CV.
-- Do not assume soft skills, personal traits, motivations, career goals, availability, or preferences unless explicitly stated in the CV.
-- Do not invent, estimate, or extrapolate metrics, scale, impact, outcomes, or results. If the CV does not provide numbers, keep descriptions qualitative and factual.
-- Do not smooth over or reinterpret career gaps, transitions, role changes, or continuity. Do not imply progression or stability unless explicitly stated.
-- Avoid absolute, promotional, or peak terms such as "expert", "highly specialized", "industry-leading", "deep expertise", or "extensive mastery" unless explicitly stated in the CV.
-- If the CV does not clearly support a response, generate a minimal, factual answer without extrapolation.
-- When uncertain, always choose the least assumptive, least promotional, and most conservative wording.
-- Do not list all skills, tools, or technologies from the CV.
-- Prioritize items that are most relevant to the most recent roles and responsibilities.
-- De-emphasize or omit older, legacy, or less relevant items when more recent experience indicates a different focus.
-- Order items by relevance and recency, not by their order of appearance in the CV.
-- When summarizing skills or experience, prefer a focused subset over exhaustive lists.
-- When explaining interest or motivation, base it only on explicit alignment between the CV experience and the role or company context provided in the JD.
-- Do not invent personal passion, enthusiasm, or emotional attachment not supported by the CV or JD.
-- Do not list technologies, tools, or frameworks unless they directly support the stated motivation.
-- Avoid enumerations in motivation or interest fields.
-- When a company or product is mentioned in the field, reference it only at a high level and only if supported by the JD.
-- Do not invent knowledge about the company beyond what is stated in the JD.
-- Do not reference specific projects, roles, or achievements from the CV unless they are directly relevant to the field's intent.
-- Avoid generic or templated responses. When explaining motivation or fit, include at least one concrete aspect of the role or product described in the JD, if available and supported by the CV.
-- For "why" questions, the answer must explicitly state a reason for interest or alignment (e.g., "because", "as it allows me to", "which aligns with", "as it gives me the opportunity to").
-- Answers that only describe background, experience, or skills without stating a reason are invalid.
-- A valid answer to a "why" question must include at least one sentence that connects past experience to a future opportunity or motivation.
-`;
+- Never use the long dash character "—". Use "-"
 
+Output length and format:
+- If tag/type is "textarea", answers may be multi-sentence.
+- If tag/type is "input", keep answers concise.
+
+Factual safety:
+- Skills, tools, technologies, responsibilities, experience, seniority, scope, and achievements must never be inferred and must be strictly supported by the CV
+- Do not introduce new skills, tools, responsibilities, experience, seniority, availability, or achievements from assumptions or from the JD
+- Do not infer or upgrade specialization, primary focus, deep expertise, leadership, ownership, seniority, or mastery unless explicitly stated in the CV using equivalent wording
+- Do not upgrade participation into ownership, collaboration into leadership, or exposure into expertise
+- Do not elevate frequency, depth, importance, or recency beyond what is explicitly supported
+- Do not invent, estimate, or extrapolate metrics, scale, impact, or outcomes
+- Do not smooth over or reinterpret career gaps, transitions, or progression
+- Avoid absolute or promotional terms unless explicitly stated in the CV
+- If the CV does not clearly support a factual claim, omit it
+
+Response structure:
+- When a field asks for a description, summary, or explanation of experience, background, or fit (and does not explicitly ask for a list, timeline, or multiple items), respond with a synthesized narrative.
+- Do not enumerate job titles, company names, or timelines in such responses.
+- Do not reproduce CV entries verbatim.
+- Enumeration is allowed only when the field explicitly asks for a list, timeline, or multiple items.
+
+Describing experience, background, or fit is itself a valid relevance condition:
+-When a field asks to describe experience, summarizing and generalizing across relevant CV roles is allowed, even if individual roles or projects are not named explicitly.
+
+Summarization and aggregation:
+- Summarizing or aggregating CV experience across multiple roles is allowed when answering role-based questions
+- Aggregation does not count as inferring new skills or experience as long as all content is supported by the CV
+- Prefer a focused, relevant subset over exhaustive lists
+- Do not list positions chronologically unless explicitly asked
+
+Motivation and "why" questions:
+- Personal traits, interest, and motivation may be inferred at a high level when answering "why" or motivation-related questions
+- Inferred motivation must be consistent with the CV and the JD and must not introduce new skills, tools, experience, or responsibilities
+- For "why" questions, inferred alignment between CV experience and JD role scope is sufficient even if motivation is not explicitly stated in the CV
+- Do not invent personal passion, emotional attachment, or values unless supported by the CV or JD
+- Avoid enumerations in motivation answers
+- A valid "why" answer must explicitly state a reason for interest or alignment and connect past experience to a future opportunity
+
+Company references:
+- When a company or product is mentioned, reference it only at a high level and only if supported by the JD
+- Do not invent knowledge about the company beyond what is stated in the JD
+
+Conservatism:
+- When uncertain, choose the least assumptive, least promotional, and most conservative wording
+- If a response cannot be produced without violating these rules, return a minimal, factual answer aligned with the field’s intent
+`;
+// Do not assume soft skills, personal traits, motivations, career goals, availability, or preferences unless explicitly stated in the CV.
+//
 export interface InferenceField {
 	hash: string;
 	fieldName: string | null;
+	label: string | null;
+	description: string | null;
+	placeholder: string | null;
+	tag: string | null;
+	type: string | null;
 }
 
 export interface InferenceInput {
@@ -92,7 +121,12 @@ interface InferenceResponse {
 function buildInferencePrompt(input: InferenceInput): string {
 	const fieldsJson = input.fields.map((f) => ({
 		hash: f.hash,
-		label: f.fieldName,
+		fieldName: f.fieldName,
+		label: f.label,
+		description: f.description,
+		placeholder: f.placeholder,
+		tag: f.tag,
+		type: f.type,
 	}));
 
 	return `${INFERENCE_PROMPT}

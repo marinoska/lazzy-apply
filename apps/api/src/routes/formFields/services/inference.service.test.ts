@@ -64,7 +64,17 @@ describe("inference.service", () => {
 			const result = await inferFieldValues({
 				cvRawText: "John Doe, Software Engineer with 5 years experience",
 				jdRawText: "Looking for a senior developer",
-				fields: [{ hash: "hash-1", fieldName: "Why do you want this role?" }],
+				fields: [
+					{
+						hash: "hash-1",
+						fieldName: "Why do you want this role?",
+						label: null,
+						description: null,
+						placeholder: null,
+						tag: null,
+						type: null,
+					},
+				],
 			});
 
 			expect(result.answers).toEqual({
@@ -94,7 +104,17 @@ describe("inference.service", () => {
 			const result = await inferFieldValues({
 				cvRawText: "CV text",
 				jdRawText: "",
-				fields: [{ hash: "hash-1", fieldName: "Question" }],
+				fields: [
+					{
+						hash: "hash-1",
+						fieldName: "Question",
+						label: null,
+						description: null,
+						placeholder: null,
+						tag: null,
+						type: null,
+					},
+				],
 			});
 
 			expect(result.answers).toEqual({
@@ -121,7 +141,17 @@ describe("inference.service", () => {
 			const result = await inferFieldValues({
 				cvRawText: "CV text",
 				jdRawText: "",
-				fields: [{ hash: "hash-1", fieldName: "Question" }],
+				fields: [
+					{
+						hash: "hash-1",
+						fieldName: "Question",
+						label: null,
+						description: null,
+						placeholder: null,
+						tag: null,
+						type: null,
+					},
+				],
 			});
 
 			expect(result.answers["hash-1"]).toBe("Answer based on CV only");
@@ -148,7 +178,17 @@ describe("inference.service", () => {
 				inferFieldValues({
 					cvRawText: "CV text",
 					jdRawText: "JD text",
-					fields: [{ hash: "hash-1", fieldName: "Question" }],
+					fields: [
+						{
+							hash: "hash-1",
+							fieldName: "Question",
+							label: null,
+							description: null,
+							placeholder: null,
+							tag: null,
+							type: null,
+						},
+					],
 				}),
 			).rejects.toThrow("LLM response does not contain answers object");
 		});
@@ -169,8 +209,24 @@ describe("inference.service", () => {
 				cvRawText: "CV text",
 				jdRawText: "JD text",
 				fields: [
-					{ hash: "hash-1", fieldName: "Why do you want this role?" },
-					{ hash: "hash-2", fieldName: "Describe your experience" },
+					{
+						hash: "hash-1",
+						fieldName: "Why do you want this role?",
+						label: null,
+						description: null,
+						placeholder: null,
+						tag: null,
+						type: null,
+					},
+					{
+						hash: "hash-2",
+						fieldName: "Describe your experience",
+						label: null,
+						description: null,
+						placeholder: null,
+						tag: null,
+						type: null,
+					},
 				],
 			});
 

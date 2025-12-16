@@ -61,14 +61,21 @@ function createEmptyUsage(): TokenUsage {
  */
 function collectInferenceFields(
 	response: AutofillResponseData,
+	inputFieldsMap: Map<string, Field>,
 ): InferenceField[] {
 	const fields: InferenceField[] = [];
 
 	for (const [hash, item] of Object.entries(response)) {
 		if (item.path === "unknown" && item.inferenceHint === "text_from_jd_cv") {
+			const inputField = inputFieldsMap.get(hash);
 			fields.push({
 				hash,
 				fieldName: item.fieldName,
+				label: inputField?.field.label ?? null,
+				description: inputField?.field.description ?? null,
+				placeholder: inputField?.field.placeholder ?? null,
+				tag: inputField?.field.tag ?? null,
+				type: inputField?.field.type ?? null,
 			});
 		}
 	}
@@ -319,7 +326,10 @@ export class ClassificationManager {
 
 		// Handle inference for fields with inferenceHint
 		let inferenceUsage: TokenUsage | undefined;
-		const inferenceFields = collectInferenceFields(response);
+		const inferenceFields = collectInferenceFields(
+			response,
+			this.inputFieldsMap,
+		);
 		if (inferenceFields.length > 0) {
 			const inferenceResult = await this.inferFields(
 				inferenceFields,
