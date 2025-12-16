@@ -17,4 +17,7 @@ export {
 	type JdMatchResult,
 	validateJdFormMatch,
 } from "./jdMatcher.service.js";
-export { persistNewFormAndFields } from "./persistence.service.js";
+export {
+	persistCachedAutofill,
+	persistNewFormAndFields,
+} from "./persistence.service.js";

@@ -1,9 +1,14 @@
 import type { Field, FormInput } from "@lazyapply/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CVDataModel } from "@/cvData/index.js";
-import { FormFieldModel, FormModel } from "@/formFields/index.js";
+import {
+	AutofillModel,
+	FormFieldModel,
+	FormModel,
+} from "@/formFields/index.js";
 import { ClassificationManager } from "./classification.manager.js";
 import type { EnrichedClassifiedField } from "./services/classifier.service.js";
+import { validateJdFormMatch } from "./services/jdMatcher.service.js";
 
 // Mock the classifier service to avoid actual AI calls
 vi.mock("./services/classifier.service.js", () => ({
@@ -27,12 +32,28 @@ vi.mock("./services/classifier.service.js", () => ({
 	}),
 }));
 
+// Mock the JD matcher service
+vi.mock("./services/jdMatcher.service.js", () => ({
+	validateJdFormMatch: vi.fn().mockResolvedValue({
+		isMatch: true,
+		usage: {
+			promptTokens: 50,
+			completionTokens: 25,
+			totalTokens: 75,
+			inputCost: 0.00005,
+			outputCost: 0.000025,
+			totalCost: 0.000075,
+		},
+	}),
+}));
+
 const TEST_UPLOAD_ID = "507f1f77bcf86cd799439011";
 
 describe("classification.manager", () => {
 	beforeEach(async () => {
 		await FormModel.deleteMany({});
 		await FormFieldModel.deleteMany({});
+		await AutofillModel.deleteMany({});
 		await CVDataModel.deleteMany({}).setOptions({
 			skipOwnershipEnforcement: true,
 		});
@@ -84,13 +105,30 @@ describe("classification.manager", () => {
 
 	describe("ClassificationManager.process", () => {
 		it("should return cached data when form exists", async () => {
-			// Create existing form in DB
+			// Create existing field first
+			const savedField = await FormFieldModel.create({
+				hash: "hash-1",
+				field: {
+					tag: "input",
+					type: "email",
+					name: "email",
+					label: "Email",
+					placeholder: null,
+					description: null,
+					isFileUpload: false,
+					accept: null,
+				},
+				classification: "personal.email",
+			});
+
+			// Create existing form in DB with fieldRef
 			await FormModel.create({
 				formHash: "test-form-hash",
 				fields: [
 					{
 						hash: "hash-1",
 						classification: "personal.email",
+						fieldRef: savedField._id,
 					},
 				],
 				pageUrls: ["https://example.com/apply"],
@@ -105,6 +143,8 @@ describe("classification.manager", () => {
 				fields,
 				"test-user-id",
 				TEST_UPLOAD_ID,
+				"",
+				null,
 			);
 			const result = await manager.process();
 
@@ -115,12 +155,29 @@ describe("classification.manager", () => {
 		});
 
 		it("should update pageUrls when form exists but URL is new", async () => {
+			// Create existing field first
+			const savedField = await FormFieldModel.create({
+				hash: "hash-1",
+				field: {
+					tag: "input",
+					type: "email",
+					name: "email",
+					label: "Email",
+					placeholder: null,
+					description: null,
+					isFileUpload: false,
+					accept: null,
+				},
+				classification: "personal.email",
+			});
+
 			await FormModel.create({
 				formHash: "test-form-hash",
 				fields: [
 					{
 						hash: "hash-1",
 						classification: "personal.email",
+						fieldRef: savedField._id,
 					},
 				],
 				pageUrls: ["https://example.com/old-page"],
@@ -139,6 +196,8 @@ describe("classification.manager", () => {
 				fields,
 				"test-user-id",
 				TEST_UPLOAD_ID,
+				"",
+				null,
 			);
 			await manager.process();
 
@@ -179,6 +238,8 @@ describe("classification.manager", () => {
 				fields,
 				"test-user-id",
 				TEST_UPLOAD_ID,
+				"",
+				null,
 			);
 			const result = await manager.process();
 
@@ -200,6 +261,8 @@ describe("classification.manager", () => {
 				fields,
 				"test-user-id",
 				TEST_UPLOAD_ID,
+				"",
+				null,
 			);
 			const result = await manager.process();
 
@@ -212,6 +275,91 @@ describe("classification.manager", () => {
 
 			const savedField = await FormFieldModel.findOne({ hash: "hash-1" });
 			expect(savedField).not.toBeNull();
+		});
+	});
+
+	describe("JD matching logic", () => {
+		it("should skip JD validation when jdUrl matches formUrl (sameUrl)", async () => {
+			const formInput = createTestFormInput();
+			const fields = [createTestField("hash-1", "email")];
+			const jdUrl = "https://example.com/apply"; // Same as formInput.pageUrl
+
+			const manager = new ClassificationManager(
+				formInput,
+				fields,
+				"test-user-id",
+				TEST_UPLOAD_ID,
+				"Some JD text",
+				jdUrl,
+			);
+			await manager.process();
+
+			// validateJdFormMatch should NOT be called when URLs match
+			expect(validateJdFormMatch).not.toHaveBeenCalled();
+		});
+
+		it("should call JD validation when jdUrl differs from formUrl", async () => {
+			const formInput = createTestFormInput();
+			const fields = [createTestField("hash-1", "email")];
+			const jdUrl = "https://example.com/job-description"; // Different from formInput.pageUrl
+
+			const manager = new ClassificationManager(
+				formInput,
+				fields,
+				"test-user-id",
+				TEST_UPLOAD_ID,
+				"Some JD text",
+				jdUrl,
+			);
+			await manager.process();
+
+			// validateJdFormMatch should be called when URLs differ
+			expect(validateJdFormMatch).toHaveBeenCalledWith({
+				jdText: "Some JD text",
+				formFields: fields,
+				jdUrl: jdUrl,
+				formUrl: formInput.pageUrl,
+			});
+		});
+
+		it("should skip JD validation when jdRawText is empty", async () => {
+			const formInput = createTestFormInput();
+			const fields = [createTestField("hash-1", "email")];
+			const jdUrl = "https://example.com/job-description";
+
+			const manager = new ClassificationManager(
+				formInput,
+				fields,
+				"test-user-id",
+				TEST_UPLOAD_ID,
+				"", // Empty JD text
+				jdUrl,
+			);
+			await manager.process();
+
+			// validateJdFormMatch should NOT be called when JD text is empty
+			expect(validateJdFormMatch).not.toHaveBeenCalled();
+		});
+
+		it("should return isMatch: true when jdUrl matches formUrl (sameUrl fallback)", async () => {
+			const formInput = createTestFormInput();
+			const fields = [createTestField("hash-1", "email")];
+			const jdUrl = "https://example.com/apply"; // Same as formInput.pageUrl
+
+			const manager = new ClassificationManager(
+				formInput,
+				fields,
+				"test-user-id",
+				TEST_UPLOAD_ID,
+				"Some JD text",
+				jdUrl,
+			);
+			const result = await manager.process();
+
+			// When sameUrl is true, isMatch defaults to true (no validation needed)
+			// The response should be generated successfully
+			expect(result.response).toBeDefined();
+			expect(Object.keys(result.response).length).toBeGreaterThan(0);
 		});
 	});
 });

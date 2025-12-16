@@ -1,15 +1,15 @@
 import { classifyDocument } from "../classifier/jobDescriptionClassifier.js";
 import { formStore } from "./FormStoreManager.js";
-import { detectApplicationForm } from "./formDetector.js";
+import { type ApplicationForm, detectApplicationForm } from "./formDetector.js";
 import { extractTextBlocks } from "./textBlocksExtractor.js";
 
-export function scanPage() {
+export function scanPage(): ApplicationForm | null {
 	try {
 		const blocks = extractTextBlocks().filter((block) => !isNoise(block.text));
 
 		if (!blocks.length) {
 			console.log("No text blocks found, content may still be loading");
-			return;
+			return null;
 		}
 
 		// Extract text for JD analysis, preserving order
@@ -27,26 +27,34 @@ export function scanPage() {
 			formStore.broadcastFormToParent(applicationForm);
 		}
 
-		try {
-			chrome.runtime.sendMessage({
-				type: "JD_SCAN",
-				url: location.href,
-				jobDescriptionAnalysis,
-				blocks,
-			});
-		} catch (sendError) {
-			// Extension context invalidated - extension was reloaded/updated
-			if (
-				sendError instanceof Error &&
-				sendError.message.includes("Extension context invalidated")
-			) {
-				console.log("Extension context invalidated. Please refresh the page.");
-				return;
+		// chrome.runtime may be undefined in iframes or when extension context is invalidated
+		if (chrome.runtime?.sendMessage) {
+			try {
+				chrome.runtime.sendMessage({
+					type: "JD_SCAN",
+					url: location.href,
+					jobDescriptionAnalysis,
+					blocks,
+				});
+			} catch (sendError) {
+				// Extension context invalidated - extension was reloaded/updated
+				if (
+					sendError instanceof Error &&
+					sendError.message.includes("Extension context invalidated")
+				) {
+					console.log(
+						"Extension context invalidated. Please refresh the page.",
+					);
+					return null;
+				}
+				throw sendError;
 			}
-			throw sendError;
 		}
+
+		return applicationForm;
 	} catch (e) {
 		console.error("LazyApply scanPage error:", e);
+		return null;
 	}
 }
 

@@ -212,7 +212,14 @@ function sendRuntimeMessage<T>(message: BackgroundMessage): Promise<T> {
 /**
  * Initialize page scanner with navigation detection
  * Only run full scanner in parent frame or iframes with forms
+ * Show sidebar automatically when an application form is detected
  */
 new NavigationWatcher(() => {
-	scanPage();
+	const applicationForm = scanPage();
+
+	// Auto-show sidebar when form detected in parent frame
+	if (formStore.isParent && applicationForm?.formDetected) {
+		const sidebarInstance = ensureSidebar();
+		sidebarInstance.show();
+	}
 });

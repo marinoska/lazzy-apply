@@ -1,7 +1,9 @@
 import { model, Schema } from "mongoose";
-
 import {
+	type FindByHashOptions,
+	FORM_FIELD_MODEL_NAME,
 	FORM_MODEL_NAME,
+	type FormDocumentPopulated,
 	type FormMethods,
 	type FormModelWithStatics,
 	type TForm,
@@ -24,6 +26,11 @@ const formSchema = new Schema<TForm, FormModel, FormMethods>(
 					hash: { type: String, required: true },
 					classification: { type: String, required: true },
 					linkType: { type: String, default: undefined },
+					fieldRef: {
+						type: Schema.Types.ObjectId,
+						ref: FORM_FIELD_MODEL_NAME,
+						required: true,
+					},
 				},
 			],
 			immutable: true,
@@ -44,8 +51,14 @@ const formSchema = new Schema<TForm, FormModel, FormMethods>(
 formSchema.statics.findByHash = async function (
 	this: FormModelWithStatics,
 	formHash: string,
-) {
-	return this.findOne({ formHash });
+	options?: FindByHashOptions,
+): Promise<FormDocumentPopulated | null> {
+	const query = this.findOne({ formHash });
+	if (options?.populate) {
+		query.populate("fields.fieldRef");
+	}
+	const result = await query.exec();
+	return result as FormDocumentPopulated | null;
 };
 
 export type { FormDocument } from "./formField.types.js";

@@ -4,7 +4,7 @@ import type {
 	FormFieldRef,
 	InferenceHint,
 } from "@lazyapply/types";
-import type { Document, Model } from "mongoose";
+import type { Document, Model, Types } from "mongoose";
 
 export const FORM_FIELD_MODEL_NAME = "form_fields" as const;
 export const FORM_MODEL_NAME = "forms" as const;
@@ -51,11 +51,25 @@ export type FormFieldModelBase = Model<
 export type FormFieldModelWithStatics = FormFieldModelBase & FormFieldStatics;
 
 /**
+ * Form field reference with ObjectId ref to FormField collection
+ */
+export type TFormFieldRef = FormFieldRef & {
+	fieldRef: Types.ObjectId;
+};
+
+/**
+ * Populated form field reference (after .populate())
+ */
+export type TFormFieldPopulated = FormFieldRef & {
+	fieldRef: TFormField;
+};
+
+/**
  * Stored form document structure
  */
 export type TForm = {
 	formHash: string;
-	fields: FormFieldRef[];
+	fields: TFormFieldRef[];
 	pageUrls: string[];
 	actions: string[];
 	createdAt: Date;
@@ -64,16 +78,25 @@ export type TForm = {
 
 export type CreateFormParams = Omit<TForm, "createdAt" | "updatedAt">;
 
-export type FormMethods = Record<string, never>;
+export type FormMethods = object;
+
+export type FormDocument = Document & TForm & FormMethods;
+
+export type FindByHashOptions = {
+	populate?: boolean;
+};
+
+export type FormDocumentPopulated = Omit<FormDocument, "fields"> & {
+	fields: TFormFieldPopulated[];
+};
 
 export type FormStatics = {
 	findByHash(
 		this: FormModelWithStatics,
 		formHash: string,
-	): Promise<FormDocument | null>;
+		options?: FindByHashOptions,
+	): Promise<FormDocumentPopulated | null>;
 };
-
-export type FormDocument = Document & TForm & FormMethods;
 
 export type FormModelBase = Model<TForm, Record<string, never>, FormMethods>;
 

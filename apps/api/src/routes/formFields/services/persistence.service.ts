@@ -1,8 +1,14 @@
 import { randomUUID } from "node:crypto";
-import type { FormFieldRef, FormInput, TokenUsage } from "@lazyapply/types";
-import mongoose, { type ClientSession, type Types } from "mongoose";
+import type { AutofillResponse, FormInput, TokenUsage } from "@lazyapply/types";
+import type { Types } from "mongoose";
+import mongoose, { type ClientSession } from "mongoose";
 import { FormModel } from "@/formFields/form.model.js";
+import type { TFormFieldRef } from "@/formFields/formField.types.js";
 import {
+	type AutofillDataItem,
+	type AutofillDataItemFile,
+	type AutofillDataItemText,
+	AutofillModel,
 	type CreateFormFieldParams,
 	type CreateFormParams,
 	type CreateUsageParams,
@@ -14,19 +20,25 @@ import {
 import type { EnrichedClassifiedField } from "./classifier.service.js";
 
 /**
- * Builds form field references from classified fields
+ * Builds form field references from classified fields with their ObjectId refs
  */
 function buildFormFieldRefs(
 	classifiedFields: (EnrichedClassifiedField | TFormField)[],
-): FormFieldRef[] {
-	return classifiedFields.map(
-		({ hash, classification, linkType, inferenceHint }) => ({
-			hash,
-			classification,
-			...(linkType && { linkType }),
-			...(inferenceHint && { inferenceHint }),
-		}),
-	);
+	fieldHashToIdMap: Map<string, Types.ObjectId>,
+): TFormFieldRef[] {
+	return classifiedFields
+		.map(({ hash, classification, linkType, inferenceHint }) => {
+			const fieldRef = fieldHashToIdMap.get(hash);
+			if (!fieldRef) return null;
+			return {
+				hash,
+				classification,
+				fieldRef,
+				...(linkType && { linkType }),
+				...(inferenceHint && { inferenceHint }),
+			};
+		})
+		.filter((f): f is TFormFieldRef => f !== null);
 }
 
 /**
@@ -93,10 +105,74 @@ async function createUsageRecord(
 }
 
 /**
+ * Creates an autofill record with the response data
+ */
+async function createAutofillRecord(
+	session: ClientSession,
+	formReference: Types.ObjectId,
+	uploadReference: Types.ObjectId,
+	userId: string,
+	autofillId: string,
+	autofillResponse: AutofillResponse,
+	fieldHashToIdMap: Map<string, Types.ObjectId>,
+): Promise<void> {
+	const data: AutofillDataItem[] = [];
+
+	for (const [hash, item] of Object.entries(autofillResponse)) {
+		const fieldRef = fieldHashToIdMap.get(hash);
+		if (!fieldRef) {
+			continue;
+		}
+
+		const baseItem = {
+			hash,
+			fieldRef,
+			fieldName: item.fieldName ?? "",
+		};
+
+		// Handle file upload fields
+		if (item.fileUrl && item.fileName && item.fileContentType) {
+			const fileItem: AutofillDataItemFile = {
+				...baseItem,
+				fileUrl: item.fileUrl,
+				fileName: item.fileName,
+				fileContentType: item.fileContentType,
+			};
+			data.push(fileItem);
+			continue;
+		}
+
+		// Handle text value fields
+		if (item.value !== undefined && item.value !== null) {
+			const textItem: AutofillDataItemText = {
+				...baseItem,
+				value: item.value,
+			};
+			data.push(textItem);
+		}
+	}
+
+	await AutofillModel.create(
+		[
+			{
+				userId,
+				autofillId,
+				formReference,
+				uploadReference,
+				data,
+			},
+		],
+		{ session },
+	);
+}
+
+/**
  * Persists a new form and its fields to the database in a single transaction.
  * @param allClassifiedFields - All fields for form references (cached + new)
  * @param newlyClassifiedFields - Only new fields to insert into FormField collection
  * @param userId - User who triggered the autofill
+ * @param uploadId - Upload ID (CV) used for this autofill
+ * @param autofillResponse - The autofill response to save
  * @param classificationUsage - Token usage from classification LLM call
  * @param inferenceUsage - Optional token usage from inference LLM call
  * @param jdMatchUsage - Optional token usage from JD-form match LLM call
@@ -106,6 +182,8 @@ export async function persistNewFormAndFields(
 	allClassifiedFields: (TFormField | EnrichedClassifiedField)[],
 	newlyClassifiedFields: EnrichedClassifiedField[],
 	userId: string,
+	uploadId: string,
+	autofillResponse: AutofillResponse,
 	classificationUsage: TokenUsage,
 	inferenceUsage?: TokenUsage,
 	jdMatchUsage?: TokenUsage,
@@ -115,7 +193,26 @@ export async function persistNewFormAndFields(
 
 	try {
 		await session.withTransaction(async () => {
-			const formFieldRefs = buildFormFieldRefs(allClassifiedFields);
+			// Only insert newly classified fields (not cached ones)
+			const fieldDocs = buildFormFieldDocuments(newlyClassifiedFields);
+			if (fieldDocs.length > 0) {
+				await FormFieldModel.insertMany(fieldDocs, { session, ordered: false });
+			}
+
+			// Build field hash to ID map for autofill record and fieldRefs
+			const hashes = allClassifiedFields.map((f) => f.hash);
+			const existingFields = await FormFieldModel.find(
+				{ hash: { $in: hashes } },
+				{ hash: 1, _id: 1 },
+			).session(session);
+			const fieldHashToIdMap = new Map(
+				existingFields.map((f) => [f.hash, f._id as Types.ObjectId]),
+			);
+
+			const formFieldRefs = buildFormFieldRefs(
+				allClassifiedFields,
+				fieldHashToIdMap,
+			);
 
 			const formData: CreateFormParams = {
 				formHash: formInput.formHash,
@@ -126,11 +223,16 @@ export async function persistNewFormAndFields(
 
 			const [savedForm] = await FormModel.create([formData], { session });
 
-			// Only insert newly classified fields (not cached ones)
-			const fieldDocs = buildFormFieldDocuments(newlyClassifiedFields);
-			if (fieldDocs.length > 0) {
-				await FormFieldModel.insertMany(fieldDocs, { session, ordered: false });
-			}
+			// Persist autofill record
+			await createAutofillRecord(
+				session,
+				savedForm._id,
+				new mongoose.Types.ObjectId(uploadId),
+				userId,
+				autofillId,
+				autofillResponse,
+				fieldHashToIdMap,
+			);
 
 			// Persist usage records
 			await createUsageRecord(
@@ -163,6 +265,64 @@ export async function persistNewFormAndFields(
 					jdMatchUsage,
 				);
 			}
+		});
+	} finally {
+		await session.endSession();
+	}
+}
+
+/**
+ * Persists autofill data for cached responses (no new form/fields created)
+ * Creates empty usage record and saves autofill result
+ */
+export async function persistCachedAutofill(
+	formId: Types.ObjectId,
+	uploadId: string,
+	userId: string,
+	autofillResponse: AutofillResponse,
+): Promise<void> {
+	const session = await mongoose.startSession();
+	const autofillId = randomUUID();
+
+	try {
+		await session.withTransaction(async () => {
+			// Build field hash to ID map
+			const hashes = Object.keys(autofillResponse);
+			const existingFields = await FormFieldModel.find(
+				{ hash: { $in: hashes } },
+				{ hash: 1, _id: 1 },
+			).session(session);
+			const fieldHashToIdMap = new Map(
+				existingFields.map((f) => [f.hash, f._id as Types.ObjectId]),
+			);
+
+			// Persist autofill record
+			await createAutofillRecord(
+				session,
+				formId,
+				new mongoose.Types.ObjectId(uploadId),
+				userId,
+				autofillId,
+				autofillResponse,
+				fieldHashToIdMap,
+			);
+
+			// Create empty usage record for tracking
+			await createUsageRecord(
+				session,
+				formId,
+				userId,
+				autofillId,
+				"form_fields_classification",
+				{
+					promptTokens: 0,
+					completionTokens: 0,
+					totalTokens: 0,
+					inputCost: 0,
+					outputCost: 0,
+					totalCost: 0,
+				},
+			);
 		});
 	} finally {
 		await session.endSession();

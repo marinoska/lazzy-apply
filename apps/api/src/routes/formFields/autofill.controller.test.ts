@@ -136,13 +136,30 @@ describe("autofill.controller", () => {
 
 	describe("autofill", () => {
 		it("should return cached response when form exists", async () => {
-			// Create existing form
+			// Create existing field first
+			const savedField = await FormFieldModel.create({
+				hash: "hash-1",
+				field: {
+					tag: "input",
+					type: "email",
+					name: "email",
+					label: "Email Address",
+					placeholder: "Enter your email",
+					description: null,
+					isFileUpload: false,
+					accept: null,
+				},
+				classification: "personal.email",
+			});
+
+			// Create existing form with fieldRef
 			await FormModel.create({
 				formHash: "test-form-hash",
 				fields: [
 					{
 						hash: "hash-1",
 						classification: "personal.email",
+						fieldRef: savedField._id,
 					},
 				],
 				pageUrls: ["https://example.com/apply"],

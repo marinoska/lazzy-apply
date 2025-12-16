@@ -11,14 +11,16 @@ import { getPresignedDownloadUrl } from "@/app/cloudflare.js";
 import { getEnv } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
 import { CVDataModel } from "@/cvData/index.js";
+import type { TFormFieldRefPopulated } from "@/formFields/formField.types.js";
 import {
 	FormFieldModel,
 	FormModel,
-	type TForm,
+	type FormWithPopulatedFields,
 	type TFormField,
 } from "@/formFields/index.js";
 import { FileUploadModel } from "@/uploads/fileUpload.model.js";
 import type { TFileUpload } from "@/uploads/fileUpload.types.js";
+import type { EnrichedClassifiedField } from "./services/classifier.service.js";
 import {
 	classifyFieldsWithAI,
 	extractValueByPath,
@@ -26,6 +28,7 @@ import {
 	type InferenceResult,
 	inferFieldValues,
 	isPathInCVData,
+	persistCachedAutofill,
 	persistNewFormAndFields,
 	validateJdFormMatch,
 } from "./services/index.js";
@@ -154,7 +157,7 @@ export interface AutofillResult {
  * 4. Persist new data
  */
 export class ClassificationManager {
-	private existingForm?: TForm;
+	private existingForm?: FormWithPopulatedFields;
 	private inputFieldsMap: Map<string, Field>;
 	private existingFields: TFormField[] = [];
 	private fieldsToClassify: Field[] = [];
@@ -198,7 +201,9 @@ export class ClassificationManager {
 
 	private async loadForm() {
 		// Step 1: Check if form exists
-		const existingForm = await FormModel.findByHash(this.formInput.formHash);
+		const existingForm = await FormModel.findByHash(this.formInput.formHash, {
+			populate: true,
+		});
 
 		if (existingForm) {
 			if (!existingForm.pageUrls.includes(this.formInput.pageUrl)) {
@@ -243,49 +248,45 @@ export class ClassificationManager {
 		// Generate file info for resume_upload fields
 		const fileInfo = await this.getFileInfo();
 
+		// Load fields - always needed for building response
 		if (this.existingForm) {
-			logger.info("Form found in DB, returning cached data");
-
-			return {
-				response: buildResponseFromFields(
-					this.existingForm.fields,
-					Array.from(this.inputFieldsMap.values()),
-					this.cvData,
-					fileInfo,
-				),
-				fromCache: true,
-			};
+			// Form exists - use populated fields.fieldRef from FormFieldModel
+			this.existingFields = this.existingForm.fields.map(
+				(field: TFormFieldRefPopulated) => field.fieldRef,
+			);
+		} else {
+			logger.info("Form not found, looking up fields by hash");
+			await this.loadFields();
 		}
 
-		// Step 2: No form found - look up fields by hash
-		logger.info("Form not found, looking up fields by hash");
-
-		await this.loadFields();
-
-		if (!this.fieldsToClassify.length) {
-			logger.info("All fields found in cache");
-			return {
-				response: buildResponseFromFields(
-					this.existingFields,
-					Array.from(this.inputFieldsMap.values()),
-					this.cvData,
-					fileInfo,
-				),
-				fromCache: true,
-			};
-		}
-
-		// Step 3: Classify fields and optionally validate JD match in parallel
-		logger.info(
-			{ count: this.fieldsToClassify.length },
-			"Classifying missing fields",
-		);
-
+		// Determine if we need to classify new fields or validate JD match
+		const needsClassification = this.fieldsToClassify.length > 0;
 		const hasJdText = this.jdRawText.length > 0;
 		const sameUrl = this.jdUrl === this.formInput.pageUrl;
 		const shouldValidateJdMatch = hasJdText && !sameUrl;
+
+		if (needsClassification) {
+			logger.info(
+				{ count: this.fieldsToClassify.length },
+				"Classifying missing fields",
+			);
+		}
+
+		if (shouldValidateJdMatch) {
+			logger.info(
+				{ jdUrl: this.jdUrl, formUrl: this.formInput.pageUrl },
+				"Validating JD match",
+			);
+		}
+		// Run classification and JD match in parallel (using ternaries to skip when not needed)
+		// TODO cache the JD classification result in a collection
 		const [classificationResult, jdMatchResult] = await Promise.all([
-			classifyFieldsWithAI(this.fieldsToClassify),
+			needsClassification
+				? classifyFieldsWithAI(this.fieldsToClassify)
+				: Promise.resolve({
+						classifiedFields: [] as EnrichedClassifiedField[],
+						usage: createEmptyUsage(),
+					}),
 			shouldValidateJdMatch
 				? validateJdFormMatch({
 						jdText: this.jdRawText,
@@ -293,46 +294,61 @@ export class ClassificationManager {
 						jdUrl: this.jdUrl,
 						formUrl: this.formInput.pageUrl,
 					})
-				: Promise.resolve({ isMatch: !sameUrl, usage: createEmptyUsage() }),
+				: Promise.resolve({ isMatch: sameUrl, usage: createEmptyUsage() }),
 		]);
 
-		const { classifiedFields, usage } = classificationResult;
+		const { classifiedFields, usage: classificationUsage } =
+			classificationResult;
 
-		const result = buildResponseFromFields(
-			[...this.existingFields, ...classifiedFields],
+		// Build response from appropriate fields source
+		const allFields = [...this.existingFields, ...classifiedFields];
+
+		const response = buildResponseFromFields(
+			allFields,
 			Array.from(this.inputFieldsMap.values()),
 			this.cvData,
 			fileInfo,
 		);
 
 		// Handle inference for fields with inferenceHint
-		// Only provide JD text if it matches the form
 		let inferenceUsage: TokenUsage | undefined;
-		const inferenceFields = collectInferenceFields(result);
+		const inferenceFields = collectInferenceFields(response);
 		if (inferenceFields.length > 0) {
 			const inferenceResult = await this.inferFields(
 				inferenceFields,
 				jdMatchResult.isMatch,
 			);
-			applyInferredAnswers(result, inferenceResult.answers);
+			applyInferredAnswers(response, inferenceResult.answers);
 			inferenceUsage = inferenceResult.usage;
 		}
 
-		// Persist form with all field refs, but only insert newly classified fields
-		await persistNewFormAndFields(
-			this.formInput,
-			[...this.existingFields, ...classifiedFields],
-			classifiedFields,
-			this.userId,
-			usage,
-			inferenceUsage,
-			shouldValidateJdMatch ? jdMatchResult.usage : undefined,
-		);
+		// Persist based on whether form already exists
+		if (this.existingForm) {
+			logger.info("Form found in DB, saving autofill record");
+			await persistCachedAutofill(
+				this.existingForm._id,
+				this.selectedUploadId,
+				this.userId,
+				response,
+			);
+		} else {
+			logger.info("Persisting new form and fields");
+			await persistNewFormAndFields(
+				this.formInput,
+				[...this.existingFields, ...classifiedFields],
+				classifiedFields,
+				this.userId,
+				this.selectedUploadId,
+				response,
+				classificationUsage,
+				inferenceUsage,
+				shouldValidateJdMatch ? jdMatchResult.usage : undefined,
+			);
+		}
 
 		return {
-			response: result,
-			fromCache: false,
-			usage,
+			response,
+			fromCache: !!this.existingForm || !needsClassification,
 		};
 	}
 
