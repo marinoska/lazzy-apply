@@ -30,6 +30,7 @@ export async function autofill(
 		selectedUploadId,
 		jdRawText ?? "",
 		jdUrl ?? "",
+		formContext ?? [],
 	);
 	const { response, fromCache } = await classificationManager.process();
 

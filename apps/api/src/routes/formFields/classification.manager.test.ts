@@ -47,6 +47,21 @@ vi.mock("./services/jdMatcher.service.js", () => ({
 	}),
 }));
 
+// Mock the inference service
+vi.mock("./services/inference.service.js", () => ({
+	inferFieldValues: vi.fn().mockResolvedValue({
+		answers: {},
+		usage: {
+			promptTokens: 0,
+			completionTokens: 0,
+			totalTokens: 0,
+			inputCost: 0,
+			outputCost: 0,
+			totalCost: 0,
+		},
+	}),
+}));
+
 const TEST_UPLOAD_ID = "507f1f77bcf86cd799439011";
 
 describe("classification.manager", () => {
@@ -145,6 +160,7 @@ describe("classification.manager", () => {
 				TEST_UPLOAD_ID,
 				"",
 				null,
+				[],
 			);
 			const result = await manager.process();
 
@@ -198,6 +214,7 @@ describe("classification.manager", () => {
 				TEST_UPLOAD_ID,
 				"",
 				null,
+				[],
 			);
 			await manager.process();
 
@@ -240,6 +257,7 @@ describe("classification.manager", () => {
 				TEST_UPLOAD_ID,
 				"",
 				null,
+				[],
 			);
 			const result = await manager.process();
 
@@ -263,6 +281,7 @@ describe("classification.manager", () => {
 				TEST_UPLOAD_ID,
 				"",
 				null,
+				[],
 			);
 			const result = await manager.process();
 
@@ -291,6 +310,7 @@ describe("classification.manager", () => {
 				TEST_UPLOAD_ID,
 				"Some JD text",
 				jdUrl,
+				[],
 			);
 			await manager.process();
 
@@ -310,6 +330,7 @@ describe("classification.manager", () => {
 				TEST_UPLOAD_ID,
 				"Some JD text",
 				jdUrl,
+				[],
 			);
 			await manager.process();
 
@@ -334,6 +355,7 @@ describe("classification.manager", () => {
 				TEST_UPLOAD_ID,
 				"", // Empty JD text
 				jdUrl,
+				[],
 			);
 			await manager.process();
 
@@ -353,6 +375,7 @@ describe("classification.manager", () => {
 				TEST_UPLOAD_ID,
 				"Some JD text",
 				jdUrl,
+				[],
 			);
 			const result = await manager.process();
 

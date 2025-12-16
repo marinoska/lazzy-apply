@@ -2,6 +2,7 @@ import type {
 	AutofillResponse,
 	AutofillResponseItem,
 	Field,
+	FormContextBlock,
 	FormFieldRef,
 	FormInput,
 	ParsedCVData,
@@ -11,11 +12,9 @@ import { getPresignedDownloadUrl } from "@/app/cloudflare.js";
 import { getEnv } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
 import { CVDataModel } from "@/cvData/index.js";
-import type { TFormFieldRefPopulated } from "@/formFields/formField.types.js";
 import {
 	FormFieldModel,
 	FormModel,
-	type FormWithPopulatedFields,
 	type TFormField,
 } from "@/formFields/index.js";
 import { FileUploadModel } from "@/uploads/fileUpload.model.js";
@@ -32,6 +31,10 @@ import {
 	persistNewFormAndFields,
 	validateJdFormMatch,
 } from "./services/index.js";
+import type {
+	FormDocumentPopulated,
+	TFormFieldPopulated,
+} from "@/formFields/formField.types.js";
 
 const logger = createLogger("classification.manager");
 
@@ -157,7 +160,7 @@ export interface AutofillResult {
  * 4. Persist new data
  */
 export class ClassificationManager {
-	private existingForm?: FormWithPopulatedFields;
+	private existingForm?: FormDocumentPopulated;
 	private inputFieldsMap: Map<string, Field>;
 	private existingFields: TFormField[] = [];
 	private fieldsToClassify: Field[] = [];
@@ -171,6 +174,7 @@ export class ClassificationManager {
 		private readonly selectedUploadId: string,
 		private readonly jdRawText: string,
 		private readonly jdUrl: string | null,
+		private readonly formContext: FormContextBlock[],
 	) {
 		this.inputFieldsMap = new Map(inputFields.map((f) => [f.hash, f]));
 	}
@@ -252,7 +256,7 @@ export class ClassificationManager {
 		if (this.existingForm) {
 			// Form exists - use populated fields.fieldRef from FormFieldModel
 			this.existingFields = this.existingForm.fields.map(
-				(field: TFormFieldRefPopulated) => field.fieldRef,
+				(field: TFormFieldPopulated) => field.fieldRef,
 			);
 		} else {
 			logger.info("Form not found, looking up fields by hash");
@@ -352,7 +356,7 @@ export class ClassificationManager {
 	}
 
 	/**
-	 * Infer field values using CV and JD text
+	 * Infer field values using CV and JD/form context text
 	 */
 	private async inferFields(
 		fields: InferenceField[],
@@ -368,15 +372,22 @@ export class ClassificationManager {
 			"Processing inference fields",
 		);
 
-		// Only provide JD text if it matches the form
-		const jdRawText = jdMatches ? this.jdRawText : "";
+		// Use JD text if it matches, otherwise fall back to form context
+		let contextText = "";
+		if (jdMatches && this.jdRawText.length > 0) {
+			contextText = this.jdRawText;
+		} else if (this.formContext.length > 0) {
+			contextText = this.formContext.map((block) => block.text).join("\n");
+			logger.info("Using form context as fallback for inference");
+		}
+
 		logger.debug(
-			{ cvRawText: this.cvData.rawText, jdRawText, fields },
+			{ cvRawText: this.cvData.rawText, contextText, fields },
 			"Inference input",
 		);
 		const result = await inferFieldValues({
 			cvRawText: this.cvData.rawText,
-			jdRawText,
+			jdRawText: contextText,
 			fields,
 		});
 
