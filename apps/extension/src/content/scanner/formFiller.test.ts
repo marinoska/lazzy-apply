@@ -32,17 +32,21 @@ describe("formFiller", () => {
 			]);
 
 			const autofillResponse: AutofillResponse = {
-				"hash:firstname": {
-					fieldName: "firstname",
-					path: "personal.fullName",
-					pathFound: true,
-					value: "John Doe",
-				},
-				"hash:email": {
-					fieldName: "email",
-					path: "personal.email",
-					pathFound: true,
-					value: "john@example.com",
+				autofillId: "test-1",
+				fromCache: false,
+				fields: {
+					"hash:firstname": {
+						fieldName: "firstname",
+						path: "personal.fullName",
+						pathFound: true,
+						value: "John Doe",
+					},
+					"hash:email": {
+						fieldName: "email",
+						path: "personal.email",
+						pathFound: true,
+						value: "john@example.com",
+					},
 				},
 			};
 
@@ -66,11 +70,15 @@ describe("formFiller", () => {
 			]);
 
 			const autofillResponse: AutofillResponse = {
-				"hash:summary": {
-					fieldName: "summary",
-					path: "summary",
-					pathFound: true,
-					value: "Experienced developer with 10 years of experience.",
+				autofillId: "test-2",
+				fromCache: false,
+				fields: {
+					"hash:summary": {
+						fieldName: "summary",
+						path: "summary",
+						pathFound: true,
+						value: "Experienced developer with 10 years of experience.",
+					},
 				},
 			};
 
@@ -92,11 +100,15 @@ describe("formFiller", () => {
 			]);
 
 			const autofillResponse: AutofillResponse = {
-				"hash:city": {
-					fieldName: "city",
-					path: "personal.location",
-					pathFound: true,
-					value: null,
+				autofillId: "test-3",
+				fromCache: false,
+				fields: {
+					"hash:city": {
+						fieldName: "city",
+						path: "personal.location",
+						pathFound: true,
+						value: null,
+					},
 				},
 			};
 
@@ -119,10 +131,14 @@ describe("formFiller", () => {
 			]);
 
 			const autofillResponse: AutofillResponse = {
-				"hash:postcode": {
-					fieldName: "postcode",
-					path: "unknown",
-					pathFound: false,
+				autofillId: "test-4",
+				fromCache: false,
+				fields: {
+					"hash:postcode": {
+						fieldName: "postcode",
+						path: "unknown",
+						pathFound: false,
+					},
 				},
 			};
 
@@ -136,11 +152,15 @@ describe("formFiller", () => {
 			const fieldElements = new Map<string, HTMLElement>();
 
 			const autofillResponse: AutofillResponse = {
-				"hash:missing": {
-					fieldName: "missing",
-					path: "personal.email",
-					pathFound: true,
-					value: "test@example.com",
+				autofillId: "test-5",
+				fromCache: false,
+				fields: {
+					"hash:missing": {
+						fieldName: "missing",
+						path: "personal.email",
+						pathFound: true,
+						value: "test@example.com",
+					},
 				},
 			};
 
@@ -166,11 +186,15 @@ describe("formFiller", () => {
 			]);
 
 			const autofillResponse: AutofillResponse = {
-				"hash:test": {
-					fieldName: "test",
-					path: "personal.fullName",
-					pathFound: true,
-					value: "Test Value",
+				autofillId: "test-6",
+				fromCache: false,
+				fields: {
+					"hash:test": {
+						fieldName: "test",
+						path: "personal.fullName",
+						pathFound: true,
+						value: "Test Value",
+					},
 				},
 			};
 
@@ -219,11 +243,15 @@ describe("formFiller", () => {
 			]);
 
 			const autofillResponse: AutofillResponse = {
-				"hash:react": {
-					fieldName: "react-input",
-					path: "personal.fullName",
-					pathFound: true,
-					value: "React Value",
+				autofillId: "test-7",
+				fromCache: false,
+				fields: {
+					"hash:react": {
+						fieldName: "react-input",
+						path: "personal.fullName",
+						pathFound: true,
+						value: "React Value",
+					},
 				},
 			};
 
@@ -250,11 +278,15 @@ describe("formFiller", () => {
 			]);
 
 			const autofillResponse: AutofillResponse = {
-				"hash:resume": {
-					fieldName: "resume",
-					path: "resume_upload",
-					pathFound: true,
-					value: "somefile.pdf",
+				autofillId: "test-8",
+				fromCache: false,
+				fields: {
+					"hash:resume": {
+						fieldName: "resume",
+						path: "resume_upload",
+						pathFound: true,
+						value: "somefile.pdf",
+					},
 				},
 			};
 
@@ -318,13 +350,17 @@ describe("formFiller", () => {
 			});
 
 			const autofillResponse: AutofillResponse = {
-				"hash:resume": {
-					fieldName: "resume",
-					path: "resume_upload",
-					pathFound: true,
-					fileUrl: "https://example.com/presigned-url",
-					fileName: "my-cv.pdf",
-					fileContentType: "PDF",
+				autofillId: "test-9",
+				fromCache: false,
+				fields: {
+					"hash:resume": {
+						fieldName: "resume",
+						path: "resume_upload",
+						pathFound: true,
+						fileUrl: "https://example.com/presigned-url",
+						fileName: "my-cv.pdf",
+						fileContentType: "PDF",
+					},
 				},
 			};
 

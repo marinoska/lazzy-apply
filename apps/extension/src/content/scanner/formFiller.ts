@@ -1,3 +1,18 @@
+/**
+ * Form Filler (Scanner)
+ *
+ * Low-level form filling module used by the scanner for direct DOM manipulation.
+ * Works with raw field element maps without iframe or ApplicationForm abstractions.
+ *
+ * Responsibilities:
+ * - Fill individual form elements (input, textarea, select, contenteditable)
+ * - Handle React-compatible value setting via native setters
+ * - Dispatch proper input/change events for framework compatibility
+ * - Fill file inputs by fetching from presigned URLs
+ * - Coordinate file uploads (filled last to avoid blocking from CV parsing)
+ *
+ * @see ../sidebar/services/formFiller.ts for the higher-level sidebar version
+ */
 import type { AutofillResponse, AutofillResponseItem } from "@lazyapply/types";
 
 /**
@@ -56,8 +71,15 @@ export async function fillFormFields(
 ): Promise<FillFormFieldsResult> {
 	let filled = 0;
 	let skipped = 0;
-	const fileUploadPromises: Promise<boolean>[] = [];
 
+	// Collect file fields to fill them last
+	const fileFields: Array<{
+		hash: string;
+		element: HTMLInputElement;
+		item: AutofillResponseItem;
+	}> = [];
+
+	// First pass: fill all non-file fields
 	for (const [hash, item] of Object.entries(autofillResponse.fields)) {
 		const element = fieldElements.get(hash);
 		if (!element) {
@@ -66,30 +88,14 @@ export async function fillFormFields(
 			continue;
 		}
 
-		// Handle file inputs with resume_upload path
+		// Collect file inputs with resume_upload path for second pass
 		if (
 			element instanceof HTMLInputElement &&
 			element.type === "file" &&
 			item.path === "resume_upload" &&
 			item.fileUrl
 		) {
-			console.log(
-				`[FormFiller] Queueing file upload for ${item.fieldName ?? hash}`,
-			);
-			fileUploadPromises.push(
-				fillFileInput(element, item).then((success) => {
-					if (success) {
-						console.log(
-							`[FormFiller] File uploaded for ${item.fieldName ?? hash}`,
-						);
-					} else {
-						console.warn(
-							`[FormFiller] Failed to upload file for ${item.fieldName ?? hash}`,
-						);
-					}
-					return success;
-				}),
-			);
+			fileFields.push({ hash, element, item });
 			continue;
 		}
 
@@ -112,6 +118,31 @@ export async function fillFormFields(
 			skipped++;
 			console.warn(`[FormFiller] Failed to fill ${item.fieldName ?? hash}`);
 		}
+	}
+
+	// Second pass: fill file fields last
+	// Some sites parse CVs automatically and block the page once parsing starts,
+	// so we fill file inputs after all other fields are populated
+	const fileUploadPromises: Promise<boolean>[] = [];
+
+	for (const { hash, element, item } of fileFields) {
+		console.log(
+			`[FormFiller] Queueing file upload for ${item.fieldName ?? hash}`,
+		);
+		fileUploadPromises.push(
+			fillFileInput(element, item).then((success) => {
+				if (success) {
+					console.log(
+						`[FormFiller] File uploaded for ${item.fieldName ?? hash}`,
+					);
+				} else {
+					console.warn(
+						`[FormFiller] Failed to upload file for ${item.fieldName ?? hash}`,
+					);
+				}
+				return success;
+			}),
+		);
 	}
 
 	// Wait for all file uploads to complete

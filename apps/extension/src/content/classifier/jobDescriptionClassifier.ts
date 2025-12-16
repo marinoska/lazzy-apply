@@ -306,7 +306,10 @@ export function classifyDocument(rawParagraphs: string[]): {
 	}
 
 	// Document is a JD if we have sufficient content and reasonable confidence
-	const isJobDescription = isJdLengthSufficient && jobDescriptionParagraphs > 0;
+	const isJobDescription =
+		isJdLengthSufficient &&
+		jobDescriptionParagraphs > 0 &&
+		confidence >= CONFIDENCE_THRESHOLD;
 
 	return {
 		isJobDescription,

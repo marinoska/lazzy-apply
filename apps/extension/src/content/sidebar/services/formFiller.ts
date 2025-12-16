@@ -1,3 +1,17 @@
+/**
+ * Form Filler Service (Sidebar)
+ *
+ * High-level form filling service used by the sidebar/autofill context.
+ * Handles both direct DOM manipulation and iframe communication via FormStoreManager.
+ *
+ * Responsibilities:
+ * - Fill form fields with autofill classification results
+ * - Handle iframe forms by delegating to FormStoreManager
+ * - Clear form fields before filling
+ * - Coordinate file uploads (filled last to avoid blocking from CV parsing)
+ *
+ * @see ../scanner/formFiller.ts for the lower-level scanner version
+ */
 import type { AutofillResponse, AutofillResponseItem } from "@lazyapply/types";
 import { formStore } from "../../scanner/FormStoreManager.js";
 import type { ApplicationForm } from "../../scanner/formDetector.js";
@@ -163,40 +177,19 @@ export async function fillFormFields(
 ): Promise<FillResult> {
 	let filled = 0;
 	let skipped = 0;
-	const fileUploadPromises: Promise<boolean>[] = [];
 
+	// Collect file fields to fill them last
+	const fileFields: Array<{
+		hash: string;
+		classification: AutofillResponseItem;
+	}> = [];
+
+	// First pass: fill all non-file fields
 	for (const [hash, classification] of Object.entries(classifications.fields)) {
 		const element = applicationForm.fieldElements.get(hash);
 
 		if (classification.path === "resume_upload" && classification.fileUrl) {
-			console.log(
-				`[FormFiller] Queueing file upload for ${classification.fieldName ?? hash}`,
-			);
-			if (isIframeForm) {
-				formStore.fillFileInIframe(hash, classification);
-				filled++;
-			} else if (
-				element instanceof HTMLInputElement &&
-				element.type === "file"
-			) {
-				fileUploadPromises.push(
-					fillFileInput(element, classification).then((success) => {
-						if (success) {
-							console.log(
-								`[FormFiller] File uploaded for ${classification.fieldName ?? hash}`,
-							);
-						} else {
-							console.warn(
-								`[FormFiller] Failed to upload file for ${classification.fieldName ?? hash}`,
-							);
-						}
-						return success;
-					}),
-				);
-			} else {
-				console.warn(`[FormFiller] Element for ${hash} is not a file input`);
-				skipped++;
-			}
+			fileFields.push({ hash, classification });
 			continue;
 		}
 
@@ -215,6 +208,42 @@ export async function fillFormFields(
 			} else {
 				skipped++;
 			}
+		}
+	}
+
+	// Second pass: fill file fields last
+	// Some sites parse CVs automatically and block the page once parsing starts,
+	// so we fill file inputs after all other fields are populated
+	const fileUploadPromises: Promise<boolean>[] = [];
+
+	for (const { hash, classification } of fileFields) {
+		const element = applicationForm.fieldElements.get(hash);
+
+		console.log(
+			`[FormFiller] Queueing file upload for ${classification.fieldName ?? hash}`,
+		);
+
+		if (isIframeForm) {
+			formStore.fillFileInIframe(hash, classification);
+			filled++;
+		} else if (element instanceof HTMLInputElement && element.type === "file") {
+			fileUploadPromises.push(
+				fillFileInput(element, classification).then((success) => {
+					if (success) {
+						console.log(
+							`[FormFiller] File uploaded for ${classification.fieldName ?? hash}`,
+						);
+					} else {
+						console.warn(
+							`[FormFiller] Failed to upload file for ${classification.fieldName ?? hash}`,
+						);
+					}
+					return success;
+				}),
+			);
+		} else {
+			console.warn(`[FormFiller] Element for ${hash} is not a file input`);
+			skipped++;
 		}
 	}
 
