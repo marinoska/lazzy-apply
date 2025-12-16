@@ -279,7 +279,6 @@ export class ClassificationManager {
 			);
 		}
 		// Run classification and JD match in parallel (using ternaries to skip when not needed)
-		// TODO cache the JD classification result in a collection
 		const [classificationResult, jdMatchResult] = await Promise.all([
 			needsClassification
 				? classifyFieldsWithAI(this.fieldsToClassify)

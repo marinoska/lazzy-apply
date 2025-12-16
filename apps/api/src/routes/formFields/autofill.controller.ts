@@ -18,7 +18,8 @@ export async function autofill(
 		throw new Unauthorized("Missing authenticated user");
 	}
 
-	const { form, fields, selectedUploadId, jdRawText, jdUrl } = req.body;
+	const { form, fields, selectedUploadId, jdRawText, jdUrl, formContext } =
+		req.body;
 
 	logger.info({ formHash: form.formHash, selectedUploadId }, "Processing form");
 
