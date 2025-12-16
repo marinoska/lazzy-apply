@@ -57,7 +57,7 @@ export function isValidMessage(msg: unknown): msg is BackgroundMessage {
  */
 export async function handleMessage(
 	msg: BackgroundMessage,
-	_sender: chrome.runtime.MessageSender,
+	sender: chrome.runtime.MessageSender,
 	sendResponse: (response: MessageResponse) => void,
 ): Promise<void> {
 	try {
@@ -71,9 +71,15 @@ export async function handleMessage(
 				sendResponse({ ok: true, session: await getStoredSession() });
 				break;
 
-			case "GET_LAST_JD":
-				sendResponse({ ok: true, data: await getLastDetectedJD() });
+			case "GET_LAST_JD": {
+				const tabId = sender.tab?.id;
+				if (!tabId) {
+					sendResponse({ ok: false, error: "No tab ID available" });
+					break;
+				}
+				sendResponse({ ok: true, data: await getLastDetectedJD(tabId) });
 				break;
+			}
 
 			case "LOGOUT":
 				await logout();
@@ -128,10 +134,17 @@ export async function handleMessage(
 			case "JD_SCAN": {
 				const scanMsg = msg as JdScanMessage;
 				const { jobDescriptionAnalysis } = scanMsg;
+				const jdTabId = sender.tab?.id;
+
+				if (!jdTabId) {
+					console.warn("[MessageHandler] JD_SCAN received without tab ID");
+					sendResponse({ ok: false, error: "No tab ID available" });
+					break;
+				}
 
 				// Only store if it's actually a job description (high confidence)
 				if (jobDescriptionAnalysis.isJobDescription) {
-					await saveLastDetectedJD({
+					await saveLastDetectedJD(jdTabId, {
 						url: scanMsg.url,
 						jobDescriptionAnalysis,
 						blocks: scanMsg.blocks,
