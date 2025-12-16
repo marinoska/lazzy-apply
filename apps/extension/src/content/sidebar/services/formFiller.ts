@@ -114,7 +114,11 @@ export interface FillResult {
 }
 
 /**
- * Clear all form fields before filling
+ * Clear all form fields before filling.
+ *
+ * Note: File inputs are intentionally skipped during clearing.
+ * Some sites (e.g., Lever, Greenhouse) hide upload buttons when file inputs
+ * are cleared and change events fire. File inputs will be overwritten when filled.
  */
 export function clearFormFields(
 	applicationForm: ApplicationForm,
@@ -132,14 +136,15 @@ export function clearFormFields(
 
 /**
  * Clear an element's value (handles React compatibility)
+ * Note: File inputs are skipped - clearing them triggers site UI changes
+ * (e.g., hiding upload buttons). They will be overwritten when filled.
  */
 function clearElement(element: HTMLElement): void {
 	const input = element as HTMLInputElement | HTMLTextAreaElement;
 
+	// Skip file inputs - clearing them can trigger unwanted UI changes
+	// (some sites hide buttons when file input is cleared)
 	if (input.type === "file") {
-		(input as HTMLInputElement).value = "";
-		input.dispatchEvent(new Event("input", { bubbles: true }));
-		input.dispatchEvent(new Event("change", { bubbles: true }));
 		return;
 	}
 

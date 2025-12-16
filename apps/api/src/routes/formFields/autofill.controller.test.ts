@@ -1,8 +1,11 @@
 import type { Field } from "@lazyapply/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as cloudflare from "@/app/cloudflare.js";
 import { CVDataModel } from "@/cvData/index.js";
+import { AutofillModel } from "@/formFields/autofill.model.js";
 import { FormModel } from "@/formFields/form.model.js";
 import { FormFieldModel } from "@/formFields/formField.model.js";
+import { FileUploadModel } from "@/uploads/fileUpload.model.js";
 import { autofill } from "./autofill.controller.js";
 import type { EnrichedClassifiedField } from "./services/classifier.service.js";
 
@@ -15,7 +18,16 @@ vi.mock("@/app/env.js", () => ({
 		OPENAI_MODEL_OUTPUT_PRICE_PER_1M: 0.03,
 		LOG_LEVEL: "silent",
 		NODE_ENV: "test",
+		CLOUDFLARE_BUCKET: "test-bucket",
 	},
+	getEnv: (key: string) => {
+		if (key === "CLOUDFLARE_BUCKET") return "test-bucket";
+		return undefined;
+	},
+}));
+
+vi.mock("@/app/cloudflare.js", () => ({
+	getPresignedDownloadUrl: vi.fn(),
 }));
 
 // Mock the classifier service to avoid actual AI calls
@@ -74,6 +86,10 @@ describe("autofill.controller", () => {
 	beforeEach(async () => {
 		await FormModel.deleteMany({});
 		await FormFieldModel.deleteMany({});
+		await AutofillModel.deleteMany({});
+		await FileUploadModel.deleteMany({}).setOptions({
+			skipOwnershipEnforcement: true,
+		});
 		await CVDataModel.deleteMany({}).setOptions({
 			skipOwnershipEnforcement: true,
 		});
@@ -168,13 +184,15 @@ describe("autofill.controller", () => {
 
 			await autofill(mockReq as never, mockRes as never);
 
-			expect(mockRes.json).toHaveBeenCalledWith({
-				"hash-1": {
-					fieldName: "email",
-					path: "personal.email",
-					pathFound: true,
-					value: "test@example.com",
-				},
+			expect(mockRes.json).toHaveBeenCalled();
+			const response = mockRes.json.mock.calls[0][0];
+			expect(response.fromCache).toBe(true);
+			expect(response.autofillId).toBeDefined();
+			expect(response.fields["hash-1"]).toEqual({
+				fieldName: "email",
+				path: "personal.email",
+				pathFound: true,
+				value: "test@example.com",
 			});
 		});
 
@@ -193,6 +211,117 @@ describe("autofill.controller", () => {
 			const savedForm = await FormModel.findOne({ formHash: "test-form-hash" });
 			expect(savedForm).not.toBeNull();
 			expect(savedForm?.pageUrls).toContain("https://example.com/apply");
+		});
+
+		it("should generate fresh presigned URL for file fields in cached response", async () => {
+			// Create file upload
+			await FileUploadModel.create({
+				userId: "test-user-id",
+				fileId: "test-file-id",
+				objectKey: "cv/test-cv.pdf",
+				originalFilename: "my-resume.pdf",
+				contentType: "PDF",
+				size: 12345,
+				status: "uploaded",
+				bucket: "test-bucket",
+				directory: "cv",
+			});
+
+			// Create field with file upload classification
+			const savedField = await FormFieldModel.create({
+				hash: "hash-file",
+				field: {
+					tag: "input",
+					type: "file",
+					name: "resume",
+					label: "Upload Resume",
+					placeholder: null,
+					description: null,
+					isFileUpload: true,
+					accept: ".pdf,.docx",
+				},
+				classification: "resume_upload",
+			});
+
+			// Create form
+			const form = await FormModel.create({
+				formHash: "test-form-hash-file",
+				fields: [
+					{
+						hash: "hash-file",
+						classification: "resume_upload",
+						fieldRef: savedField._id,
+					},
+				],
+				pageUrls: ["https://example.com/apply"],
+				actions: [],
+			});
+
+			// Create cached autofill with OLD expired presigned URL
+			await AutofillModel.create({
+				autofillId: "cached-autofill-id",
+				formId: form._id,
+				uploadId: TEST_UPLOAD_ID,
+				userId: "test-user-id",
+				data: [
+					{
+						hash: "hash-file",
+						fieldName: "resume",
+						fileUrl: "https://old-expired-url.com/file.pdf",
+						fileName: "my-resume.pdf",
+						fileContentType: "PDF",
+					},
+				],
+			});
+
+			// Mock fresh presigned URL generation
+			const freshUrl = "https://fresh-presigned-url.com/file.pdf";
+			vi.mocked(cloudflare.getPresignedDownloadUrl).mockResolvedValue(freshUrl);
+
+			// Make request with file field
+			const fileReq = {
+				user: { id: "test-user-id" },
+				body: {
+					form: {
+						formHash: "test-form-hash-file",
+						fields: [{ hash: "hash-file" }],
+						pageUrl: "https://example.com/apply",
+						action: null,
+					},
+					fields: [
+						{
+							hash: "hash-file",
+							field: {
+								tag: "input",
+								type: "file",
+								name: "resume",
+								label: "Upload Resume",
+								placeholder: null,
+								description: null,
+								isFileUpload: true,
+								accept: ".pdf,.docx",
+							},
+						},
+					],
+					selectedUploadId: TEST_UPLOAD_ID,
+				},
+			};
+
+			await autofill(fileReq as never, mockRes as never);
+
+			expect(mockRes.json).toHaveBeenCalled();
+			const response = mockRes.json.mock.calls[0][0];
+
+			// Should return cached response with FRESH presigned URL, not the old expired one
+			expect(response.fromCache).toBe(true);
+			expect(cloudflare.getPresignedDownloadUrl).toHaveBeenCalledWith(
+				"test-bucket",
+				"cv/test-cv.pdf",
+			);
+			expect(response.fields["hash-file"].fileUrl).toBe(freshUrl);
+			expect(response.fields["hash-file"].fileUrl).not.toBe(
+				"https://old-expired-url.com/file.pdf",
+			);
 		});
 	});
 });

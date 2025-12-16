@@ -5,34 +5,97 @@ import type {
 	AutofillResponseData,
 } from "@lazyapply/types";
 import type { Request, Response } from "express";
+import { getPresignedDownloadUrl } from "@/app/cloudflare.js";
+import { getEnv } from "@/app/env.js";
 import { NotFound, Unauthorized } from "@/app/errors.js";
 import { createLogger } from "@/app/logger.js";
 import { AutofillModel } from "@/formFields/autofill.model.js";
 import type { AutofillDocument } from "@/formFields/autofill.types.js";
 import { FormModel } from "@/formFields/form.model.js";
+import { FileUploadModel } from "@/uploads/fileUpload.model.js";
 import { ClassificationManager } from "./classification.manager.js";
 
 const logger = createLogger("autofill");
 
 export const classifyFormFieldsBodySchema = autofillRequestSchema;
 
+type FreshFileInfo = {
+	fileUrl: string;
+	fileName: string;
+	fileContentType: string;
+} | null;
+
 /**
- * Convert stored autofill document to API response format
+ * Generate fresh presigned URL for file uploads
+ * Presigned URLs expire (typically 15 min), so we must regenerate them
  */
-function buildResponseFromAutofillDoc(
+async function getFreshFileInfo(
+	uploadId: string,
+	userId: string,
+): Promise<FreshFileInfo> {
+	const fileUpload = await FileUploadModel.findOne({
+		_id: uploadId,
+	}).setOptions({ userId });
+
+	if (!fileUpload) {
+		logger.warn(
+			{ uploadId },
+			"File upload not found for presigned URL refresh",
+		);
+		return null;
+	}
+
+	try {
+		const bucket = getEnv("CLOUDFLARE_BUCKET");
+		const fileUrl = await getPresignedDownloadUrl(bucket, fileUpload.objectKey);
+		return {
+			fileUrl,
+			fileName: fileUpload.originalFilename,
+			fileContentType: fileUpload.contentType,
+		};
+	} catch (error) {
+		logger.error({ uploadId, error }, "Failed to generate fresh presigned URL");
+		return null;
+	}
+}
+
+/**
+ * Convert stored autofill document to API response format.
+ *
+ * IMPORTANT: Presigned URLs for file uploads expire after ~15 minutes.
+ * When returning cached autofill data, we must regenerate fresh presigned URLs
+ * for file fields. The original URLs stored in the database will be expired
+ * and cause CORS/403 errors when the extension tries to fetch them.
+ *
+ * @see getFreshFileInfo - generates new presigned URLs from R2
+ */
+async function buildResponseFromAutofillDoc(
 	autofillDoc: AutofillDocument,
-): AutofillResponse {
+	uploadId: string,
+	userId: string,
+): Promise<AutofillResponse> {
 	const fields: AutofillResponseData = {};
+
+	// Check if we have any file fields that need fresh URLs
+	const hasFileFields = autofillDoc.data.some(
+		(item) => item.fileUrl && item.fileName && item.fileContentType,
+	);
+
+	// Get fresh file info if needed (presigned URLs expire)
+	const freshFileInfo = hasFileFields
+		? await getFreshFileInfo(uploadId, userId)
+		: null;
 
 	for (const item of autofillDoc.data) {
 		if (item.fileUrl && item.fileName && item.fileContentType) {
+			// Use fresh presigned URL instead of cached one
 			fields[item.hash] = {
 				fieldName: item.fieldName,
 				path: "resume_upload",
-				pathFound: true,
-				fileUrl: item.fileUrl,
-				fileName: item.fileName,
-				fileContentType: item.fileContentType,
+				pathFound: !!freshFileInfo,
+				fileUrl: freshFileInfo?.fileUrl,
+				fileName: freshFileInfo?.fileName ?? item.fileName,
+				fileContentType: freshFileInfo?.fileContentType ?? item.fileContentType,
 			};
 		} else if (item.value !== undefined) {
 			fields[item.hash] = {
@@ -77,7 +140,13 @@ export async function autofill(
 		if (!autofillDoc || autofillDoc.userId !== user.id) {
 			throw new NotFound("Autofill not found");
 		}
-		res.json(buildResponseFromAutofillDoc(autofillDoc));
+		res.json(
+			await buildResponseFromAutofillDoc(
+				autofillDoc,
+				selectedUploadId,
+				user.id,
+			),
+		);
 		return;
 	}
 
@@ -94,7 +163,13 @@ export async function autofill(
 				{ autofillId: recentAutofill.autofillId },
 				"Found recent autofill, returning cached data",
 			);
-			res.json(buildResponseFromAutofillDoc(recentAutofill));
+			res.json(
+				await buildResponseFromAutofillDoc(
+					recentAutofill,
+					selectedUploadId,
+					user.id,
+				),
+			);
 			return;
 		}
 	}

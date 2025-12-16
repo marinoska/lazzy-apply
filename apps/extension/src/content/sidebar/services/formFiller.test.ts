@@ -79,10 +79,18 @@ describe("formFiller", () => {
 			expect(summaryTextarea.value).toBe("");
 		});
 
-		it("should clear file input fields", () => {
+		it("should skip file input fields to avoid triggering site UI changes", () => {
+			// Some sites hide upload buttons when file inputs are cleared and change events fire.
+			// We skip clearing file inputs - they will be overwritten when filled.
 			container.innerHTML = `<input type="file" id="resume" name="resume" />`;
 
 			const fileInput = container.querySelector("#resume") as HTMLInputElement;
+
+			// Track if change event was dispatched (it shouldn't be for file inputs)
+			let changeEventFired = false;
+			fileInput.addEventListener("change", () => {
+				changeEventFired = true;
+			});
 
 			const fieldElements = new Map<string, HTMLElement>([
 				["hash:resume", fileInput],
@@ -99,7 +107,8 @@ describe("formFiller", () => {
 
 			clearFormFields(mockForm, false);
 
-			expect(fileInput.value).toBe("");
+			// File input should NOT be cleared and no events should fire
+			expect(changeEventFired).toBe(false);
 		});
 
 		it("should dispatch input and change events when clearing", () => {

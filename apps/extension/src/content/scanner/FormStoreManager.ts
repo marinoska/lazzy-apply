@@ -470,14 +470,15 @@ export class FormStoreManager {
 
 	/**
 	 * Clear an element's value (handles React compatibility)
+	 * Note: File inputs are skipped - clearing them triggers site UI changes
+	 * (e.g., hiding upload buttons). They will be overwritten when filled.
 	 */
 	private clearElement(element: HTMLElement): void {
 		const input = element as HTMLInputElement | HTMLTextAreaElement;
 
+		// Skip file inputs - clearing them can trigger unwanted UI changes
+		// (some sites hide buttons when file input is cleared)
 		if (input.type === "file") {
-			(input as HTMLInputElement).value = "";
-			input.dispatchEvent(new Event("input", { bubbles: true }));
-			input.dispatchEvent(new Event("change", { bubbles: true }));
 			return;
 		}
 
