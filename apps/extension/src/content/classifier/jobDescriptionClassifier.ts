@@ -17,10 +17,11 @@ import {
 } from "./applyButtonDetector";
 
 // Classification thresholds
-const MIN_PARAGRAPH_LENGTH = 30; // Minimum characters for a paragraph to be classified
+const MIN_PARAGRAPH_LENGTH = 5; // Minimum characters for a paragraph to be examined
 const MIN_SECTION_LENGTH = 30; // Minimum characters for a section to be classified
 const CONFIDENCE_THRESHOLD = 0.3; // Minimum confidence to classify as job description
 const MIN_SIGNALS_REQUIRED = 2; // Minimum number of signals needed for classification
+export const MIN_TOTAL_JD_LENGTH = 350; // Minimum total characters across all JD paragraphs to be valid JD
 
 // Document-level thresholds
 const SECTION_SIZE = 3; // Number of consecutive paragraphs to group into a section
@@ -221,8 +222,10 @@ function aggregateSignals(results: ClassificationResult[]): {
  * 4. Apply button detection (validates job posting)
  */
 export function classifyDocument(rawParagraphs: string[]): {
+	isJobDescription: boolean;
 	totalParagraphs: number;
 	jobDescriptionParagraphs: number;
+	totalJdLength: number;
 	paragraphRatio: number;
 	sectionRatio: number;
 	confidence: number;
@@ -237,6 +240,15 @@ export function classifyDocument(rawParagraphs: string[]): {
 	);
 
 	const results = classifyParagraphs(paragraphs);
+
+	// Calculate total length of all JD-classified paragraphs
+	const totalJdLength = results
+		.filter((r) => r.isJobDescription)
+		.reduce((sum, r) => sum + r.text.length, 0);
+
+	// Check if total JD content meets minimum length threshold (document-level validation)
+	const isJdLengthSufficient = totalJdLength >= MIN_TOTAL_JD_LENGTH;
+
 	const jobDescriptionParagraphs = results.filter(
 		(r) => r.isJobDescription,
 	).length;
@@ -283,14 +295,24 @@ export function classifyDocument(rawParagraphs: string[]): {
 
 	// Combine text confidence with apply button confidence
 	// Both are required, so use weighted average
-	const confidence = Math.min(
+	let confidence = Math.min(
 		textConfidence * 0.6 + applyButtonDetection.confidence * 0.4,
 		1.0,
 	);
 
+	// If JD length is insufficient, significantly reduce confidence
+	if (!isJdLengthSufficient) {
+		confidence = confidence * 0.2;
+	}
+
+	// Document is a JD if we have sufficient content and reasonable confidence
+	const isJobDescription = isJdLengthSufficient && jobDescriptionParagraphs > 0;
+
 	return {
+		isJobDescription,
 		totalParagraphs: results.length,
 		jobDescriptionParagraphs,
+		totalJdLength,
 		paragraphRatio: Math.round(paragraphRatio * 100) / 100,
 		sectionRatio: Math.round(sectionRatio * 100) / 100,
 		confidence: Math.round(confidence * 100) / 100,

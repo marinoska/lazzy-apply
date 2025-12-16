@@ -129,20 +129,28 @@ export async function handleMessage(
 				const scanMsg = msg as JdScanMessage;
 				const { jobDescriptionAnalysis } = scanMsg;
 
-				// Store the last detected JD
-				await saveLastDetectedJD({
-					url: scanMsg.url,
-					jobDescriptionAnalysis,
-					blocks: scanMsg.blocks,
-					detectedAt: Date.now(),
-				});
+				// Only store if it's actually a job description (high confidence)
+				if (jobDescriptionAnalysis.isJobDescription) {
+					await saveLastDetectedJD({
+						url: scanMsg.url,
+						jobDescriptionAnalysis,
+						blocks: scanMsg.blocks,
+						detectedAt: Date.now(),
+					});
 
-				console.log("[MessageHandler] Stored JD:", {
-					url: scanMsg.url,
-					confidence: jobDescriptionAnalysis.confidence,
-					paragraphs: `${jobDescriptionAnalysis.jobDescriptionParagraphs}/${jobDescriptionAnalysis.totalParagraphs}`,
-					dominantSignals: jobDescriptionAnalysis.dominantSignals,
-				});
+					console.log("[MessageHandler] Stored JD:", {
+						url: scanMsg.url,
+						confidence: jobDescriptionAnalysis.confidence,
+						paragraphs: `${jobDescriptionAnalysis.jobDescriptionParagraphs}/${jobDescriptionAnalysis.totalParagraphs}`,
+						dominantSignals: jobDescriptionAnalysis.dominantSignals,
+					});
+				} else {
+					console.log("[MessageHandler] Skipped storing non-JD page:", {
+						url: scanMsg.url,
+						confidence: jobDescriptionAnalysis.confidence,
+						isJobDescription: jobDescriptionAnalysis.isJobDescription,
+					});
+				}
 
 				sendResponse({ ok: true });
 				break;

@@ -30,6 +30,7 @@ export interface UploadFileMessage extends BackgroundMessage {
 }
 
 export interface DocumentClassification {
+	isJobDescription: boolean;
 	totalParagraphs: number;
 	jobDescriptionParagraphs: number;
 	paragraphRatio: number;

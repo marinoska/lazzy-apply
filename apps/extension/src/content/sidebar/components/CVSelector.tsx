@@ -19,6 +19,7 @@ import {
 import type { EnhancedUploadDTO } from "@/lib/api/context/UploadsContext.js";
 import { useUploads } from "@/lib/api/context/UploadsContext.js";
 import { useDeleteUploadMutation } from "@/lib/api/query/useDeleteUploadMutation.js";
+import { DeleteCVModal } from "./DeleteCVModal.js";
 import { StatusChip } from "./StatusIcon.js";
 
 const getFileIcon = (contentType: EnhancedUploadDTO["contentType"]) => {
@@ -43,12 +44,18 @@ function CVItem({
 	onSelect,
 	isTopItem = false,
 }: CVItemProps) {
+	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 	const deleteUploadMutation = useDeleteUploadMutation();
 	const isSelectable = upload.isActive;
 
-	const handleDelete = (e: React.MouseEvent) => {
+	const handleDeleteClick = (e: React.MouseEvent) => {
 		e.stopPropagation();
+		setDeleteModalOpen(true);
+	};
+
+	const handleConfirmDelete = () => {
 		deleteUploadMutation.mutate(upload.fileId);
+		setDeleteModalOpen(false);
 	};
 
 	const handleClick = () => {
@@ -98,13 +105,21 @@ function CVItem({
 					size="sm"
 					variant="plain"
 					color="neutral"
-					onClick={handleDelete}
+					onClick={handleDeleteClick}
 					disabled={deleteUploadMutation.isPending}
 					sx={{ minHeight: 0, minWidth: 0, padding: 0 }}
 				>
 					<CloseIcon sx={{ fontSize: 16 }} />
 				</IconButton>
 			</Stack>
+
+			<DeleteCVModal
+				open={deleteModalOpen}
+				filename={upload.originalFilename}
+				isDeleting={deleteUploadMutation.isPending}
+				onConfirm={handleConfirmDelete}
+				onClose={() => setDeleteModalOpen(false)}
+			/>
 		</Sheet>
 	);
 }

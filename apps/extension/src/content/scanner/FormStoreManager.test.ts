@@ -291,6 +291,51 @@ describe("FormStoreManager", () => {
 		});
 	});
 
+	describe("clearFieldsInIframe", () => {
+		it("should not throw when no form source window is set", () => {
+			expect(() => manager.clearFieldsInIframe()).not.toThrow();
+		});
+
+		it("should post clear message to form source window when set", async () => {
+			// Set up as parent frame
+			Object.defineProperty(window, "self", { value: window, writable: true });
+			Object.defineProperty(window, "top", { value: window, writable: true });
+
+			const mgr = new FormStoreManager();
+
+			// Simulate receiving a form from iframe to set formSourceWindow
+			const mockSourceWindow = { postMessage: vi.fn() };
+			const mockFormData = {
+				formHash: "test-hash",
+				formDetected: true,
+				totalFields: 1,
+				fields: [],
+				fieldElements: [],
+			};
+
+			const messageEvent = new MessageEvent("message", {
+				data: {
+					type: "LAZYAPPLY_FORM_DETECTED",
+					form: mockFormData,
+				},
+				origin: "https://example.com",
+				source: mockSourceWindow as unknown as Window,
+			});
+
+			window.dispatchEvent(messageEvent);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			mgr.clearFieldsInIframe();
+
+			expect(mockSourceWindow.postMessage).toHaveBeenCalledWith(
+				{
+					type: "LAZYAPPLY_CLEAR_FIELDS",
+				},
+				"*",
+			);
+		});
+	});
+
 	describe("fillFileInIframe", () => {
 		it("should not throw when no form source window is set", () => {
 			const fileInfo: AutofillResponseItem = {
@@ -616,6 +661,103 @@ describe("FormStoreManager", () => {
 
 			// Should not have fetched because fileName is missing
 			expect(globalThis.fetch).not.toHaveBeenCalled();
+		});
+
+		it("should clear all fields when receiving LAZYAPPLY_CLEAR_FIELDS message in iframe", async () => {
+			// Set up as iframe
+			const mockTop = {} as Window;
+			Object.defineProperty(window, "self", { value: window, writable: true });
+			Object.defineProperty(window, "top", { value: mockTop, writable: true });
+
+			const mgr = new FormStoreManager();
+
+			// Create input elements with values
+			const textInput = document.createElement("input");
+			textInput.type = "text";
+			textInput.value = "Some text";
+			document.body.appendChild(textInput);
+
+			const emailInput = document.createElement("input");
+			emailInput.type = "email";
+			emailInput.value = "test@example.com";
+			document.body.appendChild(emailInput);
+
+			// Create mock form with the inputs
+			const mockForm: ApplicationForm = {
+				formHash: "test-hash",
+				formDetected: true,
+				totalFields: 2,
+				fields: [],
+				url: "https://example.com/apply",
+				fieldElements: new Map([
+					["text-hash", textInput],
+					["email-hash", emailInput],
+				]),
+			};
+
+			mgr.setCachedIframeForm(mockForm);
+
+			// Dispatch clear fields message
+			const messageEvent = new MessageEvent("message", {
+				data: {
+					type: "LAZYAPPLY_CLEAR_FIELDS",
+				},
+			});
+
+			window.dispatchEvent(messageEvent);
+
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(textInput.value).toBe("");
+			expect(emailInput.value).toBe("");
+
+			// Cleanup
+			document.body.removeChild(textInput);
+			document.body.removeChild(emailInput);
+		});
+
+		it("should ignore LAZYAPPLY_CLEAR_FIELDS message when not in iframe", async () => {
+			// Set up as parent frame
+			Object.defineProperty(window, "self", { value: window, writable: true });
+			Object.defineProperty(window, "top", { value: window, writable: true });
+
+			const mgr = new FormStoreManager();
+			expect(mgr.isParent).toBe(true);
+
+			// Create input element with value
+			const textInput = document.createElement("input");
+			textInput.type = "text";
+			textInput.value = "Some text";
+			document.body.appendChild(textInput);
+
+			// Create mock form with the input
+			const mockForm: ApplicationForm = {
+				formHash: "test-hash",
+				formDetected: true,
+				totalFields: 1,
+				fields: [],
+				url: "https://example.com/apply",
+				fieldElements: new Map([["text-hash", textInput]]),
+			};
+
+			mgr.setCachedIframeForm(mockForm);
+
+			// Dispatch clear fields message
+			const messageEvent = new MessageEvent("message", {
+				data: {
+					type: "LAZYAPPLY_CLEAR_FIELDS",
+				},
+			});
+
+			window.dispatchEvent(messageEvent);
+
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			// Value should NOT be cleared because we're in parent frame
+			expect(textInput.value).toBe("Some text");
+
+			// Cleanup
+			document.body.removeChild(textInput);
 		});
 	});
 });

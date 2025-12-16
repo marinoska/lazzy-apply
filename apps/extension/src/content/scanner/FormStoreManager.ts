@@ -9,6 +9,7 @@ const FORM_REQUEST_MESSAGE = "LAZYAPPLY_FORM_REQUEST";
 const FILL_FIELD_MESSAGE = "LAZYAPPLY_FILL_FIELD";
 const FILL_FILE_MESSAGE = "LAZYAPPLY_FILL_FILE";
 const FILL_COVER_LETTER_FILE_MESSAGE = "LAZYAPPLY_FILL_COVER_LETTER_FILE";
+const CLEAR_FIELDS_MESSAGE = "LAZYAPPLY_CLEAR_FIELDS";
 
 /**
  * Stored form data with metadata
@@ -158,6 +159,20 @@ export class FormStoreManager {
 	}
 
 	/**
+	 * Clear all fields in the form's iframe context
+	 */
+	clearFieldsInIframe(): void {
+		if (!this.formSourceWindow) return;
+
+		this.formSourceWindow.postMessage(
+			{
+				type: CLEAR_FIELDS_MESSAGE,
+			},
+			"*",
+		);
+	}
+
+	/**
 	 * Fill a cover letter file input in the form's iframe context with a blob
 	 */
 	fillCoverLetterFileInIframe(
@@ -220,6 +235,10 @@ export class FormStoreManager {
 
 			case FILL_COVER_LETTER_FILE_MESSAGE:
 				this.handleFillCoverLetterFile(data);
+				break;
+
+			case CLEAR_FIELDS_MESSAGE:
+				this.handleClearFields();
 				break;
 		}
 	}
@@ -302,6 +321,20 @@ export class FormStoreManager {
 				data.fileName,
 				data.fileContentType,
 			);
+		}
+	}
+
+	/**
+	 * Handle clear fields request from parent (iframe receives)
+	 */
+	private handleClearFields(): void {
+		if (!this.isIframe) return;
+
+		const form = this.getOrDetectIframeForm();
+		if (!form) return;
+
+		for (const element of form.fieldElements.values()) {
+			this.clearElement(element);
 		}
 	}
 
@@ -416,6 +449,43 @@ export class FormStoreManager {
 			default:
 				return "application/octet-stream";
 		}
+	}
+
+	/**
+	 * Clear an element's value (handles React compatibility)
+	 */
+	private clearElement(element: HTMLElement): void {
+		const input = element as HTMLInputElement | HTMLTextAreaElement;
+
+		if (input.type === "file") {
+			(input as HTMLInputElement).value = "";
+			input.dispatchEvent(new Event("input", { bubbles: true }));
+			input.dispatchEvent(new Event("change", { bubbles: true }));
+			return;
+		}
+
+		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+			window.HTMLInputElement.prototype,
+			"value",
+		)?.set;
+		const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
+			window.HTMLTextAreaElement.prototype,
+			"value",
+		)?.set;
+
+		const setter =
+			input.tagName === "TEXTAREA"
+				? nativeTextAreaValueSetter
+				: nativeInputValueSetter;
+
+		if (setter) {
+			setter.call(input, "");
+		} else {
+			input.value = "";
+		}
+
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+		input.dispatchEvent(new Event("change", { bubbles: true }));
 	}
 
 	/**

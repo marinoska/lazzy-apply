@@ -100,6 +100,60 @@ export interface FillResult {
 }
 
 /**
+ * Clear all form fields before filling
+ */
+export function clearFormFields(
+	applicationForm: ApplicationForm,
+	isIframeForm: boolean,
+): void {
+	if (isIframeForm) {
+		formStore.clearFieldsInIframe();
+		return;
+	}
+
+	for (const element of applicationForm.fieldElements.values()) {
+		clearElement(element);
+	}
+}
+
+/**
+ * Clear an element's value (handles React compatibility)
+ */
+function clearElement(element: HTMLElement): void {
+	const input = element as HTMLInputElement | HTMLTextAreaElement;
+
+	if (input.type === "file") {
+		(input as HTMLInputElement).value = "";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+		input.dispatchEvent(new Event("change", { bubbles: true }));
+		return;
+	}
+
+	const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+		window.HTMLInputElement.prototype,
+		"value",
+	)?.set;
+	const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
+		window.HTMLTextAreaElement.prototype,
+		"value",
+	)?.set;
+
+	const setter =
+		input.tagName === "TEXTAREA"
+			? nativeTextAreaValueSetter
+			: nativeInputValueSetter;
+
+	if (setter) {
+		setter.call(input, "");
+	} else {
+		input.value = "";
+	}
+
+	input.dispatchEvent(new Event("input", { bubbles: true }));
+	input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+/**
  * Fill form fields with classification results
  */
 export async function fillFormFields(

@@ -88,6 +88,14 @@ export const formInputWithClassificationSchema = z.object({
 });
 
 /**
+ * Form context block schema (text blocks from the form page)
+ */
+export const formContextBlockSchema = z.object({
+	text: z.string(),
+	type: z.string(),
+});
+
+/**
  * Autofill request schema
  */
 export const autofillRequestSchema = z.object({
@@ -96,6 +104,7 @@ export const autofillRequestSchema = z.object({
 	selectedUploadId: z.string().min(1),
 	jdRawText: z.string().optional(),
 	jdUrl: z.string().url().optional(),
+	formContext: z.array(formContextBlockSchema).optional(),
 });
 
 /**

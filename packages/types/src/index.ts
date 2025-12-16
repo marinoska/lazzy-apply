@@ -339,6 +339,14 @@ export interface FormInputWithClassification {
 }
 
 /**
+ * Text block extracted from the page (headers, paragraphs)
+ */
+export interface FormContextBlock {
+	text: string;
+	type: string;
+}
+
+/**
  * Autofill request payload with form and fields
  */
 export interface AutofillRequest {
@@ -350,6 +358,8 @@ export interface AutofillRequest {
 	jdRawText?: string;
 	/** URL where the JD was extracted from (optional) */
 	jdUrl?: string;
+	/** Text blocks extracted from the form page (headers, descriptions, etc.) */
+	formContext?: FormContextBlock[];
 }
 
 /**

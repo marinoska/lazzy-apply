@@ -2,6 +2,7 @@ import type {
 	AutofillRequest,
 	AutofillResponse,
 	Field,
+	FormContextBlock,
 	FormInput,
 } from "@lazyapply/types";
 import {
@@ -13,10 +14,12 @@ import {
 	useState,
 } from "react";
 import { classifyFormFields } from "@/lib/api/api.js";
+import { getLastDetectedJD } from "@/lib/api/backgroundClient.js";
 import { useUploads } from "@/lib/api/context/UploadsContext.js";
 import { formStore } from "../../scanner/FormStoreManager.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
-import { fillFormFields } from "../services/formFiller.js";
+import { extractTextBlocks } from "../../scanner/textBlocksExtractor.js";
+import { clearFormFields, fillFormFields } from "../services/formFiller.js";
 
 interface AutofillContextValue {
 	/** Whether a form was detected on the page */
@@ -96,6 +99,9 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 				return;
 			}
 
+			// Clear all form fields before filling
+			clearFormFields(applicationForm, isIframeForm);
+
 			const fields: Field[] = applicationForm.fields.map((field) => ({
 				hash: field.hash,
 				field: {
@@ -117,10 +123,23 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 				action: applicationForm.formElement?.action ?? null,
 			};
 
+			// Fetch stored JD from background script
+			const storedJD = await getLastDetectedJD();
+			const jdRawText =
+				storedJD?.blocks
+					?.map((block) => (block as { text?: string }).text ?? "")
+					.join("\n") ?? "";
+
+			// Extract text blocks from the current page for form context
+			const formContext: FormContextBlock[] = extractTextBlocks();
+
 			const request: AutofillRequest = {
 				form,
 				fields,
 				selectedUploadId: selectedUpload._id,
+				jdRawText,
+				jdUrl: storedJD?.url,
+				formContext,
 			};
 
 			console.log("[Autofill] Sending autofill request:", request);

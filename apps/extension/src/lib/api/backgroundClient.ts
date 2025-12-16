@@ -1,4 +1,4 @@
-import type { ApiRequestMessage } from "../../background/types.js";
+import type { ApiRequestMessage, StoredJD } from "../../background/types.js";
 import type { UploadResponse } from "./api.js";
 
 /**
@@ -65,6 +65,27 @@ export async function sendApiRequest<T>(
  * Send file upload request through the background script
  * The background script uploads directly to the Edge Function
  */
+/**
+ * Get the last detected JD from the background script storage
+ */
+export async function getLastDetectedJD(): Promise<StoredJD | null> {
+	return new Promise((resolve, reject) => {
+		chrome.runtime.sendMessage({ type: "GET_LAST_JD" }, (response) => {
+			if (chrome.runtime.lastError) {
+				reject(new Error(chrome.runtime.lastError.message));
+				return;
+			}
+
+			if (!response || !response.ok) {
+				resolve(null);
+				return;
+			}
+
+			resolve(response.data as StoredJD | null);
+		});
+	});
+}
+
 export async function sendUploadRequest(file: File): Promise<UploadResponse> {
 	// Convert to base64 for reliable Chrome message passing (ArrayBuffer doesn't serialize properly)
 	// Base64 is ~33% larger than binary but much smaller than number[] which is ~4x larger
