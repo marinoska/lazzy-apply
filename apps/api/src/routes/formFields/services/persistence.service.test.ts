@@ -1,4 +1,4 @@
-import type { AutofillResponse, Field, FormInput } from "@lazyapply/types";
+import type { AutofillResponseData, Field, FormInput } from "@lazyapply/types";
 import mongoose from "mongoose";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
@@ -66,7 +66,7 @@ describe("persistence.service", () => {
 				totalCost: 0.00015,
 			};
 
-			const autofillResponse: AutofillResponse = {
+			const autofillResponse: AutofillResponseData = {
 				"hash-1": {
 					fieldName: "email",
 					path: "personal.email",
@@ -130,7 +130,7 @@ describe("persistence.service", () => {
 				},
 			];
 
-			const autofillResponse: AutofillResponse = {
+			const autofillResponse: AutofillResponseData = {
 				"hash-1": {
 					fieldName: "email",
 					path: "personal.email",
@@ -179,6 +179,13 @@ describe("persistence.service", () => {
 			const cachedField = createTestField("hash-cached", "email");
 			const newField = createTestField("hash-new", "phone");
 
+			// Pre-create the cached field in DB (simulating it was classified before)
+			await FormFieldModel.create({
+				hash: "hash-cached",
+				field: cachedField.field,
+				classification: "personal.email",
+			});
+
 			// Simulate cached field from DB (TFormField-like structure)
 			const cachedFieldFromDb = {
 				hash: "hash-cached",
@@ -191,7 +198,7 @@ describe("persistence.service", () => {
 				classification: "personal.phone",
 			};
 
-			const autofillResponse: AutofillResponse = {
+			const autofillResponse: AutofillResponseData = {
 				"hash-cached": {
 					fieldName: "email",
 					path: "personal.email",
@@ -222,16 +229,16 @@ describe("persistence.service", () => {
 			expect(savedForm?.fields.map((f) => f.hash)).toContain("hash-cached");
 			expect(savedForm?.fields.map((f) => f.hash)).toContain("hash-new");
 
-			// Only new field should be inserted
+			// Both fields should exist in DB now
 			const savedNewField = await FormFieldModel.findOne({ hash: "hash-new" });
 			expect(savedNewField).not.toBeNull();
 			expect(savedNewField?.classification).toBe("personal.phone");
 
-			// Cached field should NOT be inserted
+			// Cached field should still exist (was pre-created)
 			const cachedFieldInDb = await FormFieldModel.findOne({
 				hash: "hash-cached",
 			});
-			expect(cachedFieldInDb).toBeNull();
+			expect(cachedFieldInDb).not.toBeNull();
 		});
 	});
 
@@ -247,7 +254,7 @@ describe("persistence.service", () => {
 				},
 			];
 
-			const autofillResponse: AutofillResponse = {
+			const autofillResponse: AutofillResponseData = {
 				"hash-1": {
 					fieldName: "email",
 					path: "personal.email",
@@ -318,7 +325,7 @@ describe("persistence.service", () => {
 				},
 			];
 
-			const autofillResponse: AutofillResponse = {
+			const autofillResponse: AutofillResponseData = {
 				"hash-resume": {
 					fieldName: "_systemfield_resume",
 					path: "resume_upload",
@@ -358,17 +365,8 @@ describe("persistence.service", () => {
 
 	describe("persistCachedAutofill", () => {
 		it("should save autofill record with empty usage for cached form", async () => {
-			// First create a form and field
-			const [savedForm] = await FormModel.create([
-				{
-					formHash: "cached-form-hash",
-					fields: [{ hash: "hash-1", classification: "personal.email" }],
-					pageUrls: ["https://example.com"],
-					actions: [],
-				},
-			]);
-
-			await FormFieldModel.create({
+			// First create a field, then a form with fieldRef
+			const savedField = await FormFieldModel.create({
 				hash: "hash-1",
 				field: {
 					tag: "input",
@@ -383,7 +381,22 @@ describe("persistence.service", () => {
 				classification: "personal.email",
 			});
 
-			const autofillResponse: AutofillResponse = {
+			const [savedForm] = await FormModel.create([
+				{
+					formHash: "cached-form-hash",
+					fields: [
+						{
+							hash: "hash-1",
+							classification: "personal.email",
+							fieldRef: savedField._id,
+						},
+					],
+					pageUrls: ["https://example.com"],
+					actions: [],
+				},
+			]);
+
+			const autofillResponse: AutofillResponseData = {
 				"hash-1": {
 					fieldName: "email",
 					path: "personal.email",

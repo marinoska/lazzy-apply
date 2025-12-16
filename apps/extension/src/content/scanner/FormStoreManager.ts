@@ -42,6 +42,11 @@ export class FormStoreManager {
 	/** Cached form detected locally (used in iframe to avoid re-detection) */
 	private cachedIframeForm: ApplicationForm | null = null;
 
+	/** Callback invoked when form is received from iframe (parent frame only) */
+	private onIframeFormReceivedCallback:
+		| ((form: ApplicationForm) => void)
+		| null = null;
+
 	constructor() {
 		this.isIframe = this.checkIsInIframe();
 		this.isParent = !this.isIframe;
@@ -122,6 +127,13 @@ export class FormStoreManager {
 	 */
 	setCachedIframeForm(form: ApplicationForm): void {
 		this.cachedIframeForm = form;
+	}
+
+	/**
+	 * Register a callback to be invoked when form is received from iframe (parent frame only)
+	 */
+	onIframeFormReceived(callback: (form: ApplicationForm) => void): void {
+		this.onIframeFormReceivedCallback = callback;
 	}
 
 	/**
@@ -270,6 +282,11 @@ export class FormStoreManager {
 			iframeOrigin: event.origin,
 			parentUrl: this.storedFormData.form.url,
 		});
+
+		// Notify callback if registered
+		if (this.onIframeFormReceivedCallback) {
+			this.onIframeFormReceivedCallback(this.storedFormData.form);
+		}
 	}
 
 	/**

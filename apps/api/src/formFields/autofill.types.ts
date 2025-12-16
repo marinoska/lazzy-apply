@@ -83,6 +83,13 @@ export type AutofillStatics = {
 		this: AutofillModelWithStatics,
 		userId: string,
 	): Promise<TAutofill[]>;
+	/** Find the most recent autofill by userId, uploadId, and formId */
+	findMostRecentByUserUploadForm(
+		this: AutofillModelWithStatics,
+		userId: string,
+		uploadId: string,
+		formId: string,
+	): Promise<AutofillDocument | null>;
 };
 
 export type AutofillDocument = Document & TAutofill & AutofillMethods;

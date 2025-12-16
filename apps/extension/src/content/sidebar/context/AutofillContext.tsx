@@ -166,7 +166,9 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 
 	const hasCoverLetterField = useMemo(() => {
 		const result = classifications
-			? Object.values(classifications).some((c) => c.path === "cover_letter")
+			? Object.values(classifications.fields).some(
+					(c) => c.path === "cover_letter",
+				)
 			: false;
 		return result;
 	}, [classifications]);

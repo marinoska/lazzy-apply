@@ -214,6 +214,15 @@ function sendRuntimeMessage<T>(message: BackgroundMessage): Promise<T> {
  * Only run full scanner in parent frame or iframes with forms
  * Show sidebar automatically when an application form is detected
  */
+
+// Register callback to show sidebar when form is received from iframe (parent frame only)
+if (formStore.isParent) {
+	formStore.onIframeFormReceived(() => {
+		const sidebarInstance = ensureSidebar();
+		sidebarInstance.show();
+	});
+}
+
 new NavigationWatcher(() => {
 	const applicationForm = scanPage();
 

@@ -421,6 +421,90 @@ describe("FormStoreManager", () => {
 		});
 	});
 
+	describe("onIframeFormReceived", () => {
+		it("should invoke callback when form is received from iframe in parent frame", async () => {
+			// Set up as parent frame
+			Object.defineProperty(window, "self", { value: window, writable: true });
+			Object.defineProperty(window, "top", { value: window, writable: true });
+
+			const mgr = new FormStoreManager();
+			const callback = vi.fn();
+			mgr.onIframeFormReceived(callback);
+
+			const mockFormData = {
+				formHash: "received-hash",
+				formDetected: true,
+				totalFields: 1,
+				fields: [
+					{
+						hash: "field-hash",
+						tag: "input",
+						type: "text",
+						name: "test",
+						label: "Test",
+						placeholder: null,
+						description: null,
+						isFileUpload: false,
+					},
+				],
+				fieldElements: ["field-hash"],
+			};
+
+			const messageEvent = new MessageEvent("message", {
+				data: {
+					type: "LAZYAPPLY_FORM_DETECTED",
+					form: mockFormData,
+				},
+				origin: "https://example.com",
+				source: window,
+			});
+
+			window.dispatchEvent(messageEvent);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(callback).toHaveBeenCalledTimes(1);
+			expect(callback).toHaveBeenCalledWith(
+				expect.objectContaining({
+					formHash: "received-hash",
+					formDetected: true,
+				}),
+			);
+		});
+
+		it("should not invoke callback when in iframe", async () => {
+			// Set up as iframe
+			const mockTop = {} as Window;
+			Object.defineProperty(window, "self", { value: window, writable: true });
+			Object.defineProperty(window, "top", { value: mockTop, writable: true });
+
+			const mgr = new FormStoreManager();
+			const callback = vi.fn();
+			mgr.onIframeFormReceived(callback);
+
+			const mockFormData = {
+				formHash: "received-hash",
+				formDetected: true,
+				totalFields: 1,
+				fields: [],
+				fieldElements: [],
+			};
+
+			const messageEvent = new MessageEvent("message", {
+				data: {
+					type: "LAZYAPPLY_FORM_DETECTED",
+					form: mockFormData,
+				},
+				origin: "https://example.com",
+				source: window,
+			});
+
+			window.dispatchEvent(messageEvent);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(callback).not.toHaveBeenCalled();
+		});
+	});
+
 	describe("message handling", () => {
 		it("should store form data when receiving LAZYAPPLY_FORM_DETECTED message", async () => {
 			// Set up as parent frame before creating manager

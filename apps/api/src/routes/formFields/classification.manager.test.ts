@@ -165,9 +165,10 @@ describe("classification.manager", () => {
 			const result = await manager.process();
 
 			expect(result.fromCache).toBe(true);
-			expect(Object.keys(result.response)).toHaveLength(1);
-			expect(result.response["hash-1"].fieldName).toBe("email");
-			expect(result.response["hash-1"].path).toBe("personal.email");
+			expect(result.autofillId).toBeDefined();
+			expect(Object.keys(result.response.fields)).toHaveLength(1);
+			expect(result.response.fields["hash-1"].fieldName).toBe("email");
+			expect(result.response.fields["hash-1"].path).toBe("personal.email");
 		});
 
 		it("should update pageUrls when form exists but URL is new", async () => {
@@ -263,7 +264,9 @@ describe("classification.manager", () => {
 
 			expect(result.fromCache).toBe(false);
 			// Should have response for both fields (one cached, one classified)
-			expect(Object.keys(result.response).length).toBeGreaterThanOrEqual(1);
+			expect(Object.keys(result.response.fields).length).toBeGreaterThanOrEqual(
+				1,
+			);
 
 			// Form should be persisted
 			const savedForm = await FormModel.findOne({ formHash: "test-form-hash" });
@@ -286,7 +289,7 @@ describe("classification.manager", () => {
 			const result = await manager.process();
 
 			expect(result.fromCache).toBe(false);
-			expect(Object.keys(result.response)).toHaveLength(1);
+			expect(Object.keys(result.response.fields)).toHaveLength(1);
 
 			// Form and field should be persisted
 			const savedForm = await FormModel.findOne({ formHash: "test-form-hash" });
@@ -382,7 +385,7 @@ describe("classification.manager", () => {
 			// When sameUrl is true, isMatch defaults to true (no validation needed)
 			// The response should be generated successfully
 			expect(result.response).toBeDefined();
-			expect(Object.keys(result.response).length).toBeGreaterThan(0);
+			expect(Object.keys(result.response.fields).length).toBeGreaterThan(0);
 		});
 	});
 });

@@ -84,8 +84,14 @@ const autofillSchema = new Schema<TAutofill, AutofillModel, AutofillMethods>(
 	{ timestamps: true, collection: AUTOFILL_MODEL_NAME },
 );
 
-// Compound index for efficient lookups by user, upload, and form
-autofillSchema.index({ userId: 1, uploadReference: 1, formReference: 1 });
+// Compound index for efficient lookups by user, upload, form, and autofillId
+// Supports queries by userId/uploadReference/formReference or all 4 fields
+autofillSchema.index({
+	userId: 1,
+	uploadReference: 1,
+	formReference: 1,
+	autofillId: 1,
+});
 
 // Static methods
 autofillSchema.statics.createAutofill = async function (
@@ -108,6 +114,21 @@ autofillSchema.statics.findByUserId = async function (
 	userId: string,
 ) {
 	return this.find({ userId }).lean();
+};
+
+autofillSchema.statics.findMostRecentByUserUploadForm = async function (
+	this: AutofillModelWithStatics,
+	userId: string,
+	uploadId: string,
+	formId: string,
+) {
+	return this.findOne({
+		userId,
+		uploadReference: uploadId,
+		formReference: formId,
+	})
+		.sort({ createdAt: -1 })
+		.exec();
 };
 
 export type { AutofillDocument } from "./autofill.types.js";

@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import type { AutofillResponse, FormInput, TokenUsage } from "@lazyapply/types";
+import type {
+	AutofillResponseData,
+	FormInput,
+	TokenUsage,
+} from "@lazyapply/types";
 import type { Types } from "mongoose";
 import mongoose, { type ClientSession } from "mongoose";
 import { FormModel } from "@/formFields/form.model.js";
@@ -113,7 +117,7 @@ async function createAutofillRecord(
 	uploadReference: Types.ObjectId,
 	userId: string,
 	autofillId: string,
-	autofillResponse: AutofillResponse,
+	autofillResponse: AutofillResponseData,
 	fieldHashToIdMap: Map<string, Types.ObjectId>,
 ): Promise<void> {
 	const data: AutofillDataItem[] = [];
@@ -183,13 +187,13 @@ export async function persistNewFormAndFields(
 	newlyClassifiedFields: EnrichedClassifiedField[],
 	userId: string,
 	uploadId: string,
-	autofillResponse: AutofillResponse,
+	autofillResponse: AutofillResponseData,
 	classificationUsage: TokenUsage,
 	inferenceUsage?: TokenUsage,
 	jdMatchUsage?: TokenUsage,
-): Promise<void> {
-	const session = await mongoose.startSession();
+): Promise<string> {
 	const autofillId = randomUUID();
+	const session = await mongoose.startSession();
 
 	try {
 		await session.withTransaction(async () => {
@@ -269,6 +273,8 @@ export async function persistNewFormAndFields(
 	} finally {
 		await session.endSession();
 	}
+
+	return autofillId;
 }
 
 /**
@@ -279,10 +285,10 @@ export async function persistCachedAutofill(
 	formId: Types.ObjectId,
 	uploadId: string,
 	userId: string,
-	autofillResponse: AutofillResponse,
-): Promise<void> {
-	const session = await mongoose.startSession();
+	autofillResponse: AutofillResponseData,
+): Promise<string> {
 	const autofillId = randomUUID();
+	const session = await mongoose.startSession();
 
 	try {
 		await session.withTransaction(async () => {
@@ -327,4 +333,6 @@ export async function persistCachedAutofill(
 	} finally {
 		await session.endSession();
 	}
+
+	return autofillId;
 }

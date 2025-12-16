@@ -165,7 +165,7 @@ export async function fillFormFields(
 	let skipped = 0;
 	const fileUploadPromises: Promise<boolean>[] = [];
 
-	for (const [hash, classification] of Object.entries(classifications)) {
+	for (const [hash, classification] of Object.entries(classifications.fields)) {
 		const element = applicationForm.fieldElements.get(hash);
 
 		if (classification.path === "resume_upload" && classification.fileUrl) {

@@ -1,5 +1,6 @@
 import type {
 	AutofillResponse,
+	AutofillResponseData,
 	AutofillResponseItem,
 	Field,
 	FormContextBlock,
@@ -12,6 +13,10 @@ import { getPresignedDownloadUrl } from "@/app/cloudflare.js";
 import { getEnv } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
 import { CVDataModel } from "@/cvData/index.js";
+import type {
+	FormDocumentPopulated,
+	TFormFieldPopulated,
+} from "@/formFields/formField.types.js";
 import {
 	FormFieldModel,
 	FormModel,
@@ -31,10 +36,6 @@ import {
 	persistNewFormAndFields,
 	validateJdFormMatch,
 } from "./services/index.js";
-import type {
-	FormDocumentPopulated,
-	TFormFieldPopulated,
-} from "@/formFields/formField.types.js";
 
 const logger = createLogger("classification.manager");
 
@@ -58,7 +59,9 @@ function createEmptyUsage(): TokenUsage {
 /**
  * Collects fields that require inference from the autofill response
  */
-function collectInferenceFields(response: AutofillResponse): InferenceField[] {
+function collectInferenceFields(
+	response: AutofillResponseData,
+): InferenceField[] {
 	const fields: InferenceField[] = [];
 
 	for (const [hash, item] of Object.entries(response)) {
@@ -77,7 +80,7 @@ function collectInferenceFields(response: AutofillResponse): InferenceField[] {
  * Applies inferred answers to the autofill response
  */
 function applyInferredAnswers(
-	response: AutofillResponse,
+	response: AutofillResponseData,
 	answers: Record<string, string>,
 ): void {
 	for (const [hash, value] of Object.entries(answers)) {
@@ -96,9 +99,9 @@ function buildResponseFromFields(
 	inputFields: Field[],
 	cvData: ParsedCVData | null,
 	fileInfo: FileInfo | null,
-): AutofillResponse {
+): AutofillResponseData {
 	const fieldsMap = new Map(fields.map((f) => [f.hash, f]));
-	const response: AutofillResponse = {};
+	const response: AutofillResponseData = {};
 
 	for (const inputField of inputFields) {
 		const field = fieldsMap.get(inputField.hash);
@@ -148,6 +151,7 @@ function buildResponseFromFields(
 export interface AutofillResult {
 	response: AutofillResponse;
 	fromCache: boolean;
+	autofillId: string;
 }
 
 /**
@@ -326,9 +330,10 @@ export class ClassificationManager {
 		}
 
 		// Persist based on whether form already exists
+		let autofillId: string;
 		if (this.existingForm) {
 			logger.info("Form found in DB, saving autofill record");
-			await persistCachedAutofill(
+			autofillId = await persistCachedAutofill(
 				this.existingForm._id,
 				this.selectedUploadId,
 				this.userId,
@@ -336,7 +341,7 @@ export class ClassificationManager {
 			);
 		} else {
 			logger.info("Persisting new form and fields");
-			await persistNewFormAndFields(
+			autofillId = await persistNewFormAndFields(
 				this.formInput,
 				[...this.existingFields, ...classifiedFields],
 				classifiedFields,
@@ -349,9 +354,16 @@ export class ClassificationManager {
 			);
 		}
 
+		const fromCache = !!this.existingForm || !needsClassification;
+
 		return {
-			response,
-			fromCache: !!this.existingForm || !needsClassification,
+			response: {
+				autofillId,
+				fields: response,
+				fromCache,
+			},
+			fromCache,
+			autofillId,
 		};
 	}
 

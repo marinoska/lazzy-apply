@@ -360,6 +360,8 @@ export interface AutofillRequest {
 	jdUrl?: string;
 	/** Text blocks extracted from the form page (headers, descriptions, etc.) */
 	formContext?: FormContextBlock[];
+	/** Optional autofillId to retrieve existing autofill data */
+	autofillId?: string;
 }
 
 /**
@@ -401,10 +403,22 @@ export interface AutofillResponseItem {
 }
 
 /**
- * Autofill response returned to the client
- * Record keyed by field hash
+ * Autofill response data - Record keyed by field hash
  */
-export type AutofillResponse = Record<string, AutofillResponseItem>;
+export type AutofillResponseData = Record<string, AutofillResponseItem>;
+
+/**
+ * Autofill response returned to the client
+ * Contains autofillId and field data
+ */
+export interface AutofillResponse {
+	/** Unique ID for this autofill request */
+	autofillId: string;
+	/** Field data keyed by field hash */
+	fields: AutofillResponseData;
+	/** Whether the response was served from cache */
+	fromCache: boolean;
+}
 
 /**
  * Stored field document in the database

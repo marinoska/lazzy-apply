@@ -58,7 +58,7 @@ export async function fillFormFields(
 	let skipped = 0;
 	const fileUploadPromises: Promise<boolean>[] = [];
 
-	for (const [hash, item] of Object.entries(autofillResponse)) {
+	for (const [hash, item] of Object.entries(autofillResponse.fields)) {
 		const element = fieldElements.get(hash);
 		if (!element) {
 			console.warn(`[FormFiller] Element not found for hash: ${hash}`);

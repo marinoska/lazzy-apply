@@ -105,6 +105,8 @@ export const autofillRequestSchema = z.object({
 	jdRawText: z.string().optional(),
 	jdUrl: z.string().url().optional(),
 	formContext: z.array(formContextBlockSchema).optional(),
+	/** Optional autofillId to retrieve existing autofill data */
+	autofillId: z.string().uuid().optional(),
 });
 
 /**
