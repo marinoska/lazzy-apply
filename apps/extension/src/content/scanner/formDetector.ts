@@ -1,4 +1,5 @@
 import { hash } from "ohash";
+import { findCustomFileUploads } from "./customFileUpload.js";
 
 /**
  * Extracts SLD.TLD from the current hostname (e.g., "linkedin.com" from "www.linkedin.com")
@@ -153,6 +154,29 @@ export function detectApplicationForm(): ApplicationForm | null {
 			fields.push(field);
 			fieldElements.set(field.hash, el as HTMLElement);
 		}
+	}
+
+	// Detect custom file upload widgets (e.g., Greenhouse data-field containers)
+	const existingNames = new Set(fields.map((f) => f.name));
+	for (const { element, field: partial } of findCustomFileUploads(
+		scanElement,
+		existingNames,
+	)) {
+		if (!partial.name) continue;
+		const fieldHash = createPrefixedHash(gethashContent(partial));
+		const field: FormField = {
+			hash: fieldHash,
+			tag: partial.tag ?? "div",
+			type: partial.type ?? "file",
+			name: partial.name,
+			label: partial.label ?? null,
+			placeholder: partial.placeholder ?? null,
+			description: partial.description ?? null,
+			isFileUpload: true,
+			accept: partial.accept,
+		};
+		fields.push(field);
+		fieldElements.set(field.hash, element);
 	}
 
 	// Require minimum visible fields after extraction

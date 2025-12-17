@@ -331,8 +331,22 @@ export class FormStoreManager {
 		if (!form) return;
 
 		const element = form.fieldElements.get(data.hash);
+		if (!element) return;
+
+		// Standard file input
 		if (element instanceof HTMLInputElement && element.type === "file") {
 			this.fillFileElement(
+				element,
+				data.fileUrl,
+				data.fileName,
+				data.fileContentType,
+			);
+			return;
+		}
+
+		// Custom file upload widget (e.g., Greenhouse data-field container)
+		if (element.hasAttribute("data-field")) {
+			this.fillCustomFileUpload(
 				element,
 				data.fileUrl,
 				data.fileName,
@@ -415,6 +429,104 @@ export class FormStoreManager {
 	}
 
 	/**
+	 * Fill a custom file upload widget (e.g., Greenhouse data-field container)
+	 *
+	 * Problem: Greenhouse and similar ATS platforms don't have a <input type="file">
+	 * in the DOM initially. The file input is created dynamically only when the user
+	 * clicks the "Attach" button. Our previous approach tried to find a file input
+	 * that didn't exist, then fell back to drag-drop which these platforms don't handle.
+	 *
+	 * Solution: Click the attach button programmatically to trigger the dynamic
+	 * creation of the file input, wait for it to appear, then fill it.
+	 *
+	 * Strategy order:
+	 * 1. Look for existing file input (some widgets have it hidden)
+	 * 2. Click attach button → wait 100ms → find newly created input (THE FIX)
+	 * 3. Fall back to drag-drop simulation (last resort)
+	 */
+	private async fillCustomFileUpload(
+		element: HTMLElement,
+		fileUrl: string,
+		fileName: string,
+		fileContentType?: string,
+	): Promise<void> {
+		try {
+			console.log(`[FormStore] Filling custom file upload: ${fileUrl}`);
+
+			const response = await fetch(fileUrl);
+			if (!response.ok) {
+				console.error(
+					`[FormStore] Failed to fetch file: ${response.status} ${response.statusText}`,
+				);
+				return;
+			}
+
+			const blob = await response.blob();
+			const mimeType = this.getMimeType(fileContentType ?? "PDF");
+			const file = new File([blob], fileName, { type: mimeType });
+
+			// Strategy 1: Find existing file input inside or near the container
+			let fileInput =
+				element.querySelector<HTMLInputElement>('input[type="file"]') ??
+				element.parentElement?.querySelector<HTMLInputElement>(
+					'input[type="file"]',
+				);
+
+			// Strategy 2: Click attach button to create file input dynamically
+			if (!fileInput) {
+				const attachButton = element.querySelector<HTMLElement>(
+					'[data-source="attach"], .attach, button, a',
+				);
+				if (attachButton) {
+					console.log(
+						"[FormStore] Clicking attach button to create file input",
+					);
+					attachButton.click();
+					// Wait for file input to be created
+					await new Promise((resolve) => setTimeout(resolve, 100));
+					fileInput =
+						element.querySelector<HTMLInputElement>('input[type="file"]') ??
+						element.parentElement?.querySelector<HTMLInputElement>(
+							'input[type="file"]',
+						) ??
+						document.querySelector<HTMLInputElement>(
+							'input[type="file"]:not([data-filled])',
+						);
+				}
+			}
+
+			if (fileInput) {
+				const dataTransfer = new DataTransfer();
+				dataTransfer.items.add(file);
+				fileInput.files = dataTransfer.files;
+				fileInput.setAttribute("data-filled", "true");
+				fileInput.dispatchEvent(new Event("input", { bubbles: true }));
+				fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+				console.log(
+					`[FormStore] Filled file input in custom widget: ${fileName}`,
+				);
+				return;
+			}
+
+			// Strategy 3: Simulate drag-and-drop on the container
+			const dropZone = element.querySelector(".drop-zone") ?? element;
+			const dataTransfer = new DataTransfer();
+			dataTransfer.items.add(file);
+
+			const dropEvent = new DragEvent("drop", {
+				bubbles: true,
+				cancelable: true,
+				dataTransfer,
+			});
+			dropZone.dispatchEvent(dropEvent);
+
+			console.log(`[FormStore] Simulated drop on custom widget: ${fileName}`);
+		} catch (error) {
+			console.error("[FormStore] Error filling custom file upload:", error);
+		}
+	}
+
+	/**
 	 * Fill a file input element from base64 data
 	 */
 	private fillFileElementFromBase64(
@@ -470,15 +582,26 @@ export class FormStoreManager {
 
 	/**
 	 * Clear an element's value (handles React compatibility)
-	 * Note: File inputs are skipped - clearing them triggers site UI changes
-	 * (e.g., hiding upload buttons). They will be overwritten when filled.
+	 * Note: File inputs and custom file upload widgets are skipped -
+	 * clearing them triggers site UI changes (e.g., hiding upload buttons).
+	 * They will be overwritten when filled.
 	 */
 	private clearElement(element: HTMLElement): void {
-		const input = element as HTMLInputElement | HTMLTextAreaElement;
+		// Skip custom file upload widgets (e.g., Greenhouse data-field containers)
+		if (element.hasAttribute("data-field")) {
+			return;
+		}
+
+		// Only handle actual input/textarea elements
+		if (
+			!(element instanceof HTMLInputElement) &&
+			!(element instanceof HTMLTextAreaElement)
+		) {
+			return;
+		}
 
 		// Skip file inputs - clearing them can trigger unwanted UI changes
-		// (some sites hide buttons when file input is cleared)
-		if (input.type === "file") {
+		if (element.type === "file") {
 			return;
 		}
 
@@ -492,18 +615,18 @@ export class FormStoreManager {
 		)?.set;
 
 		const setter =
-			input.tagName === "TEXTAREA"
+			element.tagName === "TEXTAREA"
 				? nativeTextAreaValueSetter
 				: nativeInputValueSetter;
 
 		if (setter) {
-			setter.call(input, "");
+			setter.call(element, "");
 		} else {
-			input.value = "";
+			element.value = "";
 		}
 
-		input.dispatchEvent(new Event("input", { bubbles: true }));
-		input.dispatchEvent(new Event("change", { bubbles: true }));
+		element.dispatchEvent(new Event("input", { bubbles: true }));
+		element.dispatchEvent(new Event("change", { bubbles: true }));
 	}
 
 	/**

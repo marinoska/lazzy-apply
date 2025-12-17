@@ -152,6 +152,7 @@ describe("FormStoreManager", () => {
 						totalFields: 2,
 						fields: mockForm.fields,
 						fieldElements: ["field-1"],
+						url: "https://example.com/apply",
 					},
 				},
 				"*",

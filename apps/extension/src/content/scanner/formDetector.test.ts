@@ -1187,6 +1187,108 @@ describe("formDetector", () => {
 				expect(nameField?.label).toBe("Full Name");
 				expect(emailField?.label).toBe("Email Address");
 			});
+
+			it("should detect custom file upload widgets with data-field attribute", () => {
+				container.innerHTML = `
+          <form id="application" action="/apply" method="post">
+            <input type="text" id="first_name" name="first_name" placeholder="First Name" />
+            <input type="email" id="email" name="email" placeholder="Email" />
+            <input type="tel" id="phone" name="phone" placeholder="Phone" />
+            
+            <div class="attach-or-paste" data-allow-s3="true" data-field="resume" data-file-types='["pdf","doc","docx","txt","rtf"]' data-model="job_application">
+              <div class="drop-zone hidden">Drop files here</div>
+              <div id="resume_chosen" class="chosen">
+                <span id="resume_filename"></span>
+              </div>
+              <div class="link-container">
+                <button type="button" data-source="attach" class="unstyled-button link-button">Attach</button>
+                <button type="button" data-source="paste" class="unstyled-button link-button">or enter manually</button>
+              </div>
+              <div id="resume-allowable-file-types" class="file-types">
+                (File types: pdf, doc, docx, txt, rtf)
+              </div>
+              <textarea name="job_application[resume_text]" id="resume_text" class="paste" title="Enter manually"></textarea>
+            </div>
+            
+            <button type="submit">Submit Application</button>
+          </form>
+        `;
+
+				const result = detectApplicationForm();
+
+				expect(result).not.toBeNull();
+				expect(result?.formDetected).toBe(true);
+
+				const resumeField = result?.fields.find((f) => f.name === "resume");
+				expect(resumeField).toBeDefined();
+				expect(resumeField).toMatchObject({
+					tag: "div",
+					type: "file",
+					name: "resume",
+					isFileUpload: true,
+					accept: ".pdf,.doc,.docx,.txt,.rtf",
+				});
+				expect(resumeField?.description).toBe(
+					"(File types: pdf, doc, docx, txt, rtf)",
+				);
+			});
+
+			it("should detect custom file upload with cover_letter data-field", () => {
+				container.innerHTML = `
+          <form id="application" action="/apply" method="post">
+            <input type="text" id="first_name" name="first_name" placeholder="First Name" />
+            <input type="email" id="email" name="email" placeholder="Email" />
+            <input type="tel" id="phone" name="phone" placeholder="Phone" />
+            
+            <div class="attach-or-paste" data-field="cover_letter" data-file-types='["pdf","doc","docx"]'>
+              <div class="file-types">(File types: pdf, doc, docx)</div>
+            </div>
+            
+            <button type="submit">Submit Application</button>
+          </form>
+        `;
+
+				const result = detectApplicationForm();
+
+				expect(result).not.toBeNull();
+
+				const coverLetterField = result?.fields.find(
+					(f) => f.name === "cover_letter",
+				);
+				expect(coverLetterField).toBeDefined();
+				expect(coverLetterField).toMatchObject({
+					tag: "div",
+					type: "file",
+					name: "cover_letter",
+					isFileUpload: true,
+					accept: ".pdf,.doc,.docx",
+					label: "Cover Letter",
+				});
+			});
+
+			it("should use fallback label from data-field when no label element exists", () => {
+				container.innerHTML = `
+          <form id="application" action="/apply" method="post">
+            <input type="text" id="first_name" name="first_name" placeholder="First Name" />
+            <input type="email" id="email" name="email" placeholder="Email" />
+            <input type="tel" id="phone" name="phone" placeholder="Phone" />
+            
+            <div class="attach-or-paste" data-field="resume">
+            </div>
+            
+            <button type="submit">Submit Application</button>
+          </form>
+        `;
+
+				const result = detectApplicationForm();
+
+				expect(result).not.toBeNull();
+
+				const resumeField = result?.fields.find((f) => f.name === "resume");
+				expect(resumeField).toBeDefined();
+				expect(resumeField?.label).toBe("Resume");
+				expect(resumeField?.isFileUpload).toBe(true);
+			});
 		});
 	});
 });

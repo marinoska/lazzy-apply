@@ -1,5 +1,5 @@
 /**
- * Form Filler Service (Sidebar)
+ * Form Filler Service
  *
  * High-level form filling service used by the sidebar/autofill context.
  * Handles both direct DOM manipulation and iframe communication via FormStoreManager.
@@ -9,104 +9,12 @@
  * - Handle iframe forms by delegating to FormStoreManager
  * - Clear form fields before filling
  * - Coordinate file uploads (filled last to avoid blocking from CV parsing)
- *
- * @see ../scanner/formFiller.ts for the lower-level scanner version
  */
 import type { AutofillResponse, AutofillResponseItem } from "@lazyapply/types";
+import { clearElement, fillElement } from "../../scanner/elementFilling.js";
 import { formStore } from "../../scanner/FormStoreManager.js";
+import { fillFileUpload } from "../../scanner/fileUploadFilling.js";
 import type { ApplicationForm } from "../../scanner/formDetector.js";
-
-/**
- * Fill an element with a value (handles React compatibility)
- */
-export function fillElementWithValue(
-	element: HTMLElement,
-	value: string,
-): void {
-	const input = element as HTMLInputElement | HTMLTextAreaElement;
-
-	const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-		window.HTMLInputElement.prototype,
-		"value",
-	)?.set;
-	const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
-		window.HTMLTextAreaElement.prototype,
-		"value",
-	)?.set;
-
-	const setter =
-		input.tagName === "TEXTAREA"
-			? nativeTextAreaValueSetter
-			: nativeInputValueSetter;
-
-	if (setter) {
-		setter.call(input, value);
-	} else {
-		input.value = value;
-	}
-
-	input.dispatchEvent(new Event("input", { bubbles: true }));
-	input.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-/**
- * Map file content type to MIME type
- */
-function getMimeType(fileContentType: string): string {
-	switch (fileContentType) {
-		case "PDF":
-			return "application/pdf";
-		case "DOCX":
-			return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-		default:
-			return "application/octet-stream";
-	}
-}
-
-/**
- * Fill a file input by fetching the file from a presigned URL
- */
-async function fillFileInput(
-	element: HTMLInputElement,
-	item: AutofillResponseItem,
-): Promise<boolean> {
-	if (!item.fileUrl || !item.fileName) {
-		console.warn("[FormFiller] Missing fileUrl or fileName for file input");
-		return false;
-	}
-
-	try {
-		console.log(`[FormFiller] Fetching file from: ${item.fileUrl}`);
-
-		const response = await fetch(item.fileUrl);
-		if (!response.ok) {
-			console.error(
-				`[FormFiller] Failed to fetch file: ${response.status} ${response.statusText}`,
-			);
-			return false;
-		}
-
-		const blob = await response.blob();
-		const mimeType = getMimeType(item.fileContentType ?? "PDF");
-
-		const file = new File([blob], item.fileName, { type: mimeType });
-
-		const dataTransfer = new DataTransfer();
-		dataTransfer.items.add(file);
-		element.files = dataTransfer.files;
-
-		element.dispatchEvent(new Event("input", { bubbles: true }));
-		element.dispatchEvent(new Event("change", { bubbles: true }));
-
-		console.log(
-			`[FormFiller] Successfully set file: ${item.fileName} (${blob.size} bytes)`,
-		);
-		return true;
-	} catch (err) {
-		console.error("[FormFiller] Error filling file input:", err);
-		return false;
-	}
-}
 
 export interface FillResult {
 	filled: number;
@@ -132,44 +40,6 @@ export function clearFormFields(
 	for (const element of applicationForm.fieldElements.values()) {
 		clearElement(element);
 	}
-}
-
-/**
- * Clear an element's value (handles React compatibility)
- * Note: File inputs are skipped - clearing them triggers site UI changes
- * (e.g., hiding upload buttons). They will be overwritten when filled.
- */
-function clearElement(element: HTMLElement): void {
-	const input = element as HTMLInputElement | HTMLTextAreaElement;
-
-	// Skip file inputs - clearing them can trigger unwanted UI changes
-	// (some sites hide buttons when file input is cleared)
-	if (input.type === "file") {
-		return;
-	}
-
-	const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-		window.HTMLInputElement.prototype,
-		"value",
-	)?.set;
-	const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
-		window.HTMLTextAreaElement.prototype,
-		"value",
-	)?.set;
-
-	const setter =
-		input.tagName === "TEXTAREA"
-			? nativeTextAreaValueSetter
-			: nativeInputValueSetter;
-
-	if (setter) {
-		setter.call(input, "");
-	} else {
-		input.value = "";
-	}
-
-	input.dispatchEvent(new Event("input", { bubbles: true }));
-	input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 /**
@@ -206,13 +76,15 @@ export async function fillFormFields(
 		if (isIframeForm) {
 			formStore.fillFieldInIframe(hash, classification.value);
 			filled++;
-		} else {
-			if (element) {
-				fillElementWithValue(element, classification.value);
+		} else if (element) {
+			const success = fillElement(element, classification.value);
+			if (success) {
 				filled++;
 			} else {
 				skipped++;
 			}
+		} else {
+			skipped++;
 		}
 	}
 
@@ -231,23 +103,40 @@ export async function fillFormFields(
 		if (isIframeForm) {
 			formStore.fillFileInIframe(hash, classification);
 			filled++;
-		} else if (element instanceof HTMLInputElement && element.type === "file") {
-			fileUploadPromises.push(
-				fillFileInput(element, classification).then((success) => {
-					if (success) {
-						console.log(
-							`[FormFiller] File uploaded for ${classification.fieldName ?? hash}`,
-						);
-					} else {
-						console.warn(
-							`[FormFiller] Failed to upload file for ${classification.fieldName ?? hash}`,
-						);
-					}
-					return success;
-				}),
-			);
+		} else if (element) {
+			// Handle both standard file inputs and custom file upload widgets
+			const isStandardFileInput =
+				element instanceof HTMLInputElement && element.type === "file";
+			const isCustomFileUpload = element.hasAttribute("data-field");
+
+			if (isStandardFileInput || isCustomFileUpload) {
+				if (!classification.fileUrl || !classification.fileName) continue;
+
+				fileUploadPromises.push(
+					fillFileUpload(
+						element,
+						classification.fileUrl,
+						classification.fileName,
+						classification.fileContentType,
+					).then((success) => {
+						if (success) {
+							console.log(
+								`[FormFiller] File uploaded for ${classification.fieldName ?? hash}`,
+							);
+						} else {
+							console.warn(
+								`[FormFiller] Failed to upload file for ${classification.fieldName ?? hash}`,
+							);
+						}
+						return success;
+					}),
+				);
+			} else {
+				console.warn(`[FormFiller] Element for ${hash} is not a file upload`);
+				skipped++;
+			}
 		} else {
-			console.warn(`[FormFiller] Element for ${hash} is not a file input`);
+			console.warn(`[FormFiller] Element for ${hash} not found`);
 			skipped++;
 		}
 	}
