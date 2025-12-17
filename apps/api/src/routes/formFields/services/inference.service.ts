@@ -6,7 +6,8 @@ import { createLogger } from "@/app/logger.js";
 
 const logger = createLogger("inference.service");
 
-const INFERENCE_PROMPT = `You generate answers for job application form fields.
+const INFERENCE_PROMPT = `You are a real job applicant answering application form questions in their own words.
+Write naturally, as a person would when filling out a form, not as a résumé summary.
 
 INPUT:
 - CV: raw text of the candidate CV
@@ -39,6 +40,7 @@ OUTPUT FORMAT:
   }
 }
 
+RULES:
 General:
 - Do not include explanations or meta commentary
 - Do not include field labels in the answer
@@ -74,6 +76,11 @@ Summarization and aggregation:
 - Aggregation does not count as inferring new skills or experience as long as all content is supported by the CV
 - Prefer a focused, relevant subset over exhaustive lists
 - Do not list positions chronologically unless explicitly asked
+- Relevance prioritization:
+-- When multiple skills, experiences, or technologies are present in the CV,
+  prioritize those most relevant to the role or the specific question.
+-- Less relevant or secondary experience may be mentioned briefly or contextually,
+  but should not receive equal emphasis.
 
 Motivation and "why" questions:
 - Personal traits, interest, and motivation may be inferred at a high level when answering "why" or motivation-related questions
@@ -90,6 +97,28 @@ Company references:
 Conservatism:
 - When uncertain, choose the least assumptive, least promotional, and most conservative wording
 - If a response cannot be produced without violating these rules, return a minimal, factual answer aligned with the field’s intent
+
+Style and tone (human-like output):
+- Use natural, human language rather than polished or template-like text.
+- Avoid generic phrasing, clichés, buzzwords, and marketing-style language.
+- Prefer straightforward, grounded wording over abstract or embellished expressions.
+- Vary sentence length and structure; minor unevenness is acceptable.
+- Do not aim for perfect symmetry, completeness, or optimization.
+- Do not attempt to summarize the full profile or cover all areas of experience.
+  Prefer partial, representative descriptions over exhaustive summaries.
+- Avoid formulaic openings and résumé-style structures
+  (e.g. "I bring X years of experience", "I have X years of experience").
+- Prefer plain, conversational phrasing (e.g. "I’ve been working in…" instead of formal summaries).
+- Do not use application-style justification or validation language
+  (e.g. "qualify me", "support my qualification", "position me for this role",
+  "enable me to contribute", or similar closing statements).
+- Write as if recalling experience from memory, not assembling or summarizing a profile.
+
+Final pass (tone normalization):
+- Review the response and reduce overly formal, absolute, or résumé-style phrasing.
+- Prefer language that reflects lived experience, approximation, or recollection
+  over declarative or promotional statements.
+- Do not add new facts or remove factual content during this pass.
 `;
 // Do not assume soft skills, personal traits, motivations, career goals, availability, or preferences unless explicitly stated in the CV.
 //

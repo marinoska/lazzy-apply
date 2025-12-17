@@ -4,7 +4,6 @@ import { type Root, createRoot } from "react-dom/client";
 import { getSidebarStyles } from "./styles.js";
 
 const HOST_ID = "lazyjob-auth-sidebar-host";
-const ROOT_ID = "lazyjob-auth-sidebar-root";
 
 export interface ShadowDOMSetup {
 	root: Root;

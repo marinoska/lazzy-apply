@@ -54,10 +54,13 @@ export class FormStoreManager {
 	}
 
 	/**
-	 * Check if running inside an iframe
+	 * Check if running inside an iframe.
+	 * window.top is the topmost window in the frame hierarchy (the browser tab).
+	 * If window.self === window.top, we're in the main page; otherwise we're in an iframe.
 	 */
 	private checkIsInIframe(): boolean {
 		try {
+			// Accessing window.top throws SecurityError in cross-origin iframes
 			return window.self !== window.top;
 		} catch {
 			// Cross-origin iframe - we're definitely in an iframe
@@ -101,6 +104,7 @@ export class FormStoreManager {
 		const iframes = document.querySelectorAll("iframe");
 		for (const iframe of iframes) {
 			try {
+				// postMessage allows cross-origin communication; "*" means any origin can receive
 				iframe.contentWindow?.postMessage({ type: FORM_REQUEST_MESSAGE }, "*");
 			} catch {
 				// Cross-origin iframe - can't access contentWindow
