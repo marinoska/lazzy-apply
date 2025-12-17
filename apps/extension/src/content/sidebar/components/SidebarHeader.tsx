@@ -1,5 +1,5 @@
 import Stack from "@mui/joy/Stack";
-import { TitleLarge } from "@/components/Typography.js";
+import { TitleLarge } from "@/content/components/Typography.js";
 import type { StoredSession } from "../../../lib/supabase.js";
 import { CloseButton } from "./CloseButton";
 import { LogoutButton } from "./LogoutButton";

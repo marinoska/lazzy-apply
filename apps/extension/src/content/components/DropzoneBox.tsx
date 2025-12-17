@@ -10,7 +10,7 @@ import {
 	BodyExtraSmall,
 	BodySmallDarker,
 	HeadingLarge,
-} from "@/components/Typography.js";
+} from "@/content/components/Typography.js";
 import { useUploadMutation } from "@/lib/api/query/useUploadMutation.js";
 import { MAXIMUM_UPLOAD_SIZE_BYTES } from "@/lib/consts.js";
 import { getUserFriendlyMessage } from "@/lib/errorUtils.js";

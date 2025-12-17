@@ -1,6 +1,6 @@
 import Divider from "@mui/joy/Divider";
 import Stack from "@mui/joy/Stack";
-import { AppAlert } from "@/components/AppAlert.js";
+import { AppAlert } from "@/content/components/AppAlert.js";
 import { useUploads } from "@/lib/api/context/UploadsContext.js";
 import { useAutofill } from "../context/AutofillContext.js";
 import { AutofillButton } from "./AutofillButton.js";

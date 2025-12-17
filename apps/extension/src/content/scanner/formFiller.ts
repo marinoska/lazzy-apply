@@ -11,10 +11,10 @@
  * - Coordinate file uploads (filled last to avoid blocking from CV parsing)
  */
 import type { AutofillResponse, AutofillResponseItem } from "@lazyapply/types";
-import { clearElement, fillElement } from "../../scanner/elementFilling.js";
-import { formStore } from "../../scanner/FormStoreManager.js";
-import { fillFileUpload } from "../../scanner/fileUploadFilling.js";
-import type { ApplicationForm } from "../../scanner/formDetector.js";
+import { clearElement, fillElement } from "./elementFilling.js";
+import { formStore } from "./FormStoreManager.js";
+import { fillFileUpload } from "./fileUploadFilling.js";
+import type { ApplicationForm } from "./formDetector.js";
 
 export interface FillResult {
 	filled: number;

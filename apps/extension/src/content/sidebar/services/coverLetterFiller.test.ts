@@ -20,8 +20,8 @@ vi.mock("./formFiller.js", () => ({
 
 import { formStore } from "../../scanner/FormStoreManager.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
+import { fillElementWithValue } from "../../scanner/formFiller.js";
 import { fillCoverLetterFields } from "./coverLetterFiller.js";
-import { fillElementWithValue } from "./formFiller.js";
 
 // Mock DataTransfer for file input tests
 class MockDataTransfer {

@@ -2,7 +2,7 @@ import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import Stack from "@mui/joy/Stack";
 import { useState } from "react";
-import { DropzoneBox } from "@/components/DropzoneBox.js";
+import { DropzoneBox } from "@/content/components/DropzoneBox.js";
 
 interface UploadSectionProps {
 	visible: boolean;

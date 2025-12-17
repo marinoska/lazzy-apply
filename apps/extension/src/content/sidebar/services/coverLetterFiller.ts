@@ -1,7 +1,7 @@
 import type { AutofillResponse } from "@lazyapply/types";
 import { formStore } from "../../scanner/FormStoreManager.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
-import { fillElementWithValue } from "./formFiller.js";
+import { fillElementWithValue } from "../../scanner/formFiller.js";
 
 /**
  * Result of filling cover letter fields

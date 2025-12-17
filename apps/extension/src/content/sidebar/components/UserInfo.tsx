@@ -1,5 +1,5 @@
 import Sheet from "@mui/joy/Sheet";
-import { BodySmall, TitleSmall } from "@/components/Typography.js";
+import { BodySmall, TitleSmall } from "@/content/components/Typography.js";
 import type { StoredSession } from "../../../lib/supabase.js";
 
 interface UserInfoProps {

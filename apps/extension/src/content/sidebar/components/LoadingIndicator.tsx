@@ -1,6 +1,6 @@
 import CircularProgress from "@mui/joy/CircularProgress";
 import Stack from "@mui/joy/Stack";
-import { BodySmall } from "@/components/Typography.js";
+import { BodySmall } from "@/content/components/Typography.js";
 
 interface LoadingIndicatorProps {
 	loading: boolean;

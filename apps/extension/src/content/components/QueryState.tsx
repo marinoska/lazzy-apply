@@ -1,6 +1,6 @@
 import Box from "@mui/joy/Box";
 import CircularProgress from "@mui/joy/CircularProgress";
-import { BodySmall } from "@/components/Typography.js";
+import { BodySmall } from "@/content/components/Typography.js";
 
 export function LoadingState() {
 	return (

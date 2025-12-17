@@ -8,14 +8,14 @@ import IconButton from "@mui/joy/IconButton";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import { useState } from "react";
-import { AppAlert } from "@/components/AppAlert.js";
-import { LoadingState } from "@/components/QueryState.js";
-import { Snackbar } from "@/components/Snackbar.js";
+import { AppAlert } from "@/content/components/AppAlert.js";
+import { LoadingState } from "@/content/components/QueryState.js";
+import { Snackbar } from "@/content/components/Snackbar.js";
 import {
 	BodyExtraSmall,
 	BodyExtraSmallDarker,
 	BodySmallDarker,
-} from "@/components/Typography.js";
+} from "@/content/components/Typography.js";
 import type { EnhancedUploadDTO } from "@/lib/api/context/UploadsContext.js";
 import { useUploads } from "@/lib/api/context/UploadsContext.js";
 import { useDeleteUploadMutation } from "@/lib/api/query/useDeleteUploadMutation.js";

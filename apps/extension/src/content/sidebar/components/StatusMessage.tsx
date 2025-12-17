@@ -1,4 +1,4 @@
-import { AppAlert } from "@/components/AppAlert.js";
+import { AppAlert } from "@/content/components/AppAlert.js";
 
 interface StatusMessageProps {
 	status: string | null;

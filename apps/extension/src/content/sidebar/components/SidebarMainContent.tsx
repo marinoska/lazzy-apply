@@ -1,6 +1,6 @@
 import Button from "@mui/joy/Button";
 import { useState } from "react";
-import { Snackbar } from "../../../components/Snackbar.js";
+import { Snackbar } from "../../components/Snackbar.js";
 import { ApplicationSection } from "./ApplicationSection.js";
 import { CVSelector } from "./CVSelector.js";
 import { UploadSection } from "./UploadSection.js";

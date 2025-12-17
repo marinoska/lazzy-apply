@@ -4,7 +4,7 @@ import ErrorIcon from "@mui/icons-material/Error";
 import InfoIcon from "@mui/icons-material/Info";
 import Alert from "@mui/joy/Alert";
 import Button from "@mui/joy/Button";
-import { BodySmall } from "@/components/Typography.js";
+import { BodySmall } from "@/content/components/Typography.js";
 
 type AlertType = "error" | "success" | "info";
 

@@ -18,8 +18,8 @@ import { getLastDetectedJD } from "@/lib/api/backgroundClient.js";
 import { useUploads } from "@/lib/api/context/UploadsContext.js";
 import { formStore } from "../../scanner/FormStoreManager.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
+import { clearFormFields, fillFormFields } from "../../scanner/formFiller.js";
 import { extractTextBlocks } from "../../scanner/textBlocksExtractor.js";
-import { clearFormFields, fillFormFields } from "../services/formFiller.js";
 
 interface AutofillContextValue {
 	/** Whether a form was detected on the page */

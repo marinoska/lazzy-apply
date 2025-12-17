@@ -174,12 +174,45 @@ interface FormField {
 
 The detector is designed to work with common Applicant Tracking Systems:
 
-- **Greenhouse**: Handles custom drag-drop file upload zones
+- **Greenhouse**: Handles custom file upload widgets with dynamic file input creation
 - **Lever**: Detects React-based forms without form tags
 - **Workday**: Handles complex nested structures
 - **Taleo**: Works with traditional form elements
 - **SmartRecruiters**: Detects dynamic field loading
 - **Custom ATS**: Falls back to generic detection patterns
+
+## Custom File Upload Widgets
+
+Some ATS platforms (notably Greenhouse) use custom file upload widgets instead of standard `<input type="file">` elements. These widgets:
+
+1. Use `<div>` containers with `data-field` attributes (e.g., `data-field="resume"`)
+2. Have `data-file-types` attributes specifying accepted formats
+3. Create the actual file input **dynamically** when the user clicks an "Attach" button
+
+### Detection
+
+Custom widgets are detected in `customFileUpload.ts` by looking for:
+- Elements with `data-field` attribute containing file-related keywords (resume, cv, cover_letter)
+- Elements with `data-file-types` attribute
+
+### Filling Strategy
+
+The filling logic in `fileUploadFilling.ts` handles these widgets:
+
+1. **Find existing input**: Look for hidden `<input type="file">` inside the widget
+2. **Click attach button**: If no input exists, click the attach button to create one dynamically
+3. **Wait and fill**: Wait 100ms for the input to appear, then set the file
+4. **Fallback**: Simulate drag-and-drop if no input can be created
+
+```typescript
+// Platform-specific attach button selectors (fileUploadDetection.ts)
+const ATTACH_BUTTON_SELECTORS = [
+  '[data-source="attach"]',  // Greenhouse
+  '[data-qa="upload-button"]', // Lever
+  '[data-automation-id="file-upload-input-ref"]', // Workday
+  // ... generic patterns
+];
+```
 
 ## Integration
 
@@ -223,10 +256,23 @@ Run tests:
 pnpm test formDetector
 ```
 
+## Module Structure
+
+The form detection and filling logic is organized into focused modules:
+
+| Module | Purpose |
+|--------|--------|
+| `formDetector.ts` | Detect forms and extract field metadata |
+| `customFileUpload.ts` | Detect custom file upload widgets |
+| `elementFilling.ts` | Fill individual elements (input, select, textarea, contenteditable) |
+| `fileUploadDetection.ts` | Find/create file inputs in custom widgets |
+| `fileUploadFilling.ts` | Fetch files and fill file upload elements |
+| `sidebar/services/formFiller.ts` | High-level form filling orchestration |
+
 ## Future Enhancements
 
 Potential improvements:
-- [ ] Detect custom file upload widgets (drag-drop zones)
+- [x] ~~Detect custom file upload widgets (drag-drop zones)~~ ✅ Implemented
 - [ ] Extract validation rules (regex patterns, min/max length)
 - [ ] Detect multi-step forms
 - [ ] Extract field grouping/sections
