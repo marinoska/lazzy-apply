@@ -1,7 +1,7 @@
 import type { AutofillResponse } from "@lazyapply/types";
+import { fillElement } from "../../scanner/elementFilling.js";
 import { formStore } from "../../scanner/FormStoreManager.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
-import { fillElementWithValue } from "../../scanner/formFiller.js";
 
 /**
  * Result of filling cover letter fields
@@ -247,7 +247,7 @@ export async function fillCoverLetterFields(
 			(element instanceof HTMLInputElement && element.type === "text")
 		) {
 			// Text field - paste the cover letter text directly
-			fillElementWithValue(element, coverLetterText);
+			fillElement(element, coverLetterText);
 			filled++;
 			method = "text";
 		} else {

@@ -1,6 +1,6 @@
 import createCache from "@emotion/cache";
 import { extendTheme } from "@mui/joy/styles";
-import { type Root, createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { getSidebarStyles } from "./styles.js";
 
 const HOST_ID = "lazyjob-auth-sidebar-host";
@@ -81,6 +81,7 @@ function ensureHost(): HTMLDivElement {
 
 	const host = document.createElement("div");
 	host.id = HOST_ID;
+	host.style.pointerEvents = "none";
 	document.documentElement.appendChild(host);
 	return host;
 }
