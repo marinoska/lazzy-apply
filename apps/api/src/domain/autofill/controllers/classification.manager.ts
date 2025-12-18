@@ -437,9 +437,9 @@ export class ClassificationManager {
 
 		// Use JD text if it matches, otherwise fall back to form context
 		let contextText = "";
-		if (jdMatches && jdRawText.length > 0) {
+		if (jdMatches && jdRawText.length) {
 			contextText = jdRawText;
-		} else if (formContext.length > 0) {
+		} else if (formContext.length) {
 			contextText = formContext.map((block) => block.text).join("\n");
 			logger.info("Using form context as fallback for inference");
 		}

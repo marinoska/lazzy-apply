@@ -149,13 +149,11 @@ async function createAutofillRecord(
 		}
 
 		// Handle text value fields
-		if (item.value !== undefined && item.value !== null) {
-			const textItem: AutofillDataItemText = {
-				...baseItem,
-				value: item.value,
-			};
-			data.push(textItem);
-		}
+		const textItem: AutofillDataItemText = {
+			...baseItem,
+			value: item.value || "",
+		};
+		data.push(textItem);
 	}
 
 	await AutofillModel.create(
@@ -201,7 +199,7 @@ export async function persistNewFormAndFields(
 		await session.withTransaction(async () => {
 			// Only insert newly classified fields (not cached ones)
 			const fieldDocs = buildFormFieldDocuments(newlyClassifiedFields);
-			if (fieldDocs.length > 0) {
+			if (fieldDocs.length) {
 				await FormFieldModel.insertMany(fieldDocs, { session, ordered: false });
 			}
 

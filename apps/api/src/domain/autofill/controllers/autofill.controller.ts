@@ -178,6 +178,7 @@ export async function autofill(
 	const { response, fromCache } = await classificationManager.process({
 		jdRawText: jdRawText ?? "",
 		jdUrl: jdUrl ?? null,
+		formUrl: form.pageUrl,
 		formContext: formContext ?? [],
 	});
 

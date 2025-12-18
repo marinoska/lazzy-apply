@@ -48,6 +48,7 @@ INPUT FORMAT:
 INSTRUCTIONS:
 - Use name, label, placeholder, description, input type, accept, and tag to classify.
 - If the field uploads a CV/resume → "resume_upload". If it accepts multiple document types, return multiple objects with the same hash.
+- If the field is for cover letter (text or file upload) → "cover_letter". Look for name/label containing "cover_letter", "cover letter", "coverletter".
 - For URL fields: return "links" and include "linkType". If field asks for multiple links, return multiple objects with the same hash and different linkType.
 - Motivation / Why us / Why you → "motivation_text".
 - Summary / about me → "summary".
@@ -165,13 +166,15 @@ async function callClassificationModel(
 }
 
 /**
- * Parses the LLM response into structured classifications enriched with field data
+ * Parses the LLM response into structured classifications enriched with field data.
+ * Ensures all input fields are returned, defaulting to "unknown" if LLM didn't classify them.
  */
 function parseClassificationResponse(
 	text: string,
 	fields: Field[],
 ): EnrichedClassifiedField[] {
 	const fieldsByHash = new Map(fields.map((f) => [f.hash, f]));
+	const classifiedHashes = new Set<string>();
 	let jsonText = text.trim();
 	if (jsonText.startsWith("```")) {
 		const lines = jsonText.split("\n");
@@ -205,6 +208,8 @@ function parseClassificationResponse(
 			continue;
 		}
 
+		classifiedHashes.add(item.hash);
+
 		const classification: FormFieldPath = VALID_PATHS.has(item.path)
 			? (item.path as FormFieldPath)
 			: "unknown";
@@ -228,6 +233,20 @@ function parseClassificationResponse(
 		}
 
 		results.push(result);
+	}
+
+	// Ensure all input fields are classified, default to "unknown" if LLM skipped them
+	for (const field of fields) {
+		if (!classifiedHashes.has(field.hash)) {
+			logger.warn(
+				{ hash: field.hash, name: field.field.name },
+				"LLM did not classify field, defaulting to unknown",
+			);
+			results.push({
+				...field,
+				classification: "unknown",
+			});
+		}
 	}
 
 	return results;

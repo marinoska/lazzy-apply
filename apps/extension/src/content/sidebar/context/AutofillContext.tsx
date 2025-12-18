@@ -165,12 +165,11 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 	}, [selectedUpload]);
 
 	const hasCoverLetterField = useMemo(() => {
-		const result = classifications
+		return classifications
 			? Object.values(classifications.fields).some(
 					(c) => c.path === "cover_letter",
 				)
 			: false;
-		return result;
 	}, [classifications]);
 
 	const clearError = useCallback(() => setError(null), []);
