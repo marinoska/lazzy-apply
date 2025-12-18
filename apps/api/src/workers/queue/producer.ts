@@ -4,8 +4,8 @@ import {
 } from "@lazyapply/types";
 import { getEnv } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
-import { OutboxEntryAlreadyProcessingError } from "@/outbox/outbox.errors.js";
-import { OutboxModel } from "@/outbox/outbox.model.js";
+import { OutboxEntryAlreadyProcessingError } from "@/domain/uploads/model/outbox.errors.js";
+import { OutboxModel } from "@/domain/uploads/model/outbox.model.js";
 
 const log = createLogger("queue-producer");
 

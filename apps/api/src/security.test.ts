@@ -296,7 +296,7 @@ describe("Security", () => {
 		describe("File Upload Validation", () => {
 			it("should only allow PDF and DOCX content types", async () => {
 				const { initUploadRequestSchema } = await import(
-					"./routes/uploads/initUpload.controller.js"
+					"@/domain/uploads/controllers/initUpload.controller.js"
 				);
 
 				// Valid content types
@@ -331,7 +331,7 @@ describe("Security", () => {
 
 			it("should require valid UUID for fileId in finalize", async () => {
 				const { finalizeUploadRequestSchema } = await import(
-					"./routes/uploads/finalizeUpload.controller.js"
+					"@/domain/uploads/controllers/finalizeUpload.controller.js"
 				);
 
 				// Invalid UUID
@@ -355,7 +355,7 @@ describe("Security", () => {
 
 			it("should require valid email format in init", async () => {
 				const { initUploadRequestSchema } = await import(
-					"./routes/uploads/initUpload.controller.js"
+					"@/domain/uploads/controllers/initUpload.controller.js"
 				);
 
 				expect(() =>
@@ -370,7 +370,7 @@ describe("Security", () => {
 
 			it("should require positive file size in finalize", async () => {
 				const { finalizeUploadRequestSchema } = await import(
-					"./routes/uploads/finalizeUpload.controller.js"
+					"@/domain/uploads/controllers/finalizeUpload.controller.js"
 				);
 
 				expect(() =>
@@ -394,7 +394,7 @@ describe("Security", () => {
 		describe("Delete Upload Validation", () => {
 			it("should require valid UUID for fileId parameter", async () => {
 				const { deleteUploadParamsSchema } = await import(
-					"./routes/uploads/deleteUpload.controller.js"
+					"@/domain/uploads/controllers/deleteUpload.controller.js"
 				);
 
 				expect(() =>

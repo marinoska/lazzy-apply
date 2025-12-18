@@ -1,6 +1,6 @@
 import { createLogger } from "@/app/logger.js";
-import { OutboxEntryAlreadyProcessingError } from "@/outbox/outbox.errors.js";
-import { OutboxModel } from "@/outbox/outbox.model.js";
+import { OutboxEntryAlreadyProcessingError } from "@/domain/uploads/model/outbox.errors.js";
+import { OutboxModel } from "@/domain/uploads/model/outbox.model.js";
 import { sendToParseQueue } from "@/workers/queue/index.js";
 
 const log = createLogger("outbox-processor");
