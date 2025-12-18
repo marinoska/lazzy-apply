@@ -10,7 +10,8 @@ export type OwnershipContext = {
 	skipOwnershipEnforcement?: boolean;
 };
 
-export type TFileUpload = {
+export type TFileUpload<T extends Types.ObjectId | string = string> = {
+	_id: T;
 	fileId: string;
 	objectKey: string;
 	originalFilename: string;

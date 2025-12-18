@@ -70,6 +70,7 @@ export type TFormFieldPopulated = FormFieldRef & {
 export type TForm = {
 	formHash: string;
 	fields: TFormFieldRef[];
+	// the same form found on different urls (maybe used for different roles)
 	pageUrls: string[];
 	actions: string[];
 	createdAt: Date;

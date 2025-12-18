@@ -31,7 +31,7 @@ vi.mock("@/app/cloudflare.js", () => ({
 }));
 
 // Mock the classifier service to avoid actual AI calls
-vi.mock("./services/classifier.service.js", () => ({
+vi.mock("../services/classifier.service.js", () => ({
 	classifyFieldsWithAI: vi.fn().mockImplementation((fields: Field[]) => {
 		const classifiedFields: EnrichedClassifiedField[] = fields.map((f) => ({
 			...f,
@@ -92,6 +92,20 @@ describe("autofill.controller", () => {
 		});
 		await CVDataModel.deleteMany({}).setOptions({
 			skipOwnershipEnforcement: true,
+		});
+
+		// Create test file upload (required by loadCVData)
+		await FileUploadModel.create({
+			_id: TEST_UPLOAD_ID,
+			userId: "test-user-id",
+			fileId: "test-file-id",
+			objectKey: "cv/test-cv.pdf",
+			originalFilename: "test-cv.pdf",
+			contentType: "PDF",
+			size: 12345,
+			status: "uploaded",
+			bucket: "test-bucket",
+			directory: "cv",
 		});
 
 		// Create test CV data
@@ -214,11 +228,11 @@ describe("autofill.controller", () => {
 		});
 
 		it("should generate fresh presigned URL for file fields in cached response", async () => {
-			// Create file upload
-			await FileUploadModel.create({
+			// Create file upload for this test (different from beforeEach one)
+			const fileUpload = await FileUploadModel.create({
 				userId: "test-user-id",
-				fileId: "test-file-id",
-				objectKey: "cv/test-cv.pdf",
+				fileId: "test-file-id-2",
+				objectKey: "cv/test-cv-file-field.pdf",
 				originalFilename: "my-resume.pdf",
 				contentType: "PDF",
 				size: 12345,
@@ -260,12 +274,13 @@ describe("autofill.controller", () => {
 			// Create cached autofill with OLD expired presigned URL
 			await AutofillModel.create({
 				autofillId: "cached-autofill-id",
-				formId: form._id,
-				uploadId: TEST_UPLOAD_ID,
+				formReference: form._id,
+				uploadReference: fileUpload._id,
 				userId: "test-user-id",
 				data: [
 					{
 						hash: "hash-file",
+						fieldRef: savedField._id,
 						fieldName: "resume",
 						fileUrl: "https://old-expired-url.com/file.pdf",
 						fileName: "my-resume.pdf",

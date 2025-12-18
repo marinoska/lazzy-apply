@@ -25,6 +25,9 @@ export default defineConfig({
 		testTimeout: 30000,
 		hookTimeout: 60000,
 		fileParallelism: false,
+		sequence: {
+			concurrent: false,
+		},
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "json", "html"],

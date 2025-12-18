@@ -8,6 +8,14 @@ vi.mock("@/app/cloudflare.js", () => ({
 	getPresignedDownloadUrl: vi.fn(),
 }));
 
+vi.mock("@/app/env.js", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@/app/env.js")>();
+	return {
+		...actual,
+		getEnv: vi.fn(() => "test-bucket"),
+	};
+});
+
 describe("Download Upload", () => {
 	let mockReq: { params: { fileId: string }; user?: { id: string } };
 	let mockRes: { json: ReturnType<typeof vi.fn> };

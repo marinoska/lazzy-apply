@@ -76,18 +76,10 @@ async function buildResponseFromAutofillDoc(
 ): Promise<AutofillResponse> {
 	const fields: AutofillResponseData = {};
 
-	// Check if we have any file fields that need fresh URLs
-	const hasFileFields = autofillDoc.data.some(
-		(item) => item.fileUrl && item.fileName && item.fileContentType,
-	);
-
-	// Get fresh file info if needed (presigned URLs expire)
-	const freshFileInfo = hasFileFields
-		? await getFreshFileInfo(uploadId, userId)
-		: null;
-
-	for (const item of autofillDoc.data) {
+	for await (const item of autofillDoc.data) {
 		if (item.fileUrl && item.fileName && item.fileContentType) {
+			// Get fresh file info if needed (presigned URLs expire)
+			const freshFileInfo = await getFreshFileInfo(uploadId, userId);
 			// Use fresh presigned URL instead of cached one
 			fields[item.hash] = {
 				fieldName: item.fieldName,
@@ -97,14 +89,15 @@ async function buildResponseFromAutofillDoc(
 				fileName: freshFileInfo?.fileName ?? item.fileName,
 				fileContentType: freshFileInfo?.fileContentType ?? item.fileContentType,
 			};
-		} else if (item.value !== undefined) {
-			fields[item.hash] = {
-				fieldName: item.fieldName,
-				path: "unknown",
-				pathFound: true,
-				value: item.value,
-			};
+			continue;
 		}
+
+		fields[item.hash] = {
+			fieldName: item.fieldName,
+			path: "unknown",
+			pathFound: true,
+			value: item.value,
+		};
 	}
 
 	return {
@@ -176,16 +169,17 @@ export async function autofill(
 
 	logger.info({ formHash: form.formHash, selectedUploadId }, "Processing form");
 
-	const classificationManager = new ClassificationManager(
-		form,
-		fields,
-		user.id,
+	const classificationManager = await ClassificationManager.create({
 		selectedUploadId,
-		jdRawText ?? "",
-		jdUrl ?? "",
-		formContext ?? [],
-	);
-	const { response, fromCache } = await classificationManager.process();
+		userId: user.id,
+		formInput: form,
+		fieldsInput: fields,
+	});
+	const { response, fromCache } = await classificationManager.process({
+		jdRawText: jdRawText ?? "",
+		jdUrl: jdUrl ?? null,
+		formContext: formContext ?? [],
+	});
 
 	if (fromCache) {
 		logger.info("Returned from DB - no classification needed");

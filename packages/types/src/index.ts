@@ -312,6 +312,7 @@ export interface FormFieldInput {
 
 /**
  * Form input from client (single pageUrl/action)
+ * Note: `fields` contains only hashes (FormFieldRefInput[]), not full field data.
  */
 export interface FormInput {
 	/** Unique form hash */
@@ -348,9 +349,13 @@ export interface FormContextBlock {
 
 /**
  * Autofill request payload with form and fields
+ * Note: `form.fields` contains only hashes (FormFieldRefInput[]),
+ * while `fields` contains full field metadata (Field[]).
  */
 export interface AutofillRequest {
+	/** Form structure with field hashes only */
 	form: FormInput;
+	/** Full field metadata array (hash + FieldData) */
 	fields: Field[];
 	/** Selected upload ID to use for CV data lookup */
 	selectedUploadId: string;

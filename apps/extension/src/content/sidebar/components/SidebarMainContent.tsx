@@ -44,7 +44,7 @@ export function SidebarMainContent({
 			{!showDropzone && (
 				<Button
 					fullWidth
-					variant="solid"
+					variant="outlined"
 					color="primary"
 					size="md"
 					onClick={() => setShowDropzone(true)}

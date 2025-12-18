@@ -3,7 +3,7 @@ import { formStore } from "./FormStoreManager.js";
 import type { ApplicationForm } from "./formDetector.js";
 import { clearFormFields } from "./formFiller.js";
 
-vi.mock("../../scanner/FormStoreManager.js", () => ({
+vi.mock("./FormStoreManager.js", () => ({
 	formStore: {
 		clearFieldsInIframe: vi.fn(),
 	},

@@ -470,7 +470,7 @@ describe("Security", () => {
 				// Check deleteUpload controller
 				const deleteControllerPath = path.join(
 					__dirname,
-					"routes/uploads/deleteUpload.controller.ts",
+					"domain/uploads/controllers/deleteUpload.controller.ts",
 				);
 				const source = await fs.readFile(deleteControllerPath, "utf-8");
 
@@ -486,7 +486,7 @@ describe("Security", () => {
 				// Check getRawText controller (worker route)
 				const getRawTextPath = path.join(
 					__dirname,
-					"routes/uploads/getRawText.controller.ts",
+					"domain/uploads/controllers/getRawText.controller.ts",
 				);
 				const source = await fs.readFile(getRawTextPath, "utf-8");
 
@@ -504,11 +504,10 @@ describe("Security", () => {
 			const routesPath = path.join(__dirname, "routes/index.ts");
 			const source = await fs.readFile(routesPath, "utf-8");
 
-			// Worker router should use authenticateWorker middleware
-			expect(source).toContain("workerRouter.use(authenticateWorker)");
-
-			// Worker routes should be mounted under /worker
-			expect(source).toContain('app.use("/worker", workerRouter)');
+			// Worker routes should be mounted under /worker with authenticateWorker middleware
+			expect(source).toContain(
+				'app.use("/worker", authenticateWorker, workerRouter)',
+			);
 		});
 
 		it("should apply authenticateUser to all user routes", async () => {
@@ -519,33 +518,38 @@ describe("Security", () => {
 			const source = await fs.readFile(routesPath, "utf-8");
 
 			// User router should use authenticateUser middleware
-			expect(source).toContain("userRouter.use(authenticateUser)");
+			expect(source).toContain('app.use("/api", authenticateUser, userRouter)');
 		});
 
 		it("should use validateRequest middleware on all routes with schemas", async () => {
 			const fs = await import("node:fs/promises");
 			const path = await import("node:path");
 
-			const routesPath = path.join(__dirname, "routes/index.ts");
-			const source = await fs.readFile(routesPath, "utf-8");
+			// Check worker routes
+			const workerRoutesPath = path.join(__dirname, "routes/worker.routes.ts");
+			const workerSource = await fs.readFile(workerRoutesPath, "utf-8");
 
-			// All routes with schemas should use validateRequest
-			expect(source).toContain(
+			expect(workerSource).toContain(
 				"validateRequest({ body: initUploadRequestSchema })",
 			);
-			expect(source).toContain(
+			expect(workerSource).toContain(
 				"validateRequest({ body: finalizeUploadRequestSchema })",
 			);
-			expect(source).toContain(
+			expect(workerSource).toContain(
 				"validateRequest({ params: getRawTextParamsSchema })",
 			);
-			expect(source).toContain(
+
+			// Check user routes
+			const userRoutesPath = path.join(__dirname, "routes/user.routes.ts");
+			const userSource = await fs.readFile(userRoutesPath, "utf-8");
+
+			expect(userSource).toContain(
 				"validateRequest({ params: deleteUploadParamsSchema })",
 			);
-			expect(source).toContain(
+			expect(userSource).toContain(
 				"validateRequest({ query: getUploadsQuerySchema })",
 			);
-			expect(source).toContain(
+			expect(userSource).toContain(
 				"validateRequest({ body: classifyFormFieldsBodySchema })",
 			);
 		});

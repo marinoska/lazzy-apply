@@ -100,22 +100,24 @@ function applyInferredAnswers(
 
 /**
  * Builds autofill response from stored fields, enriched with CV data values
+ * @param fields - Classified fields with hash and classification path
+ * @param fieldsInput - Full field metadata array (hash + FieldData), not form.fields which only has hashes
  */
 function buildResponseFromFields(
 	fields: (TFormField | FormFieldRef)[],
-	inputFields: Field[],
+	fieldsInput: Field[],
 	cvData: ParsedCVData | null,
 	fileInfo: FileInfo | null,
 ): AutofillResponseData {
 	const fieldsMap = new Map(fields.map((f) => [f.hash, f]));
 	const response: AutofillResponseData = {};
 
-	for (const inputField of inputFields) {
-		const field = fieldsMap.get(inputField.hash);
+	for (const fieldInput of fieldsInput) {
+		const field = fieldsMap.get(fieldInput.hash);
 		if (field) {
 			const pathFound = isPathInCVData(field.classification);
 			const item: AutofillResponseItem = {
-				fieldName: inputField.field.name,
+				fieldName: fieldInput.field.name,
 				path: field.classification,
 				pathFound,
 			};
@@ -146,9 +148,9 @@ function buildResponseFromFields(
 				item.pathFound = true;
 			}
 
-			response[inputField.hash] = item;
+			response[fieldInput.hash] = item;
 		} else {
-			logger.error({ hash: inputField.hash }, "Field hash not found");
+			logger.error({ hash: fieldInput.hash }, "Field hash not found");
 		}
 	}
 
@@ -159,6 +161,20 @@ export interface AutofillResult {
 	response: AutofillResponse;
 	fromCache: boolean;
 	autofillId: string;
+}
+
+export interface ClassificationManagerDeps {
+	formInput: FormInput;
+	fieldsInput: Field[];
+	userId: string;
+	selectedUploadId: string;
+}
+
+export interface ProcessParams {
+	jdRawText: string;
+	jdUrl: string | null;
+	formUrl: string;
+	formContext: FormContextBlock[];
 }
 
 /**
@@ -172,69 +188,102 @@ export interface AutofillResult {
  */
 export class ClassificationManager {
 	private existingForm?: FormDocumentPopulated;
-	private inputFieldsMap: Map<string, Field>;
+	private cvData: ParsedCVData | null = null;
+	private cvUpload: TFileUpload | null = null;
+
 	private existingFields: TFormField[] = [];
 	private fieldsToClassify: Field[] = [];
-	private cvData: ParsedCVData | null = null;
-	private fileUpload: TFileUpload | null = null;
 
-	constructor(
-		readonly formInput: FormInput,
-		private readonly inputFields: Field[],
+	private constructor(
 		private readonly userId: string,
-		private readonly selectedUploadId: string,
-		private readonly jdRawText: string,
-		private readonly jdUrl: string | null,
-		private readonly formContext: FormContextBlock[],
-	) {
-		this.inputFieldsMap = new Map(inputFields.map((f) => [f.hash, f]));
+		private readonly formInput: FormInput,
+		private inputFieldsMap: Map<string, Field>,
+	) {}
+
+	private get fileUploadId() {
+		if (!this.cvUpload) {
+			throw new Error("File upload not found for selected upload ID");
+		}
+		return this.cvUpload._id;
 	}
 
+	static async create(deps: ClassificationManagerDeps) {
+		const inputFieldsMap = new Map(
+			deps.fieldsInput.map((field) => [field.hash, field]),
+		);
+
+		const newInstance = new ClassificationManager(
+			deps.userId,
+			deps.formInput,
+			inputFieldsMap,
+		);
+
+		await Promise.all([
+			newInstance.loadForm(deps.formInput),
+			newInstance.loadCVData(deps.selectedUploadId),
+		]);
+
+		// Load fields - always needed for building response
+		if (newInstance.existingForm) {
+			// Form exists - use populated fields.fieldRef from FormFieldModel
+			newInstance.existingFields = newInstance.existingForm.fields.map(
+				(field: TFormFieldPopulated) => field.fieldRef,
+			);
+		} else {
+			logger.info("Form not found, looking up fields by hash");
+			await newInstance.loadFields();
+		}
+
+		return newInstance;
+	}
 	/**
 	 * Load CV data and file upload info from the provided selectedUploadId
 	 */
-	private async loadCVData() {
+	private async loadCVData(selectedUploadId: string) {
 		const [cvData, fileUpload] = await Promise.all([
-			CVDataModel.findByUploadId(this.selectedUploadId, this.userId),
-			FileUploadModel.findOne({ _id: this.selectedUploadId }).setOptions({
+			CVDataModel.findByUploadId(selectedUploadId, this.userId),
+			FileUploadModel.findOne({ _id: selectedUploadId }).setOptions({
 				userId: this.userId,
 			}),
 		]);
 
-		if (!cvData) {
+		if (!cvData || !fileUpload) {
 			logger.error(
-				{ uploadId: this.selectedUploadId },
-				"CV data not found for selected upload",
+				{ uploadId: selectedUploadId },
+				!cvData
+					? "CV data not found for selected upload"
+					: "Upload not found for selected upload id",
 			);
 			throw new Error("CV data not found for selected upload");
 		}
 
 		this.cvData = cvData.toObject();
-		this.fileUpload = fileUpload;
-		logger.info({ uploadId: this.selectedUploadId }, "CV data loaded");
+		this.cvUpload = fileUpload.toObject();
+		logger.debug({ uploadId: selectedUploadId }, "CV data loaded");
 	}
 
-	private async loadForm() {
+	private async loadForm(formInput: FormInput) {
 		// Step 1: Check if form exists
-		const existingForm = await FormModel.findByHash(this.formInput.formHash, {
+		const existingForm = await FormModel.findByHash(formInput.formHash, {
 			populate: true,
 		});
 
 		if (existingForm) {
-			if (!existingForm.pageUrls.includes(this.formInput.pageUrl)) {
-				existingForm.pageUrls.push(this.formInput.pageUrl);
+			if (!existingForm.pageUrls.includes(formInput.pageUrl)) {
+				// the same form found on different urls (maybe used for different roles)
+				existingForm.pageUrls.push(formInput.pageUrl);
 			}
 			if (
-				this.formInput.action &&
-				!existingForm.actions.includes(this.formInput.action)
+				formInput.action &&
+				!existingForm.actions.includes(formInput.action)
 			) {
-				existingForm.actions.push(this.formInput.action);
+				existingForm.actions.push(formInput.action);
 			}
 			if (existingForm.isModified(["pageUrls", "actions"])) {
 				await existingForm.save();
 			}
 
-			this.existingForm = existingForm;
+			this.existingForm = existingForm.toObject();
 		}
 	}
 
@@ -256,28 +305,19 @@ export class ClassificationManager {
 		}
 	}
 
-	public async process() {
-		// Load CV data in parallel with form lookup
-		await Promise.all([this.loadForm(), this.loadCVData()]);
-
+	public async process({
+		jdRawText,
+		jdUrl,
+		formUrl,
+		formContext,
+	}: ProcessParams) {
 		// Generate file info for resume_upload fields
 		const fileInfo = await this.getFileInfo();
 
-		// Load fields - always needed for building response
-		if (this.existingForm) {
-			// Form exists - use populated fields.fieldRef from FormFieldModel
-			this.existingFields = this.existingForm.fields.map(
-				(field: TFormFieldPopulated) => field.fieldRef,
-			);
-		} else {
-			logger.info("Form not found, looking up fields by hash");
-			await this.loadFields();
-		}
-
 		// Determine if we need to classify new fields or validate JD match
-		const needsClassification = this.fieldsToClassify.length > 0;
-		const hasJdText = this.jdRawText.length > 0;
-		const sameUrl = this.jdUrl === this.formInput.pageUrl;
+		const needsClassification = this.fieldsToClassify.length;
+		const hasJdText = jdRawText.length;
+		const sameUrl = jdUrl === formUrl;
 		const shouldValidateJdMatch = hasJdText && !sameUrl;
 
 		if (needsClassification) {
@@ -288,10 +328,7 @@ export class ClassificationManager {
 		}
 
 		if (shouldValidateJdMatch) {
-			logger.info(
-				{ jdUrl: this.jdUrl, formUrl: this.formInput.pageUrl },
-				"Validating JD match",
-			);
+			logger.info({ jdUrl, formUrl: formUrl }, "Validating JD match");
 		}
 		// Run classification and JD match in parallel (using ternaries to skip when not needed)
 		const [classificationResult, jdMatchResult] = await Promise.all([
@@ -303,10 +340,10 @@ export class ClassificationManager {
 					}),
 			shouldValidateJdMatch
 				? validateJdFormMatch({
-						jdText: this.jdRawText,
-						formFields: this.inputFields,
-						jdUrl: this.jdUrl,
-						formUrl: this.formInput.pageUrl,
+						jdText: jdRawText,
+						formFields: Array.from(this.inputFieldsMap.values()),
+						jdUrl,
+						formUrl,
 					})
 				: Promise.resolve({ isMatch: sameUrl, usage: createEmptyUsage() }),
 		]);
@@ -330,10 +367,12 @@ export class ClassificationManager {
 			response,
 			this.inputFieldsMap,
 		);
-		if (inferenceFields.length > 0) {
+		if (inferenceFields.length) {
 			const inferenceResult = await this.inferFields(
 				inferenceFields,
 				jdMatchResult.isMatch,
+				jdRawText,
+				formContext,
 			);
 			applyInferredAnswers(response, inferenceResult.answers);
 			inferenceUsage = inferenceResult.usage;
@@ -345,7 +384,7 @@ export class ClassificationManager {
 			logger.info("Form found in DB, saving autofill record");
 			autofillId = await persistCachedAutofill(
 				this.existingForm._id,
-				this.selectedUploadId,
+				this.fileUploadId,
 				this.userId,
 				response,
 			);
@@ -356,7 +395,7 @@ export class ClassificationManager {
 				[...this.existingFields, ...classifiedFields],
 				classifiedFields,
 				this.userId,
-				this.selectedUploadId,
+				this.fileUploadId,
 				response,
 				classificationUsage,
 				inferenceUsage,
@@ -383,6 +422,8 @@ export class ClassificationManager {
 	private async inferFields(
 		fields: InferenceField[],
 		jdMatches: boolean,
+		jdRawText: string,
+		formContext: FormContextBlock[],
 	): Promise<InferenceResult> {
 		if (!this.cvData?.rawText) {
 			logger.error("No CV raw text available for inference");
@@ -396,10 +437,10 @@ export class ClassificationManager {
 
 		// Use JD text if it matches, otherwise fall back to form context
 		let contextText = "";
-		if (jdMatches && this.jdRawText.length > 0) {
-			contextText = this.jdRawText;
-		} else if (this.formContext.length > 0) {
-			contextText = this.formContext.map((block) => block.text).join("\n");
+		if (jdMatches && jdRawText.length > 0) {
+			contextText = jdRawText;
+		} else if (formContext.length > 0) {
+			contextText = formContext.map((block) => block.text).join("\n");
 			logger.info("Using form context as fallback for inference");
 		}
 
@@ -425,9 +466,9 @@ export class ClassificationManager {
 	 * Generate presigned URL and file info for resume uploads
 	 */
 	private async getFileInfo(): Promise<FileInfo | null> {
-		if (!this.fileUpload) {
+		if (!this.cvUpload) {
 			logger.warn(
-				{ uploadId: this.selectedUploadId },
+				{ uploadId: this.fileUploadId },
 				"File upload not found for presigned URL generation",
 			);
 			return null;
@@ -437,17 +478,17 @@ export class ClassificationManager {
 			const bucket = getEnv("CLOUDFLARE_BUCKET");
 			const fileUrl = await getPresignedDownloadUrl(
 				bucket,
-				this.fileUpload.objectKey,
+				this.cvUpload.objectKey,
 			);
 
 			return {
 				fileUrl,
-				fileName: this.fileUpload.originalFilename,
-				fileContentType: this.fileUpload.contentType,
+				fileName: this.cvUpload.originalFilename,
+				fileContentType: this.cvUpload.contentType,
 			};
 		} catch (error) {
 			logger.error(
-				{ uploadId: this.selectedUploadId, error },
+				{ uploadId: this.fileUploadId, error },
 				"Failed to generate presigned URL",
 			);
 			return null;

@@ -16,8 +16,8 @@ export function AutofillButton() {
 			)}
 			<Button
 				fullWidth
-				variant="outlined"
-				color="primary"
+				variant="solid"
+				color="success"
 				size="md"
 				onClick={runAutofill}
 				loading={isLoading}

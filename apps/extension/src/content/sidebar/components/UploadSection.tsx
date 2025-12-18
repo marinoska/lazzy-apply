@@ -42,7 +42,7 @@ export function UploadSection({
 					onUploadError={onUploadError}
 				/>
 				<Button
-					variant="outlined"
+					variant="solid"
 					color="neutral"
 					size="sm"
 					onClick={handleCancel}

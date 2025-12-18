@@ -6,6 +6,7 @@ import {
 	FormModel,
 } from "@/domain/autofill/index.js";
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
+import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
 import type { EnrichedClassifiedField } from "../services/classifier.service.js";
 import { validateJdFormMatch } from "../services/jdMatcher.service.js";
 import { ClassificationManager } from "./classification.manager.js";
@@ -33,7 +34,7 @@ vi.mock("../services/classifier.service.js", () => ({
 }));
 
 // Mock the JD matcher service
-vi.mock("./services/jdMatcher.service.js", () => ({
+vi.mock("../services/jdMatcher.service.js", () => ({
 	validateJdFormMatch: vi.fn().mockResolvedValue({
 		isMatch: true,
 		usage: {
@@ -71,6 +72,23 @@ describe("classification.manager", () => {
 		await AutofillModel.deleteMany({});
 		await CVDataModel.deleteMany({}).setOptions({
 			skipOwnershipEnforcement: true,
+		});
+		await FileUploadModel.deleteMany({}).setOptions({
+			skipOwnershipEnforcement: true,
+		});
+
+		// Create test file upload
+		await FileUploadModel.create({
+			_id: TEST_UPLOAD_ID,
+			userId: "test-user-id",
+			fileId: "test-file-id",
+			originalFilename: "test-cv.pdf",
+			contentType: "PDF",
+			objectKey: "test-object-key",
+			directory: "uploads",
+			bucket: "test-bucket",
+			status: "uploaded",
+			isCanonical: true,
 		});
 
 		// Create test CV data
@@ -153,16 +171,18 @@ describe("classification.manager", () => {
 			const formInput = createTestFormInput();
 			const fields = [createTestField("hash-1", "email")];
 
-			const manager = new ClassificationManager(
+			const manager = await ClassificationManager.create({
 				formInput,
-				fields,
-				"test-user-id",
-				TEST_UPLOAD_ID,
-				"",
-				null,
-				[],
-			);
-			const result = await manager.process();
+				fieldsInput: fields,
+				userId: "test-user-id",
+				selectedUploadId: TEST_UPLOAD_ID,
+			});
+			const result = await manager.process({
+				jdRawText: "",
+				jdUrl: null,
+				formUrl: formInput.pageUrl,
+				formContext: [],
+			});
 
 			expect(result.fromCache).toBe(true);
 			expect(result.autofillId).toBeDefined();
@@ -208,16 +228,18 @@ describe("classification.manager", () => {
 			};
 			const fields = [createTestField("hash-1", "email")];
 
-			const manager = new ClassificationManager(
+			const manager = await ClassificationManager.create({
 				formInput,
-				fields,
-				"test-user-id",
-				TEST_UPLOAD_ID,
-				"",
-				null,
-				[],
-			);
-			await manager.process();
+				fieldsInput: fields,
+				userId: "test-user-id",
+				selectedUploadId: TEST_UPLOAD_ID,
+			});
+			await manager.process({
+				jdRawText: "",
+				jdUrl: null,
+				formUrl: formInput.pageUrl,
+				formContext: [],
+			});
 
 			const updatedForm = await FormModel.findOne({
 				formHash: "test-form-hash",
@@ -251,16 +273,18 @@ describe("classification.manager", () => {
 				createTestField("hash-2", "phone"),
 			];
 
-			const manager = new ClassificationManager(
+			const manager = await ClassificationManager.create({
 				formInput,
-				fields,
-				"test-user-id",
-				TEST_UPLOAD_ID,
-				"",
-				null,
-				[],
-			);
-			const result = await manager.process();
+				fieldsInput: fields,
+				userId: "test-user-id",
+				selectedUploadId: TEST_UPLOAD_ID,
+			});
+			const result = await manager.process({
+				jdRawText: "",
+				jdUrl: null,
+				formUrl: formInput.pageUrl,
+				formContext: [],
+			});
 
 			expect(result.fromCache).toBe(false);
 			// Should have response for both fields (one cached, one classified)
@@ -277,16 +301,18 @@ describe("classification.manager", () => {
 			const formInput = createTestFormInput();
 			const fields = [createTestField("hash-1", "email")];
 
-			const manager = new ClassificationManager(
+			const manager = await ClassificationManager.create({
 				formInput,
-				fields,
-				"test-user-id",
-				TEST_UPLOAD_ID,
-				"",
-				null,
-				[],
-			);
-			const result = await manager.process();
+				fieldsInput: fields,
+				userId: "test-user-id",
+				selectedUploadId: TEST_UPLOAD_ID,
+			});
+			const result = await manager.process({
+				jdRawText: "",
+				jdUrl: null,
+				formUrl: formInput.pageUrl,
+				formContext: [],
+			});
 
 			expect(result.fromCache).toBe(false);
 			expect(Object.keys(result.response.fields)).toHaveLength(1);
@@ -306,16 +332,18 @@ describe("classification.manager", () => {
 			const fields = [createTestField("hash-1", "email")];
 			const jdUrl = "https://example.com/apply"; // Same as formInput.pageUrl
 
-			const manager = new ClassificationManager(
+			const manager = await ClassificationManager.create({
 				formInput,
-				fields,
-				"test-user-id",
-				TEST_UPLOAD_ID,
-				"Some JD text",
+				fieldsInput: fields,
+				userId: "test-user-id",
+				selectedUploadId: TEST_UPLOAD_ID,
+			});
+			await manager.process({
+				jdRawText: "Some JD text",
 				jdUrl,
-				[],
-			);
-			await manager.process();
+				formUrl: formInput.pageUrl,
+				formContext: [],
+			});
 
 			// validateJdFormMatch should NOT be called when URLs match
 			expect(validateJdFormMatch).not.toHaveBeenCalled();
@@ -326,16 +354,18 @@ describe("classification.manager", () => {
 			const fields = [createTestField("hash-1", "email")];
 			const jdUrl = "https://example.com/job-description"; // Different from formInput.pageUrl
 
-			const manager = new ClassificationManager(
+			const manager = await ClassificationManager.create({
 				formInput,
-				fields,
-				"test-user-id",
-				TEST_UPLOAD_ID,
-				"Some JD text",
+				fieldsInput: fields,
+				userId: "test-user-id",
+				selectedUploadId: TEST_UPLOAD_ID,
+			});
+			await manager.process({
+				jdRawText: "Some JD text",
 				jdUrl,
-				[],
-			);
-			await manager.process();
+				formUrl: formInput.pageUrl,
+				formContext: [],
+			});
 
 			// validateJdFormMatch should be called when URLs differ
 			expect(validateJdFormMatch).toHaveBeenCalledWith({
@@ -351,16 +381,18 @@ describe("classification.manager", () => {
 			const fields = [createTestField("hash-1", "email")];
 			const jdUrl = "https://example.com/job-description";
 
-			const manager = new ClassificationManager(
+			const manager = await ClassificationManager.create({
 				formInput,
-				fields,
-				"test-user-id",
-				TEST_UPLOAD_ID,
-				"", // Empty JD text
+				fieldsInput: fields,
+				userId: "test-user-id",
+				selectedUploadId: TEST_UPLOAD_ID,
+			});
+			await manager.process({
+				jdRawText: "", // Empty JD text
 				jdUrl,
-				[],
-			);
-			await manager.process();
+				formUrl: formInput.pageUrl,
+				formContext: [],
+			});
 
 			// validateJdFormMatch should NOT be called when JD text is empty
 			expect(validateJdFormMatch).not.toHaveBeenCalled();
@@ -371,16 +403,18 @@ describe("classification.manager", () => {
 			const fields = [createTestField("hash-1", "email")];
 			const jdUrl = "https://example.com/apply"; // Same as formInput.pageUrl
 
-			const manager = new ClassificationManager(
+			const manager = await ClassificationManager.create({
 				formInput,
-				fields,
-				"test-user-id",
-				TEST_UPLOAD_ID,
-				"Some JD text",
+				fieldsInput: fields,
+				userId: "test-user-id",
+				selectedUploadId: TEST_UPLOAD_ID,
+			});
+			const result = await manager.process({
+				jdRawText: "Some JD text",
 				jdUrl,
-				[],
-			);
-			const result = await manager.process();
+				formUrl: formInput.pageUrl,
+				formContext: [],
+			});
 
 			// When sameUrl is true, isMatch defaults to true (no validation needed)
 			// The response should be generated successfully
