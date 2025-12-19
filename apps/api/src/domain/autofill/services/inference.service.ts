@@ -218,6 +218,7 @@ export async function inferFieldValues(
 		model: openai(env.OPENAI_MODEL),
 		prompt,
 		temperature: 0.3,
+		// maxOutputTokens: 1000,
 	});
 
 	const promptTokens = result.usage.inputTokens ?? 0;

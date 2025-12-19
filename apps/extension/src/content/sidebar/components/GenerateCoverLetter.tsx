@@ -16,8 +16,8 @@ export function GenerateCoverLetter() {
 		<>
 			<Button
 				fullWidth
-				variant="soft"
-				color="neutral"
+				variant="outlined"
+				color="success"
 				size="md"
 				onClick={() => setModalOpen(true)}
 				startDecorator={<DescriptionIcon />}

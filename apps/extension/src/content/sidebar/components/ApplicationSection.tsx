@@ -34,7 +34,7 @@ export function ApplicationSection({ onError }: ApplicationSectionProps) {
 	}
 
 	return (
-		<Stack direction="column" spacing={1}>
+		<Stack direction="column" spacing={1} gap={1}>
 			<Divider orientation="horizontal" />
 			<AutofillButton />
 			<GenerateCoverLetter />

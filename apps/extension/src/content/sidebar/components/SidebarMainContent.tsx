@@ -1,5 +1,6 @@
 import Button from "@mui/joy/Button";
 import { useState } from "react";
+import { useUploads } from "@/lib/api/context/UploadsContext.js";
 import { Snackbar } from "../../components/Snackbar.js";
 import { ApplicationSection } from "./ApplicationSection.js";
 import { CVSelector } from "./CVSelector.js";
@@ -15,6 +16,7 @@ export function SidebarMainContent({
 	const [showDropzone, setShowDropzone] = useState(false);
 	const [alertMessage, setAlertMessage] = useState("");
 	const [alertType, setAlertType] = useState<"success" | "danger">("success");
+	const { total } = useUploads();
 
 	const handleUploadComplete = (_fileId: string, _objectKey: string) => {
 		setShowDropzone(false);
@@ -49,7 +51,7 @@ export function SidebarMainContent({
 					size="md"
 					onClick={() => setShowDropzone(true)}
 				>
-					Upload your CV
+					{total ? "Upload another CV" : "Upload your CV"}
 				</Button>
 			)}
 			<UploadSection
