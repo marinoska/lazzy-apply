@@ -51,6 +51,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 	const [classifications, setClassifications] =
 		useState<AutofillResponse | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [autofillId, setAutofillId] = useState<string | null>(null);
 
 	// Check for forms on mount and when uploads change
 	const checkForForms = useCallback(() => {
@@ -140,6 +141,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 				jdRawText,
 				jdUrl: storedJD?.url,
 				formContext,
+				...(autofillId && { autofillId }),
 			};
 
 			console.log("[Autofill] Sending autofill request:", request);
@@ -148,6 +150,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 
 			console.log("[AutofillProvider] Classification results:", result);
 			setClassifications(result);
+			setAutofillId(result.autofillId);
 
 			const { filled, skipped } = await fillFormFields(
 				applicationForm,
@@ -162,7 +165,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 		} finally {
 			setIsLoading(false);
 		}
-	}, [selectedUpload]);
+	}, [selectedUpload, autofillId]);
 
 	const hasCoverLetterField = useMemo(() => {
 		return classifications
