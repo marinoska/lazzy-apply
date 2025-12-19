@@ -289,10 +289,10 @@ export interface Form {
 	formHash: string;
 	/** Array of field references with hash and path(s) */
 	fields: FormFieldRef[];
-	/** Page URLs where the form was detected */
-	pageUrls: string[];
-	/** Form action URLs (if available) */
-	actions: string[];
+	/** Page URL where the form was detected */
+	pageUrl: string;
+	/** Form action URL (if available) */
+	action: string | null;
 }
 
 /**
@@ -449,10 +449,10 @@ export interface StoredForm {
 	formHash: string;
 	/** Array of field references with hash and path(s) */
 	fields: FormFieldRef[];
-	/** Page URLs where the form was detected */
-	pageUrls: string[];
-	/** Form action URLs (if available) */
-	actions: string[];
+	/** Page URL where the form was detected */
+	pageUrl: string;
+	/** Form action URL (if available) */
+	action: string | null;
 }
 
 // Add more shared types here

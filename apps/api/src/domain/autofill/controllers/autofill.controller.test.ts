@@ -183,7 +183,7 @@ describe("autofill.controller", () => {
 			});
 
 			// Create existing form with fieldRef
-			await FormModel.create({
+			const savedForm = await FormModel.create({
 				formHash: "test-form-hash",
 				fields: [
 					{
@@ -192,8 +192,26 @@ describe("autofill.controller", () => {
 						fieldRef: savedField._id,
 					},
 				],
-				pageUrls: ["https://example.com/apply"],
-				actions: ["https://example.com/submit"],
+				pageUrl: "https://example.com/apply",
+				action: "https://example.com/submit",
+			});
+
+			// Create existing autofill record (required for cached response)
+			await AutofillModel.create({
+				autofillId: "cached-autofill-id",
+				formReference: savedForm._id,
+				uploadReference: TEST_UPLOAD_ID,
+				userId: "test-user-id",
+				data: [
+					{
+						hash: "hash-1",
+						fieldRef: savedField._id,
+						fieldName: "email",
+						path: "personal.email",
+						pathFound: true,
+						value: "test@example.com",
+					},
+				],
 			});
 
 			await autofill(mockReq as never, mockRes as never);
@@ -224,7 +242,7 @@ describe("autofill.controller", () => {
 
 			const savedForm = await FormModel.findOne({ formHash: "test-form-hash" });
 			expect(savedForm).not.toBeNull();
-			expect(savedForm?.pageUrls).toContain("https://example.com/apply");
+			expect(savedForm?.pageUrl).toBe("https://example.com/apply");
 		});
 
 		it("should generate fresh presigned URL for file fields in cached response", async () => {
@@ -267,8 +285,8 @@ describe("autofill.controller", () => {
 						fieldRef: savedField._id,
 					},
 				],
-				pageUrls: ["https://example.com/apply"],
-				actions: [],
+				pageUrl: "https://example.com/apply",
+				action: null,
 			});
 
 			// Create cached autofill with OLD expired presigned URL

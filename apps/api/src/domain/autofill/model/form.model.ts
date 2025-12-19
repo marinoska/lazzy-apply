@@ -36,13 +36,13 @@ const formSchema = new Schema<TForm, FormModel, FormMethods>(
 			immutable: true,
 			required: true,
 		},
-		pageUrls: {
-			type: [String],
+		pageUrl: {
+			type: String,
 			required: true,
 		},
-		actions: {
-			type: [String],
-			default: [],
+		action: {
+			type: String,
+			default: null,
 		},
 	},
 	{ timestamps: true },

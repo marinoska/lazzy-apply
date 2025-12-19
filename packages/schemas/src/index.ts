@@ -68,13 +68,13 @@ export const formInputSchema = z.object({
 });
 
 /**
- * Form collection schema - stored per unique form hash (arrays for pageUrls/actions)
+ * Form collection schema - stored per unique form hash
  */
 export const formSchema = z.object({
 	formHash: z.string().min(1),
 	fields: z.array(formFieldRefSchema).min(1),
-	pageUrls: z.array(z.string().url()).min(1),
-	actions: z.array(z.string()),
+	pageUrl: z.string().url(),
+	action: z.string().nullable(),
 });
 
 /**

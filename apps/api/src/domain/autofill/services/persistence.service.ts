@@ -230,8 +230,8 @@ export async function persistNewFormAndFields(
 			const formData: CreateFormParams = {
 				formHash: formInput.formHash,
 				fields: formFieldRefs,
-				pageUrls: [formInput.pageUrl],
-				actions: formInput.action ? [formInput.action] : [],
+				pageUrl: formInput.pageUrl,
+				action: formInput.action,
 			};
 
 			const [savedForm] = await FormModel.create([formData], { session });

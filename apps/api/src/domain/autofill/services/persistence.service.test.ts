@@ -87,8 +87,8 @@ describe("persistence.service", () => {
 
 			const savedForm = await FormModel.findOne({ formHash: "test-form-hash" });
 			expect(savedForm).not.toBeNull();
-			expect(savedForm?.pageUrls).toContain("https://example.com/apply");
-			expect(savedForm?.actions).toContain("https://example.com/submit");
+			expect(savedForm?.pageUrl).toBe("https://example.com/apply");
+			expect(savedForm?.action).toBe("https://example.com/submit");
 			expect(savedForm?.fields).toHaveLength(1);
 			expect(savedForm?.fields[0].hash).toBe("hash-1");
 			expect(savedForm?.fields[0].classification).toBe("personal.email");
@@ -153,7 +153,7 @@ describe("persistence.service", () => {
 			);
 
 			const savedForm = await FormModel.findOne({ formHash: "test-form-hash" });
-			expect(savedForm?.actions).toEqual([]);
+			expect(savedForm?.action).toBeNull();
 
 			// Usage should be saved with 0 values
 			const savedUsage = await UsageModel.findOne({
@@ -395,8 +395,8 @@ describe("persistence.service", () => {
 							fieldRef: savedField._id,
 						},
 					],
-					pageUrls: ["https://example.com"],
-					actions: [],
+					pageUrl: "https://example.com",
+					action: null,
 				},
 			]);
 

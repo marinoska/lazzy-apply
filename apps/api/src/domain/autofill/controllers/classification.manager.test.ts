@@ -164,8 +164,8 @@ describe("classification.manager", () => {
 						fieldRef: savedField._id,
 					},
 				],
-				pageUrls: ["https://example.com/apply"],
-				actions: ["https://example.com/submit"],
+				pageUrl: "https://example.com/apply",
+				action: "https://example.com/submit",
 			});
 
 			const formInput = createTestFormInput();
@@ -191,7 +191,7 @@ describe("classification.manager", () => {
 			expect(result.autofill.data[0].path).toBe("personal.email");
 		});
 
-		it("should update pageUrls when form exists but URL is new", async () => {
+		it("should return cached data when form exists with different URL", async () => {
 			// Create existing field first
 			const savedField = await FormFieldModel.create({
 				hash: "hash-1",
@@ -217,8 +217,8 @@ describe("classification.manager", () => {
 						fieldRef: savedField._id,
 					},
 				],
-				pageUrls: ["https://example.com/old-page"],
-				actions: [],
+				pageUrl: "https://example.com/old-page",
+				action: null,
 			});
 
 			const formInput: FormInput = {
@@ -234,18 +234,16 @@ describe("classification.manager", () => {
 				userId: "test-user-id",
 				selectedUploadId: TEST_UPLOAD_ID,
 			});
-			await manager.process({
+			const result = await manager.process({
 				jdRawText: "",
 				jdUrl: null,
 				formUrl: formInput.pageUrl,
 				formContext: [],
 			});
 
-			const updatedForm = await FormModel.findOne({
-				formHash: "test-form-hash",
-			});
-			expect(updatedForm?.pageUrls).toContain("https://example.com/old-page");
-			expect(updatedForm?.pageUrls).toContain("https://example.com/new-page");
+			// Should still return cached autofill data
+			expect(result.autofill).toBeDefined();
+			expect(result.autofill.data).toHaveLength(1);
 		});
 
 		it("should use cached fields and classify only missing ones", async () => {

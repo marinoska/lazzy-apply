@@ -165,20 +165,6 @@ export class ClassificationManager {
 		});
 
 		if (existingForm) {
-			if (!existingForm.pageUrls.includes(formInput.pageUrl)) {
-				// the same form found on different urls (maybe used for different roles)
-				existingForm.pageUrls.push(formInput.pageUrl);
-			}
-			if (
-				formInput.action &&
-				!existingForm.actions.includes(formInput.action)
-			) {
-				existingForm.actions.push(formInput.action);
-			}
-			if (existingForm.isModified(["pageUrls", "actions"])) {
-				await existingForm.save();
-			}
-
 			this.existingForm = existingForm.toObject();
 		}
 	}
