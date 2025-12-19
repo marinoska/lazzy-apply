@@ -10,6 +10,7 @@ import {
 	type AutofillDataItem,
 	type AutofillDataItemFile,
 	type AutofillDataItemText,
+	type AutofillDocument,
 	AutofillModel,
 	type CreateFormFieldParams,
 	type CreateFormParams,
@@ -122,7 +123,7 @@ async function createAutofillRecord(
 	autofillId: string,
 	autofillResponse: AutofillResponseData,
 	fieldHashToIdMap: Map<string, Types.ObjectId>,
-): Promise<void> {
+): Promise<AutofillDocument> {
 	const data: AutofillDataItem[] = [];
 
 	for (const [hash, item] of Object.entries(autofillResponse)) {
@@ -161,7 +162,7 @@ async function createAutofillRecord(
 		data.push(textItem);
 	}
 
-	await AutofillModel.create(
+	const [autofill] = await AutofillModel.create(
 		[
 			{
 				userId,
@@ -173,6 +174,7 @@ async function createAutofillRecord(
 		],
 		{ session },
 	);
+	return autofill;
 }
 
 /**
@@ -185,6 +187,7 @@ async function createAutofillRecord(
  * @param classificationUsage - Token usage from classification LLM call
  * @param inferenceUsage - Optional token usage from inference LLM call
  * @param jdMatchUsage - Optional token usage from JD-form match LLM call
+ * @returns The created autofill document
  */
 export async function persistNewFormAndFields(
 	formInput: FormInput,
@@ -196,9 +199,10 @@ export async function persistNewFormAndFields(
 	classificationUsage: TokenUsage,
 	inferenceUsage?: TokenUsage,
 	jdMatchUsage?: TokenUsage,
-): Promise<string> {
+): Promise<AutofillDocument> {
 	const autofillId = randomUUID();
 	const session = await mongoose.startSession();
+	let autofillDoc: AutofillDocument | null = null;
 
 	try {
 		await session.withTransaction(async () => {
@@ -233,7 +237,7 @@ export async function persistNewFormAndFields(
 			const [savedForm] = await FormModel.create([formData], { session });
 
 			// Persist autofill record
-			await createAutofillRecord(
+			autofillDoc = await createAutofillRecord(
 				session,
 				savedForm._id,
 				new mongoose.Types.ObjectId(uploadId),
@@ -275,25 +279,30 @@ export async function persistNewFormAndFields(
 				);
 			}
 		});
+
+		if (!autofillDoc) {
+			throw new Error("Failed to persist autofill: transaction aborted");
+		}
+		return autofillDoc;
 	} finally {
 		await session.endSession();
 	}
-
-	return autofillId;
 }
 
 /**
  * Persists autofill data for cached responses (no new form/fields created)
  * Creates empty usage record and saves autofill result
+ * @returns The created autofill document
  */
 export async function persistCachedAutofill(
 	formId: Types.ObjectId,
 	uploadId: string,
 	userId: string,
 	autofillResponse: AutofillResponseData,
-): Promise<string> {
+): Promise<AutofillDocument> {
 	const autofillId = randomUUID();
 	const session = await mongoose.startSession();
+	let autofillDoc: AutofillDocument | null = null;
 
 	try {
 		await session.withTransaction(async () => {
@@ -308,7 +317,7 @@ export async function persistCachedAutofill(
 			);
 
 			// Persist autofill record
-			await createAutofillRecord(
+			autofillDoc = await createAutofillRecord(
 				session,
 				formId,
 				new mongoose.Types.ObjectId(uploadId),
@@ -335,9 +344,12 @@ export async function persistCachedAutofill(
 				},
 			);
 		});
+
+		if (!autofillDoc) {
+			throw new Error("Failed to persist cached autofill: transaction aborted");
+		}
+		return autofillDoc;
 	} finally {
 		await session.endSession();
 	}
-
-	return autofillId;
 }

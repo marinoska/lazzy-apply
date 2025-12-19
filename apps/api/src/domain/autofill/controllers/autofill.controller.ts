@@ -120,7 +120,7 @@ async function buildResponseFromAutofillDoc(
 export async function autofill(
 	req: Request<unknown, AutofillResponse, AutofillRequest>,
 	res: Response<AutofillResponse>,
-): Promise<void> {
+) {
 	const user = req.user;
 	if (!user) {
 		throw new Unauthorized("Missing authenticated user");
@@ -143,14 +143,14 @@ export async function autofill(
 		if (!autofillDoc || autofillDoc.userId !== user.id) {
 			throw new NotFound("Autofill not found");
 		}
-		res.json(
-			await buildResponseFromAutofillDoc(
+		return res.json({
+			...(await buildResponseFromAutofillDoc(
 				autofillDoc,
 				selectedUploadId,
 				user.id,
-			),
-		);
-		return;
+			)),
+			fromCache: true,
+		});
 	}
 
 	// Check if we have a recent autofill for this user/upload/form combination
@@ -166,14 +166,14 @@ export async function autofill(
 				{ autofillId: recentAutofill.autofillId },
 				"Found recent autofill, returning cached data",
 			);
-			res.json(
-				await buildResponseFromAutofillDoc(
+			return res.json({
+				...(await buildResponseFromAutofillDoc(
 					recentAutofill,
 					selectedUploadId,
 					user.id,
-				),
-			);
-			return;
+				)),
+				fromCache: true,
+			});
 		}
 	}
 
@@ -185,16 +185,17 @@ export async function autofill(
 		formInput: form,
 		fieldsInput: fields,
 	});
-	const { response, fromCache } = await classificationManager.process({
+	const { autofill } = await classificationManager.process({
 		jdRawText: jdRawText ?? "",
 		jdUrl: jdUrl ?? null,
 		formUrl: form.pageUrl,
 		formContext: formContext ?? [],
 	});
 
-	if (fromCache) {
-		logger.info("Returned from DB - no classification needed");
-	}
-
-	res.json(response);
+	const response = await buildResponseFromAutofillDoc(
+		autofill,
+		selectedUploadId,
+		user.id,
+	);
+	return res.json({ ...response, fromCache: false });
 }

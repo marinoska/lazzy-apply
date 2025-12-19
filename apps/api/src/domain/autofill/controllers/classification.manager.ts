@@ -1,5 +1,4 @@
 import type {
-	AutofillResponse,
 	AutofillResponseData,
 	AutofillResponseItem,
 	Field,
@@ -56,9 +55,8 @@ function createEmptyUsage(): TokenUsage {
 }
 
 export interface AutofillResult {
-	response: AutofillResponse;
+	autofill: Awaited<ReturnType<typeof persistCachedAutofill>>;
 	fromCache: boolean;
-	autofillId: string;
 }
 
 export interface ClassificationManagerDeps {
@@ -245,7 +243,6 @@ export class ClassificationManager {
 					})
 				: Promise.resolve({ isMatch: sameUrl, usage: createEmptyUsage() }),
 		]);
-		// TODO !!!!!!!
 		const { classifiedFields, usage: classificationUsage } =
 			classificationResult;
 
@@ -274,11 +271,11 @@ export class ClassificationManager {
 			inferredAnswers,
 		);
 
-		// Persist based on whether form already exists
-		let autofillId: string;
+		let autofill: Awaited<ReturnType<typeof persistCachedAutofill>>;
+
 		if (this.existingForm) {
 			logger.info("Form found in DB, saving autofill record");
-			autofillId = await persistCachedAutofill(
+			autofill = await persistCachedAutofill(
 				this.existingForm._id,
 				this.fileUploadId,
 				this.userId,
@@ -286,7 +283,7 @@ export class ClassificationManager {
 			);
 		} else {
 			logger.info("Persisting new form and fields");
-			autofillId = await persistNewFormAndFields(
+			autofill = await persistNewFormAndFields(
 				this.formInput,
 				allFields,
 				classifiedFields,
@@ -299,16 +296,8 @@ export class ClassificationManager {
 			);
 		}
 
-		const fromCache = !!this.existingForm || !needsClassification;
-
 		return {
-			response: {
-				autofillId,
-				fields: response,
-				fromCache,
-			},
-			fromCache,
-			autofillId,
+			autofill,
 		};
 	}
 

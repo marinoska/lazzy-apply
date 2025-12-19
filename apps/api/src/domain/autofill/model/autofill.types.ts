@@ -1,5 +1,5 @@
 import type { FormFieldPath, InferenceHint } from "@lazyapply/types";
-import type { Document, Model, Types } from "mongoose";
+import type { HydratedDocument, Model, Types } from "mongoose";
 
 export const AUTOFILL_MODEL_NAME = "autofill" as const;
 
@@ -102,7 +102,7 @@ export type AutofillStatics = {
 	): Promise<AutofillDocument | null>;
 };
 
-export type AutofillDocument = Document & TAutofill & AutofillMethods;
+export type AutofillDocument = HydratedDocument<TAutofill, AutofillMethods>;
 
 export type AutofillModelBase = Model<
 	TAutofill,
