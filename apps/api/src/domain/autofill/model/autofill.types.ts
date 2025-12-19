@@ -1,3 +1,4 @@
+import type { FormFieldPath, InferenceHint } from "@lazyapply/types";
 import type { Document, Model, Types } from "mongoose";
 
 export const AUTOFILL_MODEL_NAME = "autofill" as const;
@@ -7,6 +8,7 @@ export type FieldHash = string;
 
 /**
  * Base autofill data item - common fields for all types
+ * Stores all data needed for AutofillResponseItem so cached responses match first-time responses
  */
 type AutofillDataItemBase = {
 	/** Hash of the field this entry corresponds to */
@@ -15,6 +17,14 @@ type AutofillDataItemBase = {
 	fieldRef: Types.ObjectId;
 	/** Field name for display */
 	fieldName: string;
+	/** Classification path in ParsedCVData structure */
+	path: FormFieldPath;
+	/** Whether the path exists in ParsedCVData (vs inferred paths like motivation_text) */
+	pathFound: boolean;
+	/** For "links" classification, the detected link type */
+	linkType?: string;
+	/** Inference hint for fields requiring JD + CV generation (only when path is "unknown") */
+	inferenceHint?: InferenceHint;
 };
 
 /**
@@ -22,7 +32,7 @@ type AutofillDataItemBase = {
  */
 export type AutofillDataItemText = AutofillDataItemBase & {
 	/** The value (stored from CV or inferred) */
-	value: string;
+	value: string | null;
 	fileUrl?: never;
 	fileName?: never;
 	fileContentType?: never;

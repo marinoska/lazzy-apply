@@ -49,6 +49,11 @@ const autofillSchema = new Schema<TAutofill, AutofillModel, AutofillMethods>(
 						immutable: true,
 					},
 					fieldName: { type: String, required: true, immutable: true },
+					// Classification fields - stored to match AutofillResponseItem
+					path: { type: String, required: true, immutable: true },
+					pathFound: { type: Boolean, required: true, immutable: true },
+					linkType: { type: String, immutable: true },
+					inferenceHint: { type: String, immutable: true },
 					// Text field value (mutually exclusive with file fields)
 					value: { type: String, immutable: true },
 					// File upload fields (mutually exclusive with value)
@@ -62,22 +67,27 @@ const autofillSchema = new Schema<TAutofill, AutofillModel, AutofillMethods>(
 			validate: {
 				validator: (
 					data: Array<{
-						value?: string;
+						value?: string | null;
 						fileUrl?: string;
 						fileName?: string;
 						fileContentType?: string;
 					}>,
 				) =>
 					data.every((item) => {
-						const hasValue = item.value !== undefined && item.value !== null;
-						const hasFileFields =
+						const hasAnyFileField =
+							item.fileUrl !== undefined ||
+							item.fileName !== undefined ||
+							item.fileContentType !== undefined;
+						const hasAllFileFields =
 							item.fileUrl !== undefined &&
 							item.fileName !== undefined &&
 							item.fileContentType !== undefined;
-						return hasValue !== hasFileFields;
+						// If any file field is present, all must be present
+						// Text items have no file fields
+						return !hasAnyFileField || hasAllFileFields;
 					}),
 				message:
-					"Each data item must have either value OR all file fields (fileUrl, fileName, fileContentType), not both or neither",
+					"File upload items must have all file fields (fileUrl, fileName, fileContentType)",
 			},
 		},
 	},

@@ -3,6 +3,8 @@ import type {
 	AutofillRequest,
 	AutofillResponse,
 	AutofillResponseData,
+	AutofillResponseItem,
+	FormFieldPath,
 } from "@lazyapply/types";
 import type { Request, Response } from "express";
 import { getPresignedDownloadUrl } from "@/app/cloudflare.js";
@@ -76,28 +78,36 @@ async function buildResponseFromAutofillDoc(
 ): Promise<AutofillResponse> {
 	const fields: AutofillResponseData = {};
 
-	for await (const item of autofillDoc.data) {
+	for (const item of autofillDoc.data) {
+		const { fieldName, path, pathFound, linkType, inferenceHint } = item;
+		const responseItem: AutofillResponseItem = {
+			fieldName,
+			path: path as FormFieldPath,
+			pathFound,
+			...(linkType && { linkType }),
+			...(inferenceHint && { inferenceHint }),
+		};
+
+		// Handle file upload fields - regenerate presigned URL
 		if (item.fileUrl && item.fileName && item.fileContentType) {
-			// Get fresh file info if needed (presigned URLs expire)
 			const freshFileInfo = await getFreshFileInfo(uploadId, userId);
-			// Use fresh presigned URL instead of cached one
-			fields[item.hash] = {
-				fieldName: item.fieldName,
-				path: "resume_upload",
-				pathFound: !!freshFileInfo,
-				fileUrl: freshFileInfo?.fileUrl,
-				fileName: freshFileInfo?.fileName ?? item.fileName,
-				fileContentType: freshFileInfo?.fileContentType ?? item.fileContentType,
-			};
-			continue;
+			if (freshFileInfo) {
+				responseItem.fileUrl = freshFileInfo.fileUrl;
+				responseItem.fileName = freshFileInfo.fileName;
+				responseItem.fileContentType = freshFileInfo.fileContentType;
+				responseItem.pathFound = true;
+			} else {
+				// Fallback to stored values if fresh URL generation fails
+				responseItem.fileName = item.fileName;
+				responseItem.fileContentType = item.fileContentType;
+				responseItem.pathFound = false;
+			}
+		} else {
+			// Text value field
+			responseItem.value = item.value;
 		}
 
-		fields[item.hash] = {
-			fieldName: item.fieldName,
-			path: "unknown",
-			pathFound: true,
-			value: item.value,
-		};
+		fields[item.hash] = responseItem;
 	}
 
 	return {

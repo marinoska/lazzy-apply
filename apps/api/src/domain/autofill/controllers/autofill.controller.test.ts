@@ -282,6 +282,8 @@ describe("autofill.controller", () => {
 						hash: "hash-file",
 						fieldRef: savedField._id,
 						fieldName: "resume",
+						path: "resume_upload",
+						pathFound: true,
 						fileUrl: "https://old-expired-url.com/file.pdf",
 						fileName: "my-resume.pdf",
 						fileContentType: "PDF",
@@ -337,6 +339,47 @@ describe("autofill.controller", () => {
 			expect(response.fields["hash-file"].fileUrl).not.toBe(
 				"https://old-expired-url.com/file.pdf",
 			);
+		});
+
+		it("should return same response structure from cache as from first invocation", async () => {
+			// First call - no cache, will classify and persist
+			await autofill(mockReq as never, mockRes as never);
+
+			const firstResponse = mockRes.json.mock.calls[0][0];
+			expect(firstResponse.fromCache).toBe(false);
+			const firstFields = firstResponse.fields;
+
+			// Reset mock
+			mockRes.json.mockClear();
+
+			// Second call - should return from cache with same structure
+			await autofill(mockReq as never, mockRes as never);
+
+			const cachedResponse = mockRes.json.mock.calls[0][0];
+			expect(cachedResponse.fromCache).toBe(true);
+			const cachedFields = cachedResponse.fields;
+
+			// Verify same field hashes
+			expect(Object.keys(cachedFields)).toEqual(Object.keys(firstFields));
+
+			// Verify each field has same structure (path, pathFound, linkType, inferenceHint)
+			for (const hash of Object.keys(firstFields)) {
+				const firstField = firstFields[hash];
+				const cachedField = cachedFields[hash];
+
+				expect(cachedField.fieldName).toBe(firstField.fieldName);
+				expect(cachedField.path).toBe(firstField.path);
+				expect(cachedField.pathFound).toBe(firstField.pathFound);
+				expect(cachedField.value).toBe(firstField.value);
+
+				// Optional fields should match
+				if (firstField.linkType) {
+					expect(cachedField.linkType).toBe(firstField.linkType);
+				}
+				if (firstField.inferenceHint) {
+					expect(cachedField.inferenceHint).toBe(firstField.inferenceHint);
+				}
+			}
 		});
 	});
 });

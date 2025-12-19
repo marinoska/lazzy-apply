@@ -171,7 +171,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 				)
 			: false;
 	}, [classifications]);
-
+	console.log("[UploadsProvider]", { classifications });
 	const clearError = useCallback(() => setError(null), []);
 
 	const value = useMemo<AutofillContextValue>(

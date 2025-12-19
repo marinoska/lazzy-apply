@@ -4,7 +4,6 @@ import type {
 	AutofillResponseItem,
 	Field,
 	FormContextBlock,
-	FormFieldRef,
 	FormInput,
 	ParsedCVData,
 	TokenUsage,
@@ -54,107 +53,6 @@ function createEmptyUsage(): TokenUsage {
 		outputCost: 0,
 		totalCost: 0,
 	};
-}
-
-/**
- * Collects fields that require inference from the autofill response
- */
-function collectInferenceFields(
-	response: AutofillResponseData,
-	inputFieldsMap: Map<string, Field>,
-): InferenceField[] {
-	const fields: InferenceField[] = [];
-
-	for (const [hash, item] of Object.entries(response)) {
-		if (item.path === "unknown" && item.inferenceHint === "text_from_jd_cv") {
-			const inputField = inputFieldsMap.get(hash);
-			fields.push({
-				hash,
-				fieldName: item.fieldName,
-				label: inputField?.field.label ?? null,
-				description: inputField?.field.description ?? null,
-				placeholder: inputField?.field.placeholder ?? null,
-				tag: inputField?.field.tag ?? null,
-				type: inputField?.field.type ?? null,
-			});
-		}
-	}
-
-	return fields;
-}
-
-/**
- * Applies inferred answers to the autofill response
- */
-function applyInferredAnswers(
-	response: AutofillResponseData,
-	answers: Record<string, string>,
-): void {
-	for (const [hash, value] of Object.entries(answers)) {
-		if (response[hash]) {
-			response[hash].value = value;
-			response[hash].pathFound = true;
-		}
-	}
-}
-
-/**
- * Builds autofill response from stored fields, enriched with CV data values
- * @param fields - Classified fields with hash and classification path
- * @param fieldsInput - Full field metadata array (hash + FieldData), not form.fields which only has hashes
- */
-function buildResponseFromFields(
-	fields: (TFormField | FormFieldRef)[],
-	fieldsInput: Field[],
-	cvData: ParsedCVData | null,
-	fileInfo: FileInfo | null,
-): AutofillResponseData {
-	const fieldsMap = new Map(fields.map((f) => [f.hash, f]));
-	const response: AutofillResponseData = {};
-
-	for (const fieldInput of fieldsInput) {
-		const field = fieldsMap.get(fieldInput.hash);
-		if (field) {
-			const pathFound = isPathInCVData(field.classification);
-			const item: AutofillResponseItem = {
-				fieldName: fieldInput.field.name,
-				path: field.classification,
-				pathFound,
-			};
-
-			if (field.linkType) {
-				item.linkType = field.linkType;
-			}
-
-			// Include inferenceHint for fields that can be answered via JD + CV
-			if ("inferenceHint" in field && field.inferenceHint) {
-				item.inferenceHint = field.inferenceHint;
-			}
-
-			// Extract value from CV data if path exists in CV structure
-			if (isPathInCVData(field.classification) && cvData) {
-				item.value = extractValueByPath(
-					cvData,
-					field.classification,
-					field.linkType,
-				);
-			}
-
-			// Add file info for resume_upload fields
-			if (field.classification === "resume_upload" && fileInfo) {
-				item.fileUrl = fileInfo.fileUrl;
-				item.fileName = fileInfo.fileName;
-				item.fileContentType = fileInfo.fileContentType;
-				item.pathFound = true;
-			}
-
-			response[fieldInput.hash] = item;
-		} else {
-			logger.error({ hash: fieldInput.hash }, "Field hash not found");
-		}
-	}
-
-	return response;
 }
 
 export interface AutofillResult {
@@ -347,26 +245,17 @@ export class ClassificationManager {
 					})
 				: Promise.resolve({ isMatch: sameUrl, usage: createEmptyUsage() }),
 		]);
-
+		// TODO !!!!!!!
 		const { classifiedFields, usage: classificationUsage } =
 			classificationResult;
 
 		// Build response from appropriate fields source
 		const allFields = [...this.existingFields, ...classifiedFields];
 
-		const response = buildResponseFromFields(
-			allFields,
-			Array.from(this.inputFieldsMap.values()),
-			this.cvData,
-			fileInfo,
-		);
-
 		// Handle inference for fields with inferenceHint
 		let inferenceUsage: TokenUsage | undefined;
-		const inferenceFields = collectInferenceFields(
-			response,
-			this.inputFieldsMap,
-		);
+		let inferredAnswers: Record<string, string> = {};
+		const inferenceFields = this.collectInferenceFields(allFields);
 		if (inferenceFields.length) {
 			const inferenceResult = await this.inferFields(
 				inferenceFields,
@@ -374,9 +263,16 @@ export class ClassificationManager {
 				jdRawText,
 				formContext,
 			);
-			applyInferredAnswers(response, inferenceResult.answers);
+			inferredAnswers = inferenceResult.answers;
 			inferenceUsage = inferenceResult.usage;
 		}
+
+		// Build final response with all data including inferred answers
+		const response = this.buildResponseFromFields(
+			allFields,
+			fileInfo,
+			inferredAnswers,
+		);
 
 		// Persist based on whether form already exists
 		let autofillId: string;
@@ -392,7 +288,7 @@ export class ClassificationManager {
 			logger.info("Persisting new form and fields");
 			autofillId = await persistNewFormAndFields(
 				this.formInput,
-				[...this.existingFields, ...classifiedFields],
+				allFields,
 				classifiedFields,
 				this.userId,
 				this.fileUploadId,
@@ -458,6 +354,91 @@ export class ClassificationManager {
 			{ answeredCount: Object.keys(result.answers).length },
 			"Inference completed",
 		);
+
+		return result;
+	}
+
+	/**
+	 * Builds autofill response from stored fields, enriched with CV data values
+	 */
+	private buildResponseFromFields(
+		fields: (TFormField | EnrichedClassifiedField)[],
+		fileInfo: FileInfo | null,
+		inferredAnswers: Record<string, string> = {},
+	): AutofillResponseData {
+		const response: AutofillResponseData = {};
+
+		for (const field of fields) {
+			const pathFound = isPathInCVData(field.classification);
+			const item: AutofillResponseItem = {
+				fieldName: field.field.name,
+				path: field.classification,
+				pathFound,
+			};
+
+			if (field.linkType) {
+				item.linkType = field.linkType;
+			}
+
+			// Include inferenceHint for fields that can be answered via JD + CV
+			if ("inferenceHint" in field && field.inferenceHint) {
+				item.inferenceHint = field.inferenceHint;
+			}
+
+			// Extract value from CV data if path exists in CV structure
+			if (isPathInCVData(field.classification) && this.cvData) {
+				item.value = extractValueByPath(
+					this.cvData,
+					field.classification,
+					field.linkType,
+				);
+			}
+
+			// Apply inferred answer if available
+			if (inferredAnswers[field.hash]) {
+				item.value = inferredAnswers[field.hash];
+				item.pathFound = true;
+			}
+
+			// Add file info for resume_upload fields
+			if (field.classification === "resume_upload" && fileInfo) {
+				item.fileUrl = fileInfo.fileUrl;
+				item.fileName = fileInfo.fileName;
+				item.fileContentType = fileInfo.fileContentType;
+				item.pathFound = true;
+			}
+
+			response[field.hash] = item;
+		}
+
+		return response;
+	}
+
+	/**
+	 * Collects fields that require inference from classified fields
+	 */
+	private collectInferenceFields(
+		fields: (TFormField | EnrichedClassifiedField)[],
+	): InferenceField[] {
+		const result: InferenceField[] = [];
+
+		for (const field of fields) {
+			if (
+				field.classification === "unknown" &&
+				"inferenceHint" in field &&
+				field.inferenceHint === "text_from_jd_cv"
+			) {
+				result.push({
+					hash: field.hash,
+					fieldName: field.field.name,
+					label: field.field.label ?? null,
+					description: field.field.description ?? null,
+					placeholder: field.field.placeholder ?? null,
+					tag: field.field.tag ?? null,
+					type: field.field.type ?? null,
+				});
+			}
+		}
 
 		return result;
 	}

@@ -291,6 +291,8 @@ describe("persistence.service", () => {
 			);
 			expect(dataEntry).toBeDefined();
 			expect(dataEntry?.fieldName).toBe("email");
+			expect(dataEntry?.path).toBe("personal.email");
+			expect(dataEntry?.pathFound).toBe(true);
 			expect(dataEntry?.value).toBe("test@example.com");
 		});
 	});
@@ -356,6 +358,8 @@ describe("persistence.service", () => {
 			);
 			expect(fileEntry).toBeDefined();
 			expect(fileEntry?.fieldName).toBe("_systemfield_resume");
+			expect(fileEntry?.path).toBe("resume_upload");
+			expect(fileEntry?.pathFound).toBe(true);
 			expect(fileEntry?.fileUrl).toBe("https://example.com/presigned-url");
 			expect(fileEntry?.fileName).toBe("John_Doe_CV.docx");
 			expect(fileEntry?.fileContentType).toBe("DOCX");

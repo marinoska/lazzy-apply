@@ -112,6 +112,7 @@ async function createUsageRecord(
 
 /**
  * Creates an autofill record with the response data
+ * Stores all fields needed for AutofillResponseItem so cached responses match first-time responses
  */
 async function createAutofillRecord(
 	session: ClientSession,
@@ -134,6 +135,10 @@ async function createAutofillRecord(
 			hash,
 			fieldRef,
 			fieldName: item.fieldName ?? "",
+			path: item.path,
+			pathFound: item.pathFound,
+			...(item.linkType && { linkType: item.linkType }),
+			...(item.inferenceHint && { inferenceHint: item.inferenceHint }),
 		};
 
 		// Handle file upload fields
@@ -151,7 +156,7 @@ async function createAutofillRecord(
 		// Handle text value fields
 		const textItem: AutofillDataItemText = {
 			...baseItem,
-			value: item.value || "",
+			value: item.value ?? null,
 		};
 		data.push(textItem);
 	}
