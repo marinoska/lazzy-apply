@@ -71,14 +71,41 @@ export async function findOrCreateFileInput(
 	attachButton.click();
 	await new Promise((resolve) => setTimeout(resolve, 100));
 
+	// Search within the field scope (fieldset/.field) to avoid targeting wrong field
+	const fieldScope =
+		container.closest("fieldset, .field") ?? container.parentElement;
 	return (
 		container.querySelector<HTMLInputElement>('input[type="file"]') ??
 		container.parentElement?.querySelector<HTMLInputElement>(
 			'input[type="file"]',
 		) ??
-		document.querySelector<HTMLInputElement>(
-			'input[type="file"]:not([data-filled])',
-		) ??
+		fieldScope?.querySelector<HTMLInputElement>('input[type="file"]') ??
+		// Greenhouse-specific: find file input in S3 upload form by field name
+		findGreenhouseFileInput(container) ??
 		null
 	);
+}
+
+/**
+ * Greenhouse-specific: Find file input in S3 upload form by field name.
+ * Greenhouse uses separate S3 upload forms with data-presigned-form attribute
+ * that matches the data-field attribute on the upload widget.
+ */
+export function findGreenhouseFileInput(
+	container: HTMLElement,
+): HTMLInputElement | null {
+	const fieldName = container.getAttribute("data-field");
+	if (!fieldName) return null;
+
+	const s3Form = document.querySelector(`[data-presigned-form="${fieldName}"]`);
+	if (!s3Form) return null;
+
+	const fileInput =
+		s3Form.querySelector<HTMLInputElement>('input[type="file"]');
+	if (fileInput) {
+		console.log(
+			`[FileUpload] Found Greenhouse S3 file input for field: ${fieldName}`,
+		);
+	}
+	return fileInput;
 }

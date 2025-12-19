@@ -1,5 +1,6 @@
 import type { AutofillResponseItem } from "@lazyapply/types";
 import { type ApplicationForm, detectApplicationForm } from "./formDetector.js";
+import { findGreenhouseFileInput } from "./fileUploadDetection.js";
 
 /**
  * Message types for cross-frame form communication
@@ -469,12 +470,11 @@ export class FormStoreManager {
 			const mimeType = this.getMimeType(fileContentType ?? "PDF");
 			const file = new File([blob], fileName, { type: mimeType });
 
+			const fieldScope =
+				element.closest("fieldset, .field") ?? element.parentElement;
+
 			// Strategy 1: Find existing file input inside or near the container
-			let fileInput =
-				element.querySelector<HTMLInputElement>('input[type="file"]') ??
-				element.parentElement?.querySelector<HTMLInputElement>(
-					'input[type="file"]',
-				);
+			let fileInput = this.findFileInputInScope(element, fieldScope);
 
 			// Strategy 2: Click attach button to create file input dynamically
 			if (!fileInput) {
@@ -487,15 +487,8 @@ export class FormStoreManager {
 					);
 					attachButton.click();
 					// Wait for file input to be created
-					await new Promise((resolve) => setTimeout(resolve, 100));
-					fileInput =
-						element.querySelector<HTMLInputElement>('input[type="file"]') ??
-						element.parentElement?.querySelector<HTMLInputElement>(
-							'input[type="file"]',
-						) ??
-						document.querySelector<HTMLInputElement>(
-							'input[type="file"]:not([data-filled])',
-						);
+					await new Promise((resolve) => setTimeout(resolve, 200));
+					fileInput = this.findFileInputInScope(element, fieldScope);
 				}
 			}
 
@@ -528,6 +521,23 @@ export class FormStoreManager {
 		} catch (error) {
 			console.error("[FormStore] Error filling custom file upload:", error);
 		}
+	}
+
+	/**
+	 * Find file input in scope: checks element, parent, fieldScope, and Greenhouse S3 forms
+	 */
+	private findFileInputInScope(
+		element: HTMLElement,
+		fieldScope: Element | null,
+	): HTMLInputElement | null | undefined {
+		return (
+			element.querySelector<HTMLInputElement>('input[type="file"]') ??
+			element.parentElement?.querySelector<HTMLInputElement>(
+				'input[type="file"]',
+			) ??
+			fieldScope?.querySelector<HTMLInputElement>('input[type="file"]') ??
+			findGreenhouseFileInput(element)
+		);
 	}
 
 	/**
