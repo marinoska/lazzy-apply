@@ -19,6 +19,7 @@ import { useUploads } from "@/lib/api/context/UploadsContext.js";
 import { formStore } from "../../scanner/FormStoreManager.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
 import { clearFormFields, fillFormFields } from "../../scanner/formFiller.js";
+import { inferredFieldEditIcon } from "../../scanner/inferredFieldEditIcon.js";
 import { extractTextBlocks } from "../../scanner/textBlocksExtractor.js";
 
 interface AutofillContextValue {
@@ -159,6 +160,27 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 			);
 
 			console.log(`[Autofill] Filled ${filled} fields, skipped ${skipped}`);
+
+			// Add edit icons to inferred text fields
+			inferredFieldEditIcon.addEditIcons(
+				applicationForm,
+				result,
+				(hash, element, currentValue) => {
+					console.log(`[Autofill] Edit icon clicked for field ${hash}`, {
+						currentValue,
+					});
+					// Focus the element to allow user editing
+					element.focus();
+					if (
+						element instanceof HTMLInputElement ||
+						element instanceof HTMLTextAreaElement
+					) {
+						// Select all text for easy replacement
+						element.select();
+					}
+				},
+				isIframeForm,
+			);
 		} catch (err) {
 			console.error("[Autofill] Error:", err);
 			setError("Something went wrong. Please try again.");

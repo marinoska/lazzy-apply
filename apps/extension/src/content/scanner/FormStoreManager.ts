@@ -1,6 +1,7 @@
 import type { AutofillResponseItem } from "@lazyapply/types";
-import { type ApplicationForm, detectApplicationForm } from "./formDetector.js";
 import { findGreenhouseFileInput } from "./fileUploadDetection.js";
+import { type ApplicationForm, detectApplicationForm } from "./formDetector.js";
+import { inferredFieldEditIcon } from "./inferredFieldEditIcon.js";
 
 /**
  * Message types for cross-frame form communication
@@ -11,6 +12,8 @@ const FILL_FIELD_MESSAGE = "LAZYAPPLY_FILL_FIELD";
 const FILL_FILE_MESSAGE = "LAZYAPPLY_FILL_FILE";
 const FILL_COVER_LETTER_FILE_MESSAGE = "LAZYAPPLY_FILL_COVER_LETTER_FILE";
 const CLEAR_FIELDS_MESSAGE = "LAZYAPPLY_CLEAR_FIELDS";
+const ADD_EDIT_ICONS_MESSAGE = "LAZYAPPLY_ADD_EDIT_ICONS";
+const REMOVE_EDIT_ICONS_MESSAGE = "LAZYAPPLY_REMOVE_EDIT_ICONS";
 
 /**
  * Stored form data with metadata
@@ -190,6 +193,35 @@ export class FormStoreManager {
 	}
 
 	/**
+	 * Add edit icons to inferred fields in the form's iframe context
+	 */
+	addEditIconsInIframe(fieldHashes: string[]): void {
+		if (!this.formSourceWindow) return;
+
+		this.formSourceWindow.postMessage(
+			{
+				type: ADD_EDIT_ICONS_MESSAGE,
+				fieldHashes,
+			},
+			"*",
+		);
+	}
+
+	/**
+	 * Remove all edit icons in the form's iframe context
+	 */
+	removeEditIconsInIframe(): void {
+		if (!this.formSourceWindow) return;
+
+		this.formSourceWindow.postMessage(
+			{
+				type: REMOVE_EDIT_ICONS_MESSAGE,
+			},
+			"*",
+		);
+	}
+
+	/**
 	 * Fill a cover letter file input in the form's iframe context with a blob
 	 */
 	fillCoverLetterFileInIframe(
@@ -256,6 +288,14 @@ export class FormStoreManager {
 
 			case CLEAR_FIELDS_MESSAGE:
 				this.handleClearFields();
+				break;
+
+			case ADD_EDIT_ICONS_MESSAGE:
+				this.handleAddEditIcons(data);
+				break;
+
+			case REMOVE_EDIT_ICONS_MESSAGE:
+				this.handleRemoveEditIcons();
 				break;
 		}
 	}
@@ -372,6 +412,32 @@ export class FormStoreManager {
 		for (const element of form.fieldElements.values()) {
 			this.clearElement(element);
 		}
+	}
+
+	/**
+	 * Handle add edit icons request from parent (iframe receives)
+	 */
+	private handleAddEditIcons(data: { fieldHashes?: string[] }): void {
+		if (!this.isIframe || !data.fieldHashes) return;
+
+		const form = this.getOrDetectIframeForm();
+		if (!form) return;
+
+		for (const hash of data.fieldHashes) {
+			const element = form.fieldElements.get(hash);
+			if (element) {
+				inferredFieldEditIcon.addEditIconToElement(hash, element);
+			}
+		}
+	}
+
+	/**
+	 * Handle remove edit icons request from parent (iframe receives)
+	 */
+	private handleRemoveEditIcons(): void {
+		if (!this.isIframe) return;
+
+		inferredFieldEditIcon.removeAllEditIcons();
 	}
 
 	/**
