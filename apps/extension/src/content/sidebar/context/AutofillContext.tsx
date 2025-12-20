@@ -11,6 +11,7 @@ import {
 	useContext,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 } from "react";
 import { classifyFormFields } from "@/lib/api/api.js";
@@ -21,6 +22,7 @@ import { detectApplicationForm } from "../../scanner/formDetector.js";
 import { clearFormFields, fillFormFields } from "../../scanner/formFiller.js";
 import { inferredFieldEditIcon } from "../../scanner/inferredFieldEditIcon.js";
 import { extractTextBlocks } from "../../scanner/textBlocksExtractor.js";
+import { InferFieldValueModal } from "../components/InferFieldValueModal.js";
 
 interface AutofillContextValue {
 	/** Whether a form was detected on the page */
@@ -37,6 +39,12 @@ interface AutofillContextValue {
 	error: string | null;
 	/** Clear the error */
 	clearError: () => void;
+	/** Field hash for the infer field modal */
+	inferFieldHash: string | null;
+	/** Open the infer field modal */
+	openInferFieldModal: (hash: string) => void;
+	/** Close the infer field modal */
+	closeInferFieldModal: () => void;
 }
 
 const AutofillContext = createContext<AutofillContextValue | null>(null);
@@ -53,6 +61,8 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 		useState<AutofillResponse | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [autofillId, setAutofillId] = useState<string | null>(null);
+	const [inferFieldHash, setInferFieldHash] = useState<string | null>(null);
+	const fieldElementsRef = useRef<Map<string, HTMLElement>>(new Map());
 
 	// Check for forms on mount and when uploads change
 	const checkForForms = useCallback(() => {
@@ -82,6 +92,13 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 			}
 		};
 		window.addEventListener("message", handleMessage);
+
+		// Register callback for edit icon clicks from iframe
+		formStore.onEditIconClicked((hash) => {
+			console.log(`[Autofill] Edit icon clicked in iframe for field ${hash}`);
+			setInferFieldHash(hash);
+		});
+
 		return () => window.removeEventListener("message", handleMessage);
 	}, [hasUploads, checkForForms]);
 
@@ -161,23 +178,16 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 
 			console.log(`[Autofill] Filled ${filled} fields, skipped ${skipped}`);
 
+			// Store field elements for later use when saving edits
+			fieldElementsRef.current = applicationForm.fieldElements;
+
 			// Add edit icons to inferred text fields
 			inferredFieldEditIcon.addEditIcons(
 				applicationForm,
 				result,
-				(hash, element, currentValue) => {
-					console.log(`[Autofill] Edit icon clicked for field ${hash}`, {
-						currentValue,
-					});
-					// Focus the element to allow user editing
-					element.focus();
-					if (
-						element instanceof HTMLInputElement ||
-						element instanceof HTMLTextAreaElement
-					) {
-						// Select all text for easy replacement
-						element.select();
-					}
+				(hash) => {
+					console.log(`[Autofill] Edit icon clicked for field ${hash}`);
+					setInferFieldHash(hash);
 				},
 				isIframeForm,
 			);
@@ -199,6 +209,27 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 	console.log("[UploadsProvider]", { classifications });
 	const clearError = useCallback(() => setError(null), []);
 
+	const openInferFieldModal = useCallback((hash: string) => {
+		setInferFieldHash(hash);
+	}, []);
+
+	const closeInferFieldModal = useCallback(() => {
+		setInferFieldHash(null);
+	}, []);
+
+	const handleEditFieldSave = useCallback((hash: string, newValue: string) => {
+		const element = fieldElementsRef.current.get(hash);
+		if (
+			element instanceof HTMLInputElement ||
+			element instanceof HTMLTextAreaElement
+		) {
+			element.value = newValue;
+			element.dispatchEvent(new Event("input", { bubbles: true }));
+			element.dispatchEvent(new Event("change", { bubbles: true }));
+		}
+		setInferFieldHash(null);
+	}, []);
+
 	const value = useMemo<AutofillContextValue>(
 		() => ({
 			formDetected,
@@ -208,6 +239,9 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 			runAutofill,
 			error,
 			clearError,
+			inferFieldHash,
+			openInferFieldModal,
+			closeInferFieldModal,
 		}),
 		[
 			formDetected,
@@ -217,12 +251,21 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 			runAutofill,
 			error,
 			clearError,
+			inferFieldHash,
+			openInferFieldModal,
+			closeInferFieldModal,
 		],
 	);
 
 	return (
 		<AutofillContext.Provider value={value}>
 			{children}
+			<InferFieldValueModal
+				open={!!inferFieldHash}
+				fieldHash={inferFieldHash}
+				onClose={closeInferFieldModal}
+				onSave={handleEditFieldSave}
+			/>
 		</AutofillContext.Provider>
 	);
 }

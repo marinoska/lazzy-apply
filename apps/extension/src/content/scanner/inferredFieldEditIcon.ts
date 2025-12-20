@@ -19,11 +19,7 @@ import type { ApplicationForm } from "./formDetector.js";
 const EDIT_ICON_CLASS = "lazyapply-edit-icon";
 const EDIT_ICON_CONTAINER_CLASS = "lazyapply-edit-icon-container";
 
-type EditIconClickHandler = (
-	hash: string,
-	element: HTMLElement,
-	currentValue: string,
-) => void;
+type EditIconClickHandler = (hash: string) => void;
 
 interface InferredFieldEditIconManager {
 	/**
@@ -62,7 +58,6 @@ interface TrackedField {
 	hash: string;
 	element: HTMLElement;
 	iconContainer: HTMLElement;
-	onEditClick: EditIconClickHandler;
 }
 
 const trackedFields: Map<string, TrackedField> = new Map();
@@ -127,7 +122,6 @@ function createEditIconSvg(): SVGSVGElement {
  */
 function createEditIconContainer(
 	hash: string,
-	element: HTMLElement,
 	onEditClick: EditIconClickHandler,
 ): HTMLElement {
 	const container = document.createElement("div");
@@ -176,28 +170,13 @@ function createEditIconContainer(
 	container.addEventListener("click", (e) => {
 		e.preventDefault();
 		e.stopPropagation();
-
-		const currentValue = getElementValue(element);
-		onEditClick(hash, element, currentValue);
+		onEditClick(hash);
 	});
 
 	// Add title/tooltip
 	container.title = "Edit AI-generated response";
 
 	return container;
-}
-
-/**
- * Get the current value of an input/textarea element
- */
-function getElementValue(element: HTMLElement): string {
-	if (
-		element instanceof HTMLInputElement ||
-		element instanceof HTMLTextAreaElement
-	) {
-		return element.value;
-	}
-	return element.textContent ?? "";
 }
 
 /**
@@ -276,7 +255,7 @@ function addEditIconToField(
 		return;
 	}
 
-	const container = createEditIconContainer(hash, element, onEditClick);
+	const container = createEditIconContainer(hash, onEditClick);
 	document.body.appendChild(container);
 	positionIconContainer(container, element);
 
@@ -285,7 +264,6 @@ function addEditIconToField(
 		hash,
 		element,
 		iconContainer: container,
-		onEditClick,
 	});
 
 	// Observe element for size changes
@@ -339,21 +317,17 @@ function _collectInferredFieldHashes(
 }
 
 /**
- * Default click handler for iframe context (focuses and selects element)
+ * Click handler for iframe context - posts message to parent window
  */
-function defaultEditClickHandler(
-	hash: string,
-	element: HTMLElement,
-	_currentValue: string,
-): void {
-	console.log(`[EditIcon] Edit clicked for field ${hash}`);
-	element.focus();
-	if (
-		element instanceof HTMLInputElement ||
-		element instanceof HTMLTextAreaElement
-	) {
-		element.select();
-	}
+function iframeEditClickHandler(hash: string): void {
+	console.log(`[EditIcon] Edit clicked for field ${hash}, posting to parent`);
+	window.parent.postMessage(
+		{
+			type: "LAZYAPPLY_EDIT_ICON_CLICKED",
+			hash,
+		},
+		"*",
+	);
 }
 
 /**
@@ -361,7 +335,7 @@ function defaultEditClickHandler(
  */
 function addEditIconToElement(hash: string, element: HTMLElement): void {
 	setupGlobalListeners();
-	addEditIconToField(hash, element, defaultEditClickHandler);
+	addEditIconToField(hash, element, iframeEditClickHandler);
 }
 
 /**

@@ -389,6 +389,8 @@ export interface ClassifiedField {
 export interface AutofillResponseItem {
 	/** Original field name from DOM */
 	fieldName: string | null;
+	/** Field label from DOM */
+	label: string | null;
 	/** Classification path in ParsedCVData structure */
 	path: FormFieldPath;
 	/** For "links" classification, the detected link type */

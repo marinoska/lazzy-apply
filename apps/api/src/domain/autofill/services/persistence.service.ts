@@ -136,6 +136,7 @@ async function createAutofillRecord(
 			hash,
 			fieldRef,
 			fieldName: item.fieldName ?? "",
+			label: item.label,
 			path: item.path,
 			pathFound: item.pathFound,
 			...(item.linkType && { linkType: item.linkType }),

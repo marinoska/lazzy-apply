@@ -14,6 +14,7 @@ const FILL_COVER_LETTER_FILE_MESSAGE = "LAZYAPPLY_FILL_COVER_LETTER_FILE";
 const CLEAR_FIELDS_MESSAGE = "LAZYAPPLY_CLEAR_FIELDS";
 const ADD_EDIT_ICONS_MESSAGE = "LAZYAPPLY_ADD_EDIT_ICONS";
 const REMOVE_EDIT_ICONS_MESSAGE = "LAZYAPPLY_REMOVE_EDIT_ICONS";
+const EDIT_ICON_CLICKED_MESSAGE = "LAZYAPPLY_EDIT_ICON_CLICKED";
 
 /**
  * Stored form data with metadata
@@ -50,6 +51,9 @@ export class FormStoreManager {
 	private onIframeFormReceivedCallback:
 		| ((form: ApplicationForm) => void)
 		| null = null;
+
+	/** Callback invoked when edit icon is clicked in iframe (parent frame only) */
+	private onEditIconClickedCallback: ((hash: string) => void) | null = null;
 
 	constructor() {
 		this.isIframe = this.checkIsInIframe();
@@ -145,6 +149,13 @@ export class FormStoreManager {
 	}
 
 	/**
+	 * Register a callback to be invoked when edit icon is clicked in iframe (parent frame only)
+	 */
+	onEditIconClicked(callback: (hash: string) => void): void {
+		this.onEditIconClickedCallback = callback;
+	}
+
+	/**
 	 * Fill a field in the form's iframe context
 	 */
 	fillFieldInIframe(hash: string, value: string): void {
@@ -196,6 +207,10 @@ export class FormStoreManager {
 	 * Add edit icons to inferred fields in the form's iframe context
 	 */
 	addEditIconsInIframe(fieldHashes: string[]): void {
+		console.log("[FormStore] addEditIconsInIframe called", {
+			fieldHashes,
+			hasFormSourceWindow: !!this.formSourceWindow,
+		});
 		if (!this.formSourceWindow) return;
 
 		this.formSourceWindow.postMessage(
@@ -296,6 +311,10 @@ export class FormStoreManager {
 
 			case REMOVE_EDIT_ICONS_MESSAGE:
 				this.handleRemoveEditIcons();
+				break;
+
+			case EDIT_ICON_CLICKED_MESSAGE:
+				this.handleEditIconClicked(data);
 				break;
 		}
 	}
@@ -421,6 +440,7 @@ export class FormStoreManager {
 		if (!this.isIframe || !data.fieldHashes) return;
 
 		const form = this.getOrDetectIframeForm();
+
 		if (!form) return;
 
 		for (const hash of data.fieldHashes) {
@@ -438,6 +458,17 @@ export class FormStoreManager {
 		if (!this.isIframe) return;
 
 		inferredFieldEditIcon.removeAllEditIcons();
+	}
+
+	/**
+	 * Handle edit icon clicked message from iframe (parent receives)
+	 */
+	private handleEditIconClicked(data: { hash?: string }): void {
+		if (!this.isParent || !data.hash) return;
+
+		if (this.onEditIconClickedCallback) {
+			this.onEditIconClickedCallback(data.hash);
+		}
 	}
 
 	/**

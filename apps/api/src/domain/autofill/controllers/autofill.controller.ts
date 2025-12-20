@@ -79,9 +79,10 @@ async function buildResponseFromAutofillDoc(
 	const fields: AutofillResponseData = {};
 
 	for (const item of autofillDoc.data) {
-		const { fieldName, path, pathFound, linkType, inferenceHint } = item;
+		const { fieldName, label, path, pathFound, linkType, inferenceHint } = item;
 		const responseItem: AutofillResponseItem = {
 			fieldName,
+			label,
 			path: path as FormFieldPath,
 			pathFound,
 			...(linkType && { linkType }),

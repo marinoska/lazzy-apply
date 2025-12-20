@@ -347,6 +347,7 @@ export class ClassificationManager {
 			const pathFound = isPathInCVData(field.classification);
 			const item: AutofillResponseItem = {
 				fieldName: field.field.name,
+				label: field.field.label,
 				path: field.classification,
 				pathFound,
 			};

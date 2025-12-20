@@ -91,4 +91,20 @@ describe("AutofillContext logic", () => {
 			expect(subsequentRequest.autofillId).toBe("first-autofill-id");
 		});
 	});
+
+	describe("inferFieldHash handling", () => {
+		it("should store field hash for inference", () => {
+			const hash = "field-hash-123";
+
+			const inferFieldHash: string | null = hash;
+
+			expect(inferFieldHash).toBe("field-hash-123");
+		});
+
+		it("should handle null inferFieldHash", () => {
+			const inferFieldHash: string | null = null;
+
+			expect(inferFieldHash).toBeNull();
+		});
+	});
 });

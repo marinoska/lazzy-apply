@@ -17,6 +17,8 @@ type AutofillDataItemBase = {
 	fieldRef: Types.ObjectId;
 	/** Field name for display */
 	fieldName: string;
+	/** Field label from DOM */
+	label: string | null;
 	/** Classification path in ParsedCVData structure */
 	path: FormFieldPath;
 	/** Whether the path exists in ParsedCVData (vs inferred paths like motivation_text) */

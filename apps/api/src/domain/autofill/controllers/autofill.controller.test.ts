@@ -207,6 +207,7 @@ describe("autofill.controller", () => {
 						hash: "hash-1",
 						fieldRef: savedField._id,
 						fieldName: "email",
+						label: "Email Address",
 						path: "personal.email",
 						pathFound: true,
 						value: "test@example.com",
@@ -222,6 +223,7 @@ describe("autofill.controller", () => {
 			expect(response.autofillId).toBeDefined();
 			expect(response.fields["hash-1"]).toEqual({
 				fieldName: "email",
+				label: "Email Address",
 				path: "personal.email",
 				pathFound: true,
 				value: "test@example.com",
@@ -300,6 +302,7 @@ describe("autofill.controller", () => {
 						hash: "hash-file",
 						fieldRef: savedField._id,
 						fieldName: "resume",
+						label: "Upload Resume",
 						path: "resume_upload",
 						pathFound: true,
 						fileUrl: "https://old-expired-url.com/file.pdf",

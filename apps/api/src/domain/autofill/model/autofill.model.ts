@@ -49,6 +49,7 @@ const autofillSchema = new Schema<TAutofill, AutofillModel, AutofillMethods>(
 						immutable: true,
 					},
 					fieldName: { type: String, required: true, immutable: true },
+					label: { type: String, immutable: true },
 					// Classification fields - stored to match AutofillResponseItem
 					path: { type: String, required: true, immutable: true },
 					pathFound: { type: Boolean, required: true, immutable: true },
