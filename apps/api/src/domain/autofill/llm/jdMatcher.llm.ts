@@ -4,7 +4,7 @@ import { generateText } from "ai";
 import { env } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
 
-const logger = createLogger("jdMatcher.service");
+const logger = createLogger("jdMatcher.llm");
 
 /**
  * Input for JD-to-form matching

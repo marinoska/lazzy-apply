@@ -24,7 +24,7 @@ import {
 	UsageModel,
 	type UsageType,
 } from "@/domain/usage/index.js";
-import type { EnrichedClassifiedField } from "./classifier.service.js";
+import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
 
 /**
  * Builds form field references from classified fields with their ObjectId refs

@@ -94,7 +94,7 @@ const CLASSIFICATION_PROMPT = `${CLASSIFICATION_PROMPT_HEADER}CLASSIFY THE FOLLO
 
 const VALID_PATHS = new Set<string>(Object.keys(FORM_FIELD_PATH_MAP));
 
-const logger = createLogger("classifier.service");
+const logger = createLogger("classifier.llm");
 
 interface RawClassificationItem {
 	hash: string;

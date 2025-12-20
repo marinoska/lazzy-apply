@@ -22,7 +22,7 @@ import type {
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
 import type { TFileUpload } from "@/domain/uploads/model/fileUpload.types.js";
-import type { EnrichedClassifiedField } from "../services/classifier.service.js";
+import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
 import {
 	classifyFieldsWithAI,
 	extractValueByPath,
@@ -30,9 +30,11 @@ import {
 	type InferenceResult,
 	inferFieldValues,
 	isPathInCVData,
+	validateJdFormMatch,
+} from "../llm/index.js";
+import {
 	persistCachedAutofill,
 	persistNewFormAndFields,
-	validateJdFormMatch,
 } from "../services/index.js";
 
 const logger = createLogger("classification.manager");

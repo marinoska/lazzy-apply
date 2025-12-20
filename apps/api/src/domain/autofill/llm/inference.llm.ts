@@ -3,8 +3,9 @@ import type { TokenUsage } from "@lazyapply/types";
 import { generateText } from "ai";
 import { env } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
+import { GENERAL, SUMMARIZATION_AND_AGGREGATION } from "./rules.js";
 
-const logger = createLogger("inference.service");
+const logger = createLogger("inference.llm");
 
 const INFERENCE_PROMPT = `You are a real job applicant answering application form questions in their own words.
 Write naturally, as a person would when filling out a form, not as a résumé summary.
@@ -42,10 +43,9 @@ OUTPUT FORMAT:
 
 RULES:
 General:
+${GENERAL}
 - Do not include explanations or meta commentary
 - Do not include field labels in the answer
-- Do not reference the CV or JD explicitly
-- Never use the long dash character "—". Use "-"
 
 Output length and format:
 - If tag/type is "textarea", answers may be multi-sentence.
@@ -72,15 +72,7 @@ Describing experience, background, or fit is itself a valid relevance condition:
 -When a field asks to describe experience, summarizing and generalizing across relevant CV roles is allowed, even if individual roles or projects are not named explicitly.
 
 Summarization and aggregation:
-- Summarizing or aggregating CV experience across multiple roles is allowed when answering role-based questions
-- Aggregation does not count as inferring new skills or experience as long as all content is supported by the CV
-- Prefer a focused, relevant subset over exhaustive lists
-- Do not list positions chronologically unless explicitly asked
-- Relevance prioritization:
--- When multiple skills, experiences, or technologies are present in the CV,
-  prioritize those most relevant to the role or the specific question.
--- Less relevant or secondary experience may be mentioned briefly or contextually,
-  but should not receive equal emphasis.
+${SUMMARIZATION_AND_AGGREGATION}
 
 Motivation and "why" questions:
 - Personal traits, interest, and motivation may be inferred at a high level when answering "why" or motivation-related questions

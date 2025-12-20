@@ -7,7 +7,7 @@ import {
 	FormModel,
 } from "@/domain/autofill/index.js";
 import { UsageModel } from "@/domain/usage/index.js";
-import type { EnrichedClassifiedField } from "./classifier.service.js";
+import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
 import {
 	persistCachedAutofill,
 	persistNewFormAndFields,

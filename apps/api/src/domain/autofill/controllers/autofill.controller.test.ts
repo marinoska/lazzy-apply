@@ -6,7 +6,7 @@ import { FormModel } from "@/domain/autofill/model/form.model.js";
 import { FormFieldModel } from "@/domain/autofill/model/formField.model.js";
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
-import type { EnrichedClassifiedField } from "../services/classifier.service.js";
+import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
 import { autofill } from "./autofill.controller.js";
 
 // Mock env to have OPENAI_API_KEY and LOG_LEVEL
@@ -31,7 +31,7 @@ vi.mock("@/app/cloudflare.js", () => ({
 }));
 
 // Mock the classifier service to avoid actual AI calls
-vi.mock("../services/classifier.service.js", () => ({
+vi.mock("../llm/classifier.llm.js", () => ({
 	classifyFieldsWithAI: vi.fn().mockImplementation((fields: Field[]) => {
 		const classifiedFields: EnrichedClassifiedField[] = fields.map((f) => ({
 			...f,

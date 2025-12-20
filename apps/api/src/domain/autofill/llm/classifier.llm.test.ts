@@ -31,11 +31,11 @@ vi.mock("@/app/logger.js", () => ({
 
 // Import after mocks are set up
 import { generateText } from "ai";
-import { classifyFieldsWithAI } from "./classifier.service.js";
+import { classifyFieldsWithAI } from "./classifier.llm.js";
 
 const mockedGenerateText = vi.mocked(generateText);
 
-describe("classifier.service", () => {
+describe("classifier.llm", () => {
 	const createTestField = (
 		hash: string,
 		label: string,

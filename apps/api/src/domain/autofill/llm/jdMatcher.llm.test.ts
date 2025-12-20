@@ -27,11 +27,11 @@ vi.mock("@/app/logger.js", () => ({
 
 // Import after mocks are set up
 import { generateText } from "ai";
-import { validateJdFormMatch } from "./jdMatcher.service.js";
+import { validateJdFormMatch } from "./jdMatcher.llm.js";
 
 const mockedGenerateText = vi.mocked(generateText);
 
-describe("jdMatcher.service", () => {
+describe("jdMatcher.llm", () => {
 	describe("validateJdFormMatch", () => {
 		it("should return isMatch: false for empty JD text", async () => {
 			const result = await validateJdFormMatch({

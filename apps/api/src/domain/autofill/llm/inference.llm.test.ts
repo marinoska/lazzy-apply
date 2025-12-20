@@ -27,11 +27,11 @@ vi.mock("@/app/logger.js", () => ({
 
 // Import after mocks are set up
 import { generateText } from "ai";
-import { inferFieldValues } from "./inference.service.js";
+import { inferFieldValues } from "./inference.llm.js";
 
 const mockedGenerateText = vi.mocked(generateText);
 
-describe("inference.service", () => {
+describe("inference.llm", () => {
 	describe("inferFieldValues", () => {
 		it("should return empty answers for empty fields array", async () => {
 			const result = await inferFieldValues({

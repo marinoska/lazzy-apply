@@ -482,7 +482,7 @@ const formHash = hash(fields.map(f => f.hash).sort());
 
 ## Phase 6: LLM Services
 
-### 6.1 Field Classification (`classifier.service.ts`)
+### 6.1 Field Classification (`classifier.llm.ts`)
 
 **Purpose:** Map form fields to CV data paths
 
@@ -511,7 +511,7 @@ const formHash = hash(fields.map(f => f.hash).sort());
 - `links` → includes `linkType` (linkedin, github, portfolio)
 - `unknown` with `inferenceHint: "text_from_jd_cv"` → triggers inference
 
-### 6.2 JD-Form Matching (`jdMatcher.service.ts`)
+### 6.2 JD-Form Matching (`jdMatcher.llm.ts`)
 
 **Purpose:** Verify JD and form refer to same job
 
@@ -523,7 +523,7 @@ const formHash = hash(fields.map(f => f.hash).sort());
 - URL relationship (same domain, ATS flow)
 - Form questions align with JD responsibilities
 
-### 6.3 Field Inference (`inference.service.ts`)
+### 6.3 Field Inference (`inference.llm.ts`)
 
 **Purpose:** Generate text answers for open-ended fields
 
@@ -653,9 +653,9 @@ const { filled, skipped } = await fillFormFields(
 |------|---------|
 | `routes/formFields/autofill.controller.ts` | Request handling, cache checks |
 | `routes/formFields/classification.manager.ts` | Main orchestration |
-| `routes/formFields/services/classifier.service.ts` | Field classification LLM |
-| `routes/formFields/services/jdMatcher.service.ts` | JD-form matching LLM |
-| `routes/formFields/services/inference.service.ts` | Text answer generation LLM |
+| `routes/formFields/llm/classifier.llm.ts` | Field classification LLM |
+| `routes/formFields/llm/jdMatcher.llm.ts` | JD-form matching LLM |
+| `routes/formFields/llm/inference.llm.ts` | Text answer generation LLM |
 | `routes/formFields/services/persistence.service.ts` | Database persistence |
 | `formFields/form.model.ts` | Form schema and queries |
 | `formFields/formField.model.ts` | Field schema and queries |

@@ -7,12 +7,12 @@ import {
 } from "@/domain/autofill/index.js";
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
-import type { EnrichedClassifiedField } from "../services/classifier.service.js";
-import { validateJdFormMatch } from "../services/jdMatcher.service.js";
+import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
+import { validateJdFormMatch } from "../llm/jdMatcher.llm.js";
 import { ClassificationManager } from "./classification.manager.js";
 
 // Mock the classifier service to avoid actual AI calls
-vi.mock("../services/classifier.service.js", () => ({
+vi.mock("../llm/classifier.llm.js", () => ({
 	classifyFieldsWithAI: vi.fn().mockImplementation((fields: Field[]) => {
 		// Return classifications for all fields passed in
 		const classifiedFields: EnrichedClassifiedField[] = fields.map((f) => ({
@@ -34,7 +34,7 @@ vi.mock("../services/classifier.service.js", () => ({
 }));
 
 // Mock the JD matcher service
-vi.mock("../services/jdMatcher.service.js", () => ({
+vi.mock("../llm/jdMatcher.llm.js", () => ({
 	validateJdFormMatch: vi.fn().mockResolvedValue({
 		isMatch: true,
 		usage: {
@@ -49,7 +49,7 @@ vi.mock("../services/jdMatcher.service.js", () => ({
 }));
 
 // Mock the inference service
-vi.mock("./services/inference.service.js", () => ({
+vi.mock("../llm/inference.llm.js", () => ({
 	inferFieldValues: vi.fn().mockResolvedValue({
 		answers: {},
 		usage: {

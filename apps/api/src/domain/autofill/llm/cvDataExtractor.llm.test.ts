@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	extractValueByPath,
 	isPathInCVData,
-} from "./cvDataExtractor.service.js";
+} from "./cvDataExtractor.llm.js";
 
 const mockCVData: ParsedCVData = {
 	personal: {
@@ -67,7 +67,7 @@ const mockCVData: ParsedCVData = {
 	rawText: "Full CV text...",
 };
 
-describe("cvDataExtractor.service", () => {
+describe("cvDataExtractor.llm", () => {
 	describe("isPathInCVData", () => {
 		it("should return true for CV data paths", () => {
 			expect(isPathInCVData("personal.fullName")).toBe(true);
