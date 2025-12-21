@@ -7,6 +7,11 @@ import {
 	classifyFormFieldsBodySchema,
 } from "@/domain/autofill/controllers/autofill.controller.js";
 import {
+	refineBodySchema,
+	refineController,
+	refineParamsSchema,
+} from "@/domain/autofill/controllers/refine.controller.js";
+import {
 	updateSelectedUploadBodySchema,
 	updateSelectedUploadController,
 } from "@/domain/preferences/controllers/preferences.controller.js";
@@ -53,4 +58,10 @@ userRouter.patch(
 	"/preferences/selected-upload",
 	validateRequest({ body: updateSelectedUploadBodySchema }),
 	updateSelectedUploadController,
+);
+
+userRouter.post(
+	"/autofill/refine/:autofillId/:fieldHash",
+	validateRequest({ params: refineParamsSchema, body: refineBodySchema }),
+	refineController,
 );

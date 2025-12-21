@@ -38,6 +38,13 @@ const autofillSchema = new Schema<TAutofill, AutofillModel, AutofillMethods>(
 			index: true,
 			immutable: true,
 		},
+		cvDataReference: {
+			type: Schema.Types.ObjectId,
+			ref: "cv_data",
+			required: true,
+			index: true,
+			immutable: true,
+		},
 		data: {
 			type: [
 				{
@@ -113,7 +120,7 @@ autofillSchema.statics.createAutofill = async function (
 	return result;
 };
 
-autofillSchema.statics.findByAutofillId = async function (
+autofillSchema.statics.findByAutofillId = function (
 	this: AutofillModelWithStatics,
 	autofillId: string,
 ) {

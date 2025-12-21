@@ -151,7 +151,7 @@ export async function fillCoverLetterFields(
 	}
 
 	// Find cover letter fields from classifications
-	const coverLetterEntries = Object.entries(classifications).filter(
+	const coverLetterEntries = Object.entries(classifications.fields).filter(
 		([_, item]) => item.path === "cover_letter",
 	);
 

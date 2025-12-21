@@ -9,11 +9,16 @@ let mongoServer: MongoMemoryReplSet;
 
 beforeAll(async () => {
 	mongoServer = await MongoMemoryReplSet.create({
-		replSet: { count: 1 },
+		replSet: { count: 1, storageEngine: "wiredTiger" },
+		instanceOpts: [
+			{
+				storageEngine: "wiredTiger",
+			},
+		],
 	});
 	const mongoUri = mongoServer.getUri();
 	await mongoose.connect(mongoUri);
-}, 60000);
+}, 120000);
 
 afterAll(async () => {
 	await mongoose.disconnect();

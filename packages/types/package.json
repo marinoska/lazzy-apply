@@ -1,17 +1,18 @@
 {
-  "name": "@lazyapply/types",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "scripts": {
-    "lint": "biome check .",
-    "clean": "rm -rf dist"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "typescript": "^5.9.3",
-    "@lazyapply/config": "workspace:*"
-  }
+	"name": "@lazyapply/types",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"scripts": {
+		"lint": "biome check .",
+		"clean": "rm -rf dist"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"typescript": "^5.9.3",
+		"mongoose": "^9.0.2",
+		"@lazyapply/config": "workspace:*"
+	}
 }

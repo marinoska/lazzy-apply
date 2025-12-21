@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 // Shared TypeScript types for LazyApply
 
 export * from "./constants.js";
@@ -91,7 +92,8 @@ export interface ParseCVQueueMessage {
  * Parsed CV data structure
  * Returned by the worker after processing a CV file
  */
-export interface ParsedCVData {
+export interface ParsedCVData<T extends Types.ObjectId | string = string> {
+	_id: T;
 	personal: {
 		fullName: string | null;
 		firstName?: string | null;

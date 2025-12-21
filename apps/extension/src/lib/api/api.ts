@@ -143,3 +143,28 @@ export async function getDownloadUrl(
 		`/uploads/${fileId}/download`,
 	);
 }
+
+export interface RefineFieldRequest {
+	fieldLabel: string;
+	fieldDescription: string;
+	fieldText: string;
+	userInstructions: string;
+}
+
+export interface RefineFieldResponse {
+	autofillId: string;
+	fieldHash: string;
+	refinedText: string;
+}
+
+export async function refineField(
+	autofillId: string,
+	fieldHash: string,
+	request: RefineFieldRequest,
+): Promise<RefineFieldResponse> {
+	return sendApiRequest<RefineFieldResponse>(
+		"POST",
+		`/autofill/refine/${autofillId}/${fieldHash}`,
+		request,
+	);
+}

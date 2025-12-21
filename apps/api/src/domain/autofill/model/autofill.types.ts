@@ -1,5 +1,5 @@
 import type { FormFieldPath, InferenceHint } from "@lazyapply/types";
-import type { HydratedDocument, Model, Types } from "mongoose";
+import type { HydratedDocument, Model, Query, Types } from "mongoose";
 
 export const AUTOFILL_MODEL_NAME = "autofill" as const;
 
@@ -72,6 +72,8 @@ export type TAutofill = {
 	formReference: Types.ObjectId;
 	/** Reference to the FileUpload collection (CV used) */
 	uploadReference: Types.ObjectId;
+	/** Reference to the CVData collection */
+	cvDataReference: Types.ObjectId;
 	/** Autofill results stored as entries keyed by field hash */
 	data: AutofillDataItem[];
 	createdAt: Date;
@@ -90,7 +92,7 @@ export type AutofillStatics = {
 	findByAutofillId(
 		this: AutofillModelWithStatics,
 		autofillId: string,
-	): Promise<AutofillDocument | null>;
+	): Query<AutofillDocument | null, AutofillDocument>;
 	findByUserId(
 		this: AutofillModelWithStatics,
 		userId: string,

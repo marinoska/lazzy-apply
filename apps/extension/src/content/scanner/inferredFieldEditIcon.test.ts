@@ -90,6 +90,7 @@ describe("inferredFieldEditIcon", () => {
 		for (const [hash, partial] of Object.entries(fields)) {
 			fullFields[hash] = {
 				fieldName: partial.fieldName ?? null,
+				label: partial.label ?? null,
 				path: partial.path ?? "unknown",
 				pathFound: partial.pathFound ?? true,
 				value: partial.value ?? "test value",
@@ -349,11 +350,7 @@ describe("inferredFieldEditIcon", () => {
 			icon?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
 			expect(onEditClick).toHaveBeenCalledTimes(1);
-			expect(onEditClick).toHaveBeenCalledWith(
-				"textarea-hash",
-				mockTextarea,
-				"AI generated text for textarea",
-			);
+			expect(onEditClick).toHaveBeenCalledWith("textarea-hash");
 		});
 	});
 

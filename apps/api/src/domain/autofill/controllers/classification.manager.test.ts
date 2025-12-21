@@ -63,7 +63,15 @@ vi.mock("../llm/inference.llm.js", () => ({
 	}),
 }));
 
+// Mock Cloudflare presigned URL generation
+vi.mock("@/app/cloudflare.js", () => ({
+	getPresignedDownloadUrl: vi
+		.fn()
+		.mockResolvedValue("https://example.com/presigned-url"),
+}));
+
 const TEST_UPLOAD_ID = "507f1f77bcf86cd799439011";
+const CV_DATA_ID = "507f1f77bcf86cd799439033";
 
 describe("classification.manager", () => {
 	beforeEach(async () => {
@@ -93,6 +101,7 @@ describe("classification.manager", () => {
 
 		// Create test CV data
 		await CVDataModel.createCVData({
+			_id: CV_DATA_ID,
 			uploadId: TEST_UPLOAD_ID,
 			userId: "test-user-id",
 			personal: {

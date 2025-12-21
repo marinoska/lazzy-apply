@@ -105,6 +105,13 @@ export class ClassificationManager {
 		return this.cvUpload._id;
 	}
 
+	private get cvDataId() {
+		if (!this.cvData) {
+			throw new Error("CV data not loaded");
+		}
+		return this.cvData._id;
+	}
+
 	static async create(deps: ClassificationManagerDeps) {
 		const inputFieldsMap = new Map(
 			deps.fieldsInput.map((field) => [field.hash, field]),
@@ -266,6 +273,7 @@ export class ClassificationManager {
 			autofill = await persistCachedAutofill(
 				this.existingForm._id,
 				this.fileUploadId,
+				this.cvDataId,
 				this.userId,
 				response,
 			);
@@ -277,6 +285,7 @@ export class ClassificationManager {
 				classifiedFields,
 				this.userId,
 				this.fileUploadId,
+				this.cvDataId,
 				response,
 				classificationUsage,
 				inferenceUsage,

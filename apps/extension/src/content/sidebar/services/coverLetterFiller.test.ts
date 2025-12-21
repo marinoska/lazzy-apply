@@ -14,13 +14,13 @@ vi.mock("../../scanner/formDetector.js", () => ({
 	detectApplicationForm: vi.fn(),
 }));
 
-vi.mock("./formFiller.js", () => ({
-	fillElementWithValue: vi.fn(),
+vi.mock("../../scanner/elementFilling.js", () => ({
+	fillElement: vi.fn(),
 }));
 
+import { fillElement } from "../../scanner/elementFilling.js";
 import { formStore } from "../../scanner/FormStoreManager.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
-import { fillElementWithValue } from "../../scanner/formFiller.js";
 import { fillCoverLetterFields } from "./coverLetterFiller.js";
 
 // Mock DataTransfer for file input tests
@@ -56,11 +56,17 @@ describe("coverLetterFiller", () => {
 			vi.mocked(formStore.getStoredForm).mockReturnValue(null);
 
 			const classifications: AutofillResponse = {
-				hash1: {
-					fieldName: "coverLetter",
-					path: "cover_letter",
-					pathFound: false,
+				autofillId: "test-autofill-id",
+				fields: {
+					hash1: {
+						fieldName: "coverLetter",
+						label: null,
+						path: "cover_letter",
+						pathFound: false,
+						value: null,
+					},
 				},
+				fromCache: false,
 			};
 
 			const result = await fillCoverLetterFields(
@@ -83,12 +89,17 @@ describe("coverLetterFiller", () => {
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
 
 			const classifications: AutofillResponse = {
-				hash1: {
-					fieldName: "email",
-					path: "personal.email",
-					pathFound: true,
-					value: "test@example.com",
+				autofillId: "test-autofill-id",
+				fields: {
+					hash1: {
+						fieldName: "email",
+						label: null,
+						path: "personal.email",
+						pathFound: true,
+						value: "test@example.com",
+					},
 				},
+				fromCache: false,
 			};
 
 			const result = await fillCoverLetterFields(
@@ -114,11 +125,17 @@ describe("coverLetterFiller", () => {
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
 
 			const classifications: AutofillResponse = {
-				hash1: {
-					fieldName: "coverLetter",
-					path: "cover_letter",
-					pathFound: false,
+				autofillId: "test-autofill-id",
+				fields: {
+					hash1: {
+						fieldName: "coverLetter",
+						label: null,
+						path: "cover_letter",
+						pathFound: false,
+						value: null,
+					},
 				},
+				fromCache: false,
 			};
 
 			const result = await fillCoverLetterFields(
@@ -127,10 +144,7 @@ describe("coverLetterFiller", () => {
 			);
 
 			expect(result).toEqual({ filled: 1, skipped: 0, method: "text" });
-			expect(fillElementWithValue).toHaveBeenCalledWith(
-				textArea,
-				"Test cover letter",
-			);
+			expect(fillElement).toHaveBeenCalledWith(textArea, "Test cover letter");
 		});
 
 		it("should fill text input with cover letter text", async () => {
@@ -149,11 +163,17 @@ describe("coverLetterFiller", () => {
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
 
 			const classifications: AutofillResponse = {
-				hash1: {
-					fieldName: "coverLetter",
-					path: "cover_letter",
-					pathFound: false,
+				autofillId: "test-autofill-id",
+				fields: {
+					hash1: {
+						fieldName: "coverLetter",
+						label: null,
+						path: "cover_letter",
+						pathFound: false,
+						value: null,
+					},
 				},
+				fromCache: false,
 			};
 
 			const result = await fillCoverLetterFields(
@@ -162,10 +182,7 @@ describe("coverLetterFiller", () => {
 			);
 
 			expect(result).toEqual({ filled: 1, skipped: 0, method: "text" });
-			expect(fillElementWithValue).toHaveBeenCalledWith(
-				textInput,
-				"Test cover letter",
-			);
+			expect(fillElement).toHaveBeenCalledWith(textInput, "Test cover letter");
 		});
 
 		// Note: File input tests are limited in jsdom due to strict FileList validation
@@ -187,11 +204,17 @@ describe("coverLetterFiller", () => {
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
 
 			const classifications: AutofillResponse = {
-				hash1: {
-					fieldName: "coverLetter",
-					path: "cover_letter",
-					pathFound: false,
+				autofillId: "test-autofill-id",
+				fields: {
+					hash1: {
+						fieldName: "coverLetter",
+						label: null,
+						path: "cover_letter",
+						pathFound: false,
+						value: null,
+					},
 				},
+				fromCache: false,
 			};
 
 			const result = await fillCoverLetterFields(
@@ -221,11 +244,17 @@ describe("coverLetterFiller", () => {
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
 
 			const classifications: AutofillResponse = {
-				hash1: {
-					fieldName: "coverLetter",
-					path: "cover_letter",
-					pathFound: false,
+				autofillId: "test-autofill-id",
+				fields: {
+					hash1: {
+						fieldName: "coverLetter",
+						label: null,
+						path: "cover_letter",
+						pathFound: false,
+						value: null,
+					},
 				},
+				fromCache: false,
 			};
 
 			const result = await fillCoverLetterFields(
@@ -256,11 +285,17 @@ describe("coverLetterFiller", () => {
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
 
 			const classifications: AutofillResponse = {
-				hash1: {
-					fieldName: "coverLetter",
-					path: "cover_letter",
-					pathFound: false,
+				autofillId: "test-autofill-id",
+				fields: {
+					hash1: {
+						fieldName: "coverLetter",
+						label: null,
+						path: "cover_letter",
+						pathFound: false,
+						value: null,
+					},
 				},
+				fromCache: false,
 			};
 
 			const result = await fillCoverLetterFields(
@@ -296,11 +331,17 @@ describe("coverLetterFiller", () => {
 			vi.mocked(formStore.getStoredForm).mockReturnValue(mockStoredForm);
 
 			const classifications: AutofillResponse = {
-				hash1: {
-					fieldName: "coverLetter",
-					path: "cover_letter",
-					pathFound: false,
+				autofillId: "test-autofill-id",
+				fields: {
+					hash1: {
+						fieldName: "coverLetter",
+						label: null,
+						path: "cover_letter",
+						pathFound: false,
+						value: null,
+					},
 				},
+				fromCache: false,
 			};
 
 			const result = await fillCoverLetterFields(
@@ -341,11 +382,17 @@ describe("coverLetterFiller", () => {
 			vi.mocked(formStore.getStoredForm).mockReturnValue(mockStoredForm);
 
 			const classifications: AutofillResponse = {
-				hash1: {
-					fieldName: "coverLetter",
-					path: "cover_letter",
-					pathFound: false,
+				autofillId: "test-autofill-id",
+				fields: {
+					hash1: {
+						fieldName: "coverLetter",
+						label: null,
+						path: "cover_letter",
+						pathFound: false,
+						value: null,
+					},
 				},
+				fromCache: false,
 			};
 
 			const result = await fillCoverLetterFields(
@@ -387,11 +434,17 @@ describe("coverLetterFiller", () => {
 			vi.mocked(formStore.getStoredForm).mockReturnValue(mockStoredForm);
 
 			const classifications: AutofillResponse = {
-				hash1: {
-					fieldName: "coverLetter",
-					path: "cover_letter",
-					pathFound: false,
+				autofillId: "test-autofill-id",
+				fields: {
+					hash1: {
+						fieldName: "coverLetter",
+						label: null,
+						path: "cover_letter",
+						pathFound: false,
+						value: null,
+					},
 				},
+				fromCache: false,
 			};
 
 			const result = await fillCoverLetterFields(
@@ -417,11 +470,17 @@ describe("coverLetterFiller", () => {
 			vi.mocked(formStore.getStoredForm).mockReturnValue(mockStoredForm);
 
 			const classifications: AutofillResponse = {
-				hash1: {
-					fieldName: "coverLetter",
-					path: "cover_letter",
-					pathFound: false,
+				autofillId: "test-autofill-id",
+				fields: {
+					hash1: {
+						fieldName: "coverLetter",
+						label: null,
+						path: "cover_letter",
+						pathFound: false,
+						value: null,
+					},
 				},
+				fromCache: false,
 			};
 
 			const result = await fillCoverLetterFields(
@@ -444,11 +503,17 @@ describe("coverLetterFiller", () => {
 			vi.mocked(detectApplicationForm).mockReturnValue(mockForm);
 
 			const classifications: AutofillResponse = {
-				hash1: {
-					fieldName: "coverLetter",
-					path: "cover_letter",
-					pathFound: false,
+				autofillId: "test-autofill-id",
+				fields: {
+					hash1: {
+						fieldName: "coverLetter",
+						label: null,
+						path: "cover_letter",
+						pathFound: false,
+						value: null,
+					},
 				},
+				fromCache: false,
 			};
 
 			const result = await fillCoverLetterFields(

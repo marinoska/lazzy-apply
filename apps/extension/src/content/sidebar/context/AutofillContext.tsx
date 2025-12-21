@@ -22,7 +22,7 @@ import { detectApplicationForm } from "../../scanner/formDetector.js";
 import { clearFormFields, fillFormFields } from "../../scanner/formFiller.js";
 import { inferredFieldEditIcon } from "../../scanner/inferredFieldEditIcon.js";
 import { extractTextBlocks } from "../../scanner/textBlocksExtractor.js";
-import { InferFieldValueModal } from "../components/InferFieldValueModal.js";
+import { RefineFieldValueModal } from "../components/RefineFieldValueModal.js";
 
 interface AutofillContextValue {
 	/** Whether a form was detected on the page */
@@ -260,7 +260,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 	return (
 		<AutofillContext.Provider value={value}>
 			{children}
-			<InferFieldValueModal
+			<RefineFieldValueModal
 				open={!!inferFieldHash}
 				fieldHash={inferFieldHash}
 				onClose={closeInferFieldModal}

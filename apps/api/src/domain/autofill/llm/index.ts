@@ -2,6 +2,7 @@ export {
 	type ClassificationResult,
 	classifyFieldsWithAI,
 } from "./classifier.llm.js";
+export { extractValueByPath, isPathInCVData } from "./cvDataExtractor.llm.js";
 export {
 	type InferenceField,
 	type InferenceInput,
@@ -13,4 +14,8 @@ export {
 	type JdMatchResult,
 	validateJdFormMatch,
 } from "./jdMatcher.llm.js";
-export { extractValueByPath, isPathInCVData } from "./cvDataExtractor.llm.js";
+export {
+	type RefineInput,
+	type RefineResult,
+	refineFieldValue,
+} from "./refine.llm.js";

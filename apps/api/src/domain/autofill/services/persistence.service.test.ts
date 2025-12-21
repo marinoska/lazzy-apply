@@ -23,6 +23,7 @@ describe("persistence.service", () => {
 
 	const TEST_USER_ID = "test-user-123";
 	const TEST_UPLOAD_ID = new mongoose.Types.ObjectId().toString();
+	const TEST_CV_DATA_ID = new mongoose.Types.ObjectId().toString();
 
 	const createTestField = (hash: string, name: string): Field => ({
 		hash: hash,
@@ -69,6 +70,7 @@ describe("persistence.service", () => {
 			const autofillResponse: AutofillResponseData = {
 				"hash-1": {
 					fieldName: "email",
+					label: "Email",
 					path: "personal.email",
 					pathFound: true,
 					value: "test@example.com",
@@ -81,6 +83,7 @@ describe("persistence.service", () => {
 				classifiedFields,
 				TEST_USER_ID,
 				TEST_UPLOAD_ID,
+				TEST_CV_DATA_ID,
 				autofillResponse,
 				tokenUsage,
 			);
@@ -133,6 +136,7 @@ describe("persistence.service", () => {
 			const autofillResponse: AutofillResponseData = {
 				"hash-1": {
 					fieldName: "email",
+					label: "Email",
 					path: "personal.email",
 					pathFound: true,
 				},
@@ -144,6 +148,7 @@ describe("persistence.service", () => {
 				classifiedFields,
 				TEST_USER_ID,
 				TEST_UPLOAD_ID,
+				TEST_CV_DATA_ID,
 				autofillResponse,
 				{
 					promptTokens: 0,
@@ -201,11 +206,13 @@ describe("persistence.service", () => {
 			const autofillResponse: AutofillResponseData = {
 				"hash-cached": {
 					fieldName: "email",
+					label: "Email",
 					path: "personal.email",
 					pathFound: true,
 				},
 				"hash-new": {
 					fieldName: "phone",
+					label: "Phone",
 					path: "personal.phone",
 					pathFound: true,
 				},
@@ -217,6 +224,7 @@ describe("persistence.service", () => {
 				[newlyClassifiedField],
 				TEST_USER_ID,
 				TEST_UPLOAD_ID,
+				TEST_CV_DATA_ID,
 				autofillResponse,
 				{ promptTokens: 0, completionTokens: 0, totalTokens: 0 },
 			);
@@ -257,6 +265,7 @@ describe("persistence.service", () => {
 			const autofillResponse: AutofillResponseData = {
 				"hash-1": {
 					fieldName: "email",
+					label: "Email",
 					path: "personal.email",
 					pathFound: true,
 					value: "test@example.com",
@@ -269,6 +278,7 @@ describe("persistence.service", () => {
 				classifiedFields,
 				TEST_USER_ID,
 				TEST_UPLOAD_ID,
+				TEST_CV_DATA_ID,
 				autofillResponse,
 				{
 					promptTokens: 100,
@@ -291,6 +301,7 @@ describe("persistence.service", () => {
 			);
 			expect(dataEntry).toBeDefined();
 			expect(dataEntry?.fieldName).toBe("email");
+			expect(dataEntry?.label).toBe("Email");
 			expect(dataEntry?.path).toBe("personal.email");
 			expect(dataEntry?.pathFound).toBe(true);
 			expect(dataEntry?.value).toBe("test@example.com");
@@ -330,6 +341,7 @@ describe("persistence.service", () => {
 			const autofillResponse: AutofillResponseData = {
 				"hash-resume": {
 					fieldName: "_systemfield_resume",
+					label: "Resume",
 					path: "resume_upload",
 					pathFound: true,
 					fileUrl: "https://example.com/presigned-url",
@@ -344,6 +356,7 @@ describe("persistence.service", () => {
 				classifiedFields,
 				TEST_USER_ID,
 				TEST_UPLOAD_ID,
+				TEST_CV_DATA_ID,
 				autofillResponse,
 				{ promptTokens: 0, completionTokens: 0, totalTokens: 0 },
 			);
@@ -403,6 +416,7 @@ describe("persistence.service", () => {
 			const autofillResponse: AutofillResponseData = {
 				"hash-1": {
 					fieldName: "email",
+					label: "Email",
 					path: "personal.email",
 					pathFound: true,
 					value: "cached@example.com",
@@ -412,6 +426,7 @@ describe("persistence.service", () => {
 			await persistCachedAutofill(
 				savedForm._id,
 				TEST_UPLOAD_ID,
+				TEST_CV_DATA_ID,
 				TEST_USER_ID,
 				autofillResponse,
 			);

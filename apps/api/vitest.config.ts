@@ -23,7 +23,7 @@ export default defineConfig({
 			OPENAI_MODEL_OUTPUT_PRICE_PER_1M: "0.60",
 		},
 		testTimeout: 30000,
-		hookTimeout: 60000,
+		hookTimeout: 120000,
 		fileParallelism: false,
 		sequence: {
 			concurrent: false,

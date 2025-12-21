@@ -197,10 +197,15 @@ describe("autofill.controller", () => {
 			});
 
 			// Create existing autofill record (required for cached response)
+			const cvData = await CVDataModel.findByUploadId(
+				TEST_UPLOAD_ID,
+				"test-user-id",
+			);
 			await AutofillModel.create({
 				autofillId: "cached-autofill-id",
 				formReference: savedForm._id,
 				uploadReference: TEST_UPLOAD_ID,
+				cvDataReference: cvData?._id,
 				userId: "test-user-id",
 				data: [
 					{
@@ -291,11 +296,35 @@ describe("autofill.controller", () => {
 				action: null,
 			});
 
+			// Create CV data for the file upload
+			const cvData = await CVDataModel.createCVData({
+				uploadId: fileUpload._id.toString(),
+				userId: "test-user-id",
+				rawText: "Test CV content for file field test",
+				personal: {
+					fullName: "John Doe",
+					firstName: "John",
+					lastName: "Doe",
+					email: "john@example.com",
+					phone: null,
+					location: null,
+				},
+				links: [],
+				headline: null,
+				summary: null,
+				experience: [],
+				education: [],
+				certifications: [],
+				languages: [],
+				extras: {},
+			});
+
 			// Create cached autofill with OLD expired presigned URL
 			await AutofillModel.create({
 				autofillId: "cached-autofill-id",
 				formReference: form._id,
 				uploadReference: fileUpload._id,
+				cvDataReference: cvData._id,
 				userId: "test-user-id",
 				data: [
 					{
@@ -341,7 +370,7 @@ describe("autofill.controller", () => {
 							},
 						},
 					],
-					selectedUploadId: TEST_UPLOAD_ID,
+					selectedUploadId: fileUpload._id.toString(),
 				},
 			};
 
@@ -354,7 +383,7 @@ describe("autofill.controller", () => {
 			expect(response.fromCache).toBe(true);
 			expect(cloudflare.getPresignedDownloadUrl).toHaveBeenCalledWith(
 				"test-bucket",
-				"cv/test-cv.pdf",
+				"cv/test-cv-file-field.pdf",
 			);
 			expect(response.fields["hash-file"].fileUrl).toBe(freshUrl);
 			expect(response.fields["hash-file"].fileUrl).not.toBe(

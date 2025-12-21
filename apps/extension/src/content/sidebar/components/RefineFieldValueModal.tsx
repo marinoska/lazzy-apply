@@ -7,10 +7,12 @@ import Stack from "@mui/joy/Stack";
 import Textarea from "@mui/joy/Textarea";
 import Typography from "@mui/joy/Typography";
 import { useEffect, useState } from "react";
+import { useUploads } from "@/lib/api/context/UploadsContext.js";
+import { useRefineFieldMutation } from "@/lib/api/query/useRefineFieldMutation.js";
 import { Snackbar } from "../../components/Snackbar.js";
 import { useAutofill } from "../context/AutofillContext.js";
 
-interface InferFieldValueModalProps {
+interface RefineFieldValueModalProps {
 	open: boolean;
 	fieldHash: string | null;
 	onClose: () => void;
@@ -19,15 +21,17 @@ interface InferFieldValueModalProps {
 
 const MAX_INPUT_LENGTH = 800;
 
-export function InferFieldValueModal({
+export function RefineFieldValueModal({
 	open,
 	fieldHash,
 	onClose,
 	onSave,
-}: InferFieldValueModalProps) {
+}: RefineFieldValueModalProps) {
 	const { classifications } = useAutofill();
+	const { selectedUpload } = useUploads();
 	const [userInput, setUserInput] = useState("");
 	const [error, setError] = useState<string | null>(null);
+	const refineMutation = useRefineFieldMutation();
 
 	const fieldData = fieldHash ? classifications?.fields[fieldHash] : null;
 	const hasAutofillId = !!classifications?.autofillId;
@@ -54,12 +58,33 @@ export function InferFieldValueModal({
 		return null;
 	}
 
-	const handleSave = () => {
-		if (!fieldHash || !userInput.trim()) return;
-		onSave(fieldHash, userInput.trim());
-		onClose();
+	const handleSave = async () => {
+		if (!fieldHash || !userInput.trim() || !classifications?.autofillId) return;
+
+		if (!selectedUpload) {
+			setError("No CV selected. Please select a CV first.");
+			return;
+		}
+
+		try {
+			const result = await refineMutation.mutateAsync({
+				autofillId: classifications.autofillId,
+				fieldHash,
+				request: {
+					fieldLabel: fieldData?.label ?? "",
+					fieldDescription: "",
+					fieldText: currentAnswer,
+					userInstructions: userInput.trim(),
+				},
+			});
+
+			onSave(fieldHash, result.refinedText);
+			onClose();
+		} catch (err) {
+			console.error("[RefineFieldValueModal] Error refining field:", err);
+			setError("Failed to refine answer. Please try again.");
+		}
 	};
-	console.log({ fieldData });
 	const question = fieldData?.label ?? "Unknown question";
 	const currentAnswer = fieldData?.value ?? "";
 
@@ -192,7 +217,13 @@ export function InferFieldValueModal({
 						color="primary"
 						size="sm"
 						onClick={handleSave}
-						disabled={!hasValidInput || isOverLimit || !!error}
+						disabled={
+							!hasValidInput ||
+							isOverLimit ||
+							!!error ||
+							refineMutation.isPending
+						}
+						loading={refineMutation.isPending}
 						sx={{ flex: 1 }}
 					>
 						Generate answer
