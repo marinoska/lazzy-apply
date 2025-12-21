@@ -10,6 +10,15 @@ export {
 	type CreateAutofillParams,
 	type TAutofill,
 } from "./model/autofill.types.js";
+export {
+	type AutofillRefineDocument,
+	AutofillRefineModel,
+} from "./model/autofillRefine.model.js";
+export {
+	AUTOFILL_REFINE_MODEL_NAME,
+	type CreateAutofillRefineParams,
+	type TAutofillRefine,
+} from "./model/autofillRefine.types.js";
 export { type FormDocument, FormModel } from "./model/form.model.js";
 export {
 	type FormFieldDocument,

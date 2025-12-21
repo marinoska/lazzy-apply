@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { Unauthorized } from "@/app/errors.js";
 import { createLogger } from "@/app/logger.js";
+import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { refineFieldValue } from "../llm/index.js";
 import { AutofillModel } from "../model/autofill.model.js";
 
@@ -54,10 +55,7 @@ export async function refineController(
 		"Refine request received",
 	);
 
-	const autofill = await AutofillModel.findByAutofillId(autofillId).populate({
-		path: "cvDataReference",
-		options: { userId: user.id },
-	});
+	const autofill = await AutofillModel.findByAutofillId(autofillId);
 	if (!autofill) {
 		logger.warn({ autofillId }, "Autofill session not found");
 		return res.status(404).json({ error: "Autofill session not found" });
@@ -71,7 +69,9 @@ export async function refineController(
 		throw new Unauthorized("Unauthorized access to autofill session");
 	}
 
-	const cvData = autofill.cvDataReference as { rawText?: string };
+	const cvData = await CVDataModel.findById(autofill.cvDataReference)
+		.setOptions({ userId: user.id })
+		.lean();
 	if (!cvData?.rawText) {
 		logger.error({ autofillId }, "CV raw text not found for autofill session");
 		return res.status(404).json({ error: "CV data not found" });

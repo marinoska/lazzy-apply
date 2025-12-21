@@ -17,14 +17,23 @@ vi.mock("../llm/index.js", () => ({
 
 vi.mock("../model/autofill.model.js", () => ({
 	AutofillModel: {
-		findByAutofillId: vi.fn(() => ({
-			populate: vi.fn(),
+		findByAutofillId: vi.fn(),
+	},
+}));
+
+vi.mock("@/domain/uploads/model/cvData.model.js", () => ({
+	CVDataModel: {
+		findById: vi.fn(() => ({
+			lean: vi.fn(),
 		})),
 	},
 }));
 
+import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
+
 const mockedRefineFieldValue = vi.mocked(refineFieldValue);
 const mockedAutofillModel = vi.mocked(AutofillModel);
+const mockedCVDataModel = vi.mocked(CVDataModel);
 
 describe("refine.controller", () => {
 	let mockReq: {
@@ -61,16 +70,23 @@ describe("refine.controller", () => {
 			},
 		};
 
-		const mockPopulate = vi.fn().mockResolvedValue({
+		mockedAutofillModel.findByAutofillId.mockResolvedValue({
 			userId: "test-user-id",
-			uploadReference: { toString: () => "test-upload-id" },
-			cvDataReference: {
-				rawText: "John Doe, Software Engineer",
-			},
+			uploadReference: "test-upload-id",
+			cvDataReference: "test-cv-data-id",
+			autofillId: "test-autofill-id",
+			formReference: "test-form-id",
+			data: [],
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		} as never);
+
+		const mockLean = vi.fn().mockResolvedValue({
+			rawText: "John Doe, Software Engineer",
 		});
 
-		mockedAutofillModel.findByAutofillId.mockReturnValue({
-			populate: mockPopulate,
+		mockedCVDataModel.findById.mockReturnValue({
+			lean: mockLean,
 		} as never);
 
 		mockedRefineFieldValue.mockResolvedValue({
@@ -176,9 +192,7 @@ describe("refine.controller", () => {
 		});
 
 		it("should return 404 when autofill session not found", async () => {
-			mockedAutofillModel.findByAutofillId.mockReturnValueOnce({
-				populate: vi.fn().mockResolvedValue(null),
-			} as never);
+			mockedAutofillModel.findByAutofillId.mockResolvedValueOnce(null);
 
 			await refineController(mockReq as never, mockRes as never);
 
@@ -189,12 +203,8 @@ describe("refine.controller", () => {
 		});
 
 		it("should return 404 when CV data not found", async () => {
-			mockedAutofillModel.findByAutofillId.mockReturnValueOnce({
-				populate: vi.fn().mockResolvedValue({
-					userId: "test-user-id",
-					uploadReference: { toString: () => "test-upload-id" },
-					cvDataReference: null,
-				}),
+			mockedCVDataModel.findById.mockReturnValueOnce({
+				lean: vi.fn().mockResolvedValue(null),
 			} as never);
 
 			await refineController(mockReq as never, mockRes as never);
@@ -206,12 +216,15 @@ describe("refine.controller", () => {
 		});
 
 		it("should throw Unauthorized when user does not own autofill session", async () => {
-			mockedAutofillModel.findByAutofillId.mockReturnValueOnce({
-				populate: vi.fn().mockResolvedValue({
-					userId: "different-user-id",
-					uploadReference: { toString: () => "test-upload-id" },
-					cvDataReference: { rawText: "CV text" },
-				}),
+			mockedAutofillModel.findByAutofillId.mockResolvedValueOnce({
+				userId: "different-user-id",
+				uploadReference: "test-upload-id",
+				cvDataReference: "test-cv-data-id",
+				autofillId: "test-autofill-id",
+				formReference: "test-form-id",
+				data: [],
+				createdAt: new Date(),
+				updatedAt: new Date(),
 			} as never);
 
 			await expect(

@@ -5,6 +5,7 @@ import {
 	type AutofillModelWithStatics,
 	type TAutofill,
 } from "./autofill.types.js";
+import { AutofillRefineModel } from "./autofillRefine.model.js";
 import { FORM_FIELD_MODEL_NAME, FORM_MODEL_NAME } from "./formField.types.js";
 
 export type AutofillModel = AutofillModelWithStatics;
@@ -20,9 +21,9 @@ const autofillSchema = new Schema<TAutofill, AutofillModel, AutofillMethods>(
 		autofillId: {
 			type: String,
 			required: true,
-			unique: true,
 			index: true,
 			immutable: true,
+			unique: true,
 		},
 		formReference: {
 			type: Schema.Types.ObjectId,
@@ -104,12 +105,15 @@ const autofillSchema = new Schema<TAutofill, AutofillModel, AutofillMethods>(
 
 // Compound index for efficient lookups by user, upload, form, and autofillId
 // Supports queries by userId/uploadReference/formReference or all 4 fields
-autofillSchema.index({
-	userId: 1,
-	uploadReference: 1,
-	formReference: 1,
-	autofillId: 1,
-});
+autofillSchema.index(
+	{
+		userId: 1,
+		uploadReference: 1,
+		formReference: 1,
+		autofillId: 1,
+	},
+	{ unique: true },
+);
 
 // Static methods
 autofillSchema.statics.createAutofill = async function (
@@ -120,11 +124,50 @@ autofillSchema.statics.createAutofill = async function (
 	return result;
 };
 
-autofillSchema.statics.findByAutofillId = function (
+autofillSchema.statics.findByAutofillId = async function (
 	this: AutofillModelWithStatics,
 	autofillId: string,
 ) {
-	return this.findOne({ autofillId });
+	const baseAutofill = await this.findOne({ autofillId }).lean();
+	if (!baseAutofill) {
+		return null;
+	}
+
+	// Returns only the latest refine per hash (aggregated by autofillId + hash)
+	const refines = await AutofillRefineModel.findByAutofillId(autofillId);
+
+	if (refines.length === 0) {
+		return baseAutofill;
+	}
+
+	const refineMap = new Map(refines.map((r) => [r.hash, r.value]));
+
+	const updatedData = baseAutofill.data.map((item) => {
+		const refinedValue = refineMap.get(item.hash);
+		if (
+			refinedValue !== undefined &&
+			"value" in item &&
+			item.value !== undefined
+		) {
+			return {
+				hash: item.hash,
+				fieldRef: item.fieldRef,
+				fieldName: item.fieldName,
+				label: item.label,
+				path: item.path,
+				pathFound: item.pathFound,
+				value: refinedValue,
+				...(item.linkType && { linkType: item.linkType }),
+				...(item.inferenceHint && { inferenceHint: item.inferenceHint }),
+			};
+		}
+		return item;
+	});
+
+	return {
+		...baseAutofill,
+		data: updatedData,
+	};
 };
 
 autofillSchema.statics.findByUserId = async function (
