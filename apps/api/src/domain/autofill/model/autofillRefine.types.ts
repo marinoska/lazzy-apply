@@ -7,6 +7,10 @@ export type TAutofillRefine = {
 	autofillId: string;
 	hash: FieldHash;
 	value: string | null;
+	fieldLabel: string;
+	fieldDescription: string;
+	prevFieldText: string;
+	userInstructions: string;
 	createdAt: Date;
 	updatedAt: Date;
 };
@@ -20,9 +24,9 @@ export type AutofillRefineMethods = Record<string, never>;
 
 export type AutofillRefineStatics = {
 	findByAutofillId(
-this: AutofillRefineModelWithStatics,
-autofillId: string,
-): Promise<TAutofillRefine[]>;
+		this: AutofillRefineModelWithStatics,
+		autofillId: string,
+	): Promise<TAutofillRefine[]>;
 };
 
 export type AutofillRefineDocument = HydratedDocument<

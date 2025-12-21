@@ -30,6 +30,22 @@ const autofillRefineSchema = new Schema<
 			type: String,
 			default: null,
 		},
+		fieldLabel: {
+			type: String,
+			required: true,
+		},
+		fieldDescription: {
+			type: String,
+			required: false,
+		},
+		prevFieldText: {
+			type: String,
+			required: true,
+		},
+		userInstructions: {
+			type: String,
+			required: true,
+		},
 	},
 	{ timestamps: true, collection: AUTOFILL_REFINE_MODEL_NAME },
 );

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { refineFieldValue } from "../llm/index.js";
 import { AutofillModel } from "../model/autofill.model.js";
+import { AutofillRefineModel } from "../model/autofillRefine.model.js";
 import { refineController } from "./refine.controller.js";
 
 vi.mock("@/app/env.js", () => ({
@@ -21,6 +22,12 @@ vi.mock("../model/autofill.model.js", () => ({
 	},
 }));
 
+vi.mock("../model/autofillRefine.model.js", () => ({
+	AutofillRefineModel: {
+		create: vi.fn(),
+	},
+}));
+
 vi.mock("@/domain/uploads/model/cvData.model.js", () => ({
 	CVDataModel: {
 		findById: vi.fn(() => ({
@@ -29,11 +36,20 @@ vi.mock("@/domain/uploads/model/cvData.model.js", () => ({
 	},
 }));
 
+vi.mock("@/domain/usage/index.js", () => ({
+	UsageModel: {
+		createUsage: vi.fn(),
+	},
+}));
+
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
+import { UsageModel } from "@/domain/usage/index.js";
 
 const mockedRefineFieldValue = vi.mocked(refineFieldValue);
 const mockedAutofillModel = vi.mocked(AutofillModel);
 const mockedCVDataModel = vi.mocked(CVDataModel);
+const mockedAutofillRefineModel = vi.mocked(AutofillRefineModel);
+const mockedUsageModel = vi.mocked(UsageModel);
 
 describe("refine.controller", () => {
 	let mockReq: {
@@ -85,8 +101,12 @@ describe("refine.controller", () => {
 			rawText: "John Doe, Software Engineer",
 		});
 
-		mockedCVDataModel.findById.mockReturnValue({
+		const mockSetOptions = vi.fn().mockReturnValue({
 			lean: mockLean,
+		});
+
+		mockedCVDataModel.findById.mockReturnValue({
+			setOptions: mockSetOptions,
 		} as never);
 
 		mockedRefineFieldValue.mockResolvedValue({
@@ -100,6 +120,19 @@ describe("refine.controller", () => {
 				totalCost: 0.008,
 			},
 		});
+
+		mockedAutofillRefineModel.create.mockResolvedValue({
+			_id: "test-refine-id",
+			autofillId: "test-autofill-id",
+			hash: "test-field-hash",
+			value: "John Michael Doe",
+			fieldLabel: "Full Name",
+			fieldDescription: "Please enter your full name",
+			prevFieldText: "John Doe",
+			userInstructions: "Make it more formal",
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		} as never);
 	});
 
 	describe("refineController", () => {
@@ -115,6 +148,30 @@ describe("refine.controller", () => {
 				fieldDescription: "Please enter your full name",
 				existingAnswer: "John Doe",
 				userInstructions: "Make it more formal",
+			});
+
+			expect(mockedAutofillRefineModel.create).toHaveBeenCalledWith({
+				autofillId: "test-autofill-id",
+				hash: "test-field-hash",
+				value: "John Michael Doe",
+				fieldLabel: "Full Name",
+				fieldDescription: "Please enter your full name",
+				prevFieldText: "John Doe",
+				userInstructions: "Make it more formal",
+			});
+
+			expect(mockedUsageModel.createUsage).toHaveBeenCalledWith({
+				referenceTable: "autofill_refines",
+				reference: "test-refine-id",
+				userId: "test-user-id",
+				autofillId: "test-autofill-id",
+				type: "autofill_refine",
+				promptTokens: 500,
+				completionTokens: 100,
+				totalTokens: 600,
+				inputCost: 0.005,
+				outputCost: 0.003,
+				totalCost: 0.008,
 			});
 
 			expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -203,8 +260,13 @@ describe("refine.controller", () => {
 		});
 
 		it("should return 404 when CV data not found", async () => {
+			const mockLean = vi.fn().mockResolvedValue(null);
+			const mockSetOptions = vi.fn().mockReturnValue({
+				lean: mockLean,
+			});
+
 			mockedCVDataModel.findById.mockReturnValueOnce({
-				lean: vi.fn().mockResolvedValue(null),
+				setOptions: mockSetOptions,
 			} as never);
 
 			await refineController(mockReq as never, mockRes as never);
