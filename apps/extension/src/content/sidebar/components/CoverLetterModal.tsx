@@ -1,6 +1,7 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import DescriptionIcon from "@mui/icons-material/Description";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import DownloadIcon from "@mui/icons-material/Download";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import Button from "@mui/joy/Button";
 import IconButton from "@mui/joy/IconButton";
@@ -101,7 +102,7 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 			return fillResult.method === "file" ? "PDF Uploaded!" : "Text Filled!";
 		}
 		if (fillResult && !fillResult.success) return "Fill Failed";
-		return "Attach PDF";
+		return "Add to form";
 	};
 
 	const handleDownload = () => {
@@ -153,9 +154,9 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 				>
 					<ArrowBackIcon />
 				</IconButton>
-				<DescriptionIcon color="primary" />
+				<MailOutlineIcon color="primary" />
 				<Typography level="title-md" sx={{ flex: 1 }}>
-					Cover Letter
+					Cover Letter with AI
 				</Typography>
 			</Stack>
 
@@ -209,7 +210,7 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 							size="lg"
 							onClick={handleGenerate}
 							loading={isGenerating}
-							startDecorator={<DescriptionIcon />}
+							startDecorator={<MailOutlineIcon />}
 						>
 							Generate Cover Letter
 						</Button>
@@ -235,6 +236,7 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 								color="neutral"
 								size="sm"
 								onClick={() => setCoverLetter("")}
+								startDecorator={<AutoAwesomeIcon />}
 								sx={{ flex: 1 }}
 							>
 								Regenerate

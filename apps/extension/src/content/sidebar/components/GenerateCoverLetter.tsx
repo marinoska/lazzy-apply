@@ -1,4 +1,4 @@
-import DescriptionIcon from "@mui/icons-material/Description";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import Button from "@mui/joy/Button";
 import { useState } from "react";
 import { useAutofill } from "../context/AutofillContext.js";
@@ -20,7 +20,7 @@ export function GenerateCoverLetter() {
 				color="success"
 				size="md"
 				onClick={() => setModalOpen(true)}
-				startDecorator={<DescriptionIcon />}
+				startDecorator={<AutoAwesomeIcon />}
 			>
 				Generate Cover Letter
 			</Button>
