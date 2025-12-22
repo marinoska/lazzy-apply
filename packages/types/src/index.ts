@@ -1,4 +1,5 @@
 import type { Types } from "mongoose";
+
 // Shared TypeScript types for LazyApply
 
 export * from "./constants.js";
@@ -457,6 +458,48 @@ export interface StoredForm {
 	pageUrl: string;
 	/** Form action URL (if available) */
 	action: string | null;
+}
+
+/**
+ * Cover letter generation settings
+ */
+export const COVER_LETTER_LENGTHS = ["short", "medium", "detailed"] as const;
+export const COVER_LETTER_TONES = [
+	"professional",
+	"warm",
+	"confident",
+	"friendly",
+] as const;
+export const COVER_LETTER_FORMATS = ["paragraph", "bullet"] as const;
+export const COVER_LETTER_LANGUAGES = [
+	"simple",
+	"neutral",
+	"advanced",
+] as const;
+export const COVER_LETTER_CTAS = ["none", "minimal", "strong"] as const;
+export const COVER_LETTER_STYLES = [
+	"to the point",
+	"energetic",
+	"story-like",
+	"calm",
+	"formal",
+	"casual",
+] as const;
+
+export type CoverLetterLength = (typeof COVER_LETTER_LENGTHS)[number];
+export type CoverLetterTone = (typeof COVER_LETTER_TONES)[number];
+export type CoverLetterFormat = (typeof COVER_LETTER_FORMATS)[number];
+export type CoverLetterLanguage = (typeof COVER_LETTER_LANGUAGES)[number];
+export type CoverLetterCTA = (typeof COVER_LETTER_CTAS)[number];
+export type CoverLetterStyle = (typeof COVER_LETTER_STYLES)[number];
+
+export interface CoverLetterSettings {
+	length: CoverLetterLength;
+	tone: CoverLetterTone;
+	format: CoverLetterFormat;
+	language: CoverLetterLanguage;
+	cta: CoverLetterCTA;
+	style: CoverLetterStyle;
 }
 
 // Add more shared types here

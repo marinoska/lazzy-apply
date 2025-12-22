@@ -1,32 +1,31 @@
+import {
+	COVER_LETTER_CTAS,
+	COVER_LETTER_FORMATS,
+	COVER_LETTER_LANGUAGES,
+	COVER_LETTER_LENGTHS,
+	COVER_LETTER_STYLES,
+	COVER_LETTER_TONES,
+	type CoverLetterCTA,
+	type CoverLetterFormat,
+	type CoverLetterLanguage,
+	type CoverLetterLength,
+	type CoverLetterSettings,
+	type CoverLetterStyle,
+	type CoverLetterTone,
+} from "@lazyapply/types";
 import Chip from "@mui/joy/Chip";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 
-export type CoverLetterLength = "short" | "medium" | "detailed";
-export type CoverLetterTone =
-	| "professional"
-	| "warm"
-	| "confident"
-	| "friendly";
-export type CoverLetterFormat = "paragraph" | "bullet";
-export type CoverLetterLanguage = "simple" | "neutral" | "advanced";
-export type CoverLetterCTA = "none" | "minimal" | "strong";
-export type CoverLetterStyle =
-	| "to the point"
-	| "energetic"
-	| "story-like"
-	| "calm"
-	| "formal"
-	| "casual";
-
-export interface CoverLetterSettings {
-	length: CoverLetterLength;
-	tone: CoverLetterTone;
-	format: CoverLetterFormat;
-	language: CoverLetterLanguage;
-	cta: CoverLetterCTA;
-	style: CoverLetterStyle;
-}
+export type {
+	CoverLetterCTA,
+	CoverLetterFormat,
+	CoverLetterLanguage,
+	CoverLetterLength,
+	CoverLetterSettings,
+	CoverLetterStyle,
+	CoverLetterTone,
+};
 
 export const DEFAULT_COVER_LETTER_SETTINGS: CoverLetterSettings = {
 	length: "medium" satisfies CoverLetterLength,
@@ -83,19 +82,12 @@ function PillGroup<T extends string>({
 	);
 }
 
-const LENGTH_OPTIONS = ["short", "medium", "detailed"] as const;
-const TONE_OPTIONS = ["professional", "warm", "confident", "friendly"] as const;
-const FORMAT_OPTIONS = ["paragraph", "bullet"] as const;
-const LANGUAGE_OPTIONS = ["simple", "neutral", "advanced"] as const;
-const CTA_OPTIONS = ["none", "minimal", "strong"] as const;
-const STYLE_OPTIONS = [
-	"to the point",
-	"energetic",
-	"story-like",
-	"calm",
-	"formal",
-	"casual",
-] as const;
+const LENGTH_OPTIONS = COVER_LETTER_LENGTHS;
+const TONE_OPTIONS = COVER_LETTER_TONES;
+const FORMAT_OPTIONS = COVER_LETTER_FORMATS;
+const LANGUAGE_OPTIONS = COVER_LETTER_LANGUAGES;
+const CTA_OPTIONS = COVER_LETTER_CTAS;
+const STYLE_OPTIONS = COVER_LETTER_STYLES;
 
 interface QuickSetupRowProps {
 	settings: CoverLetterSettings;

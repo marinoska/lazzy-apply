@@ -1,6 +1,7 @@
 import type {
 	AutofillRequest,
 	AutofillResponse,
+	CoverLetterSettings,
 	FileUploadContentType,
 	FileUploadStatus,
 	ParseStatus,
@@ -165,6 +166,27 @@ export async function refineField(
 	return sendApiRequest<RefineFieldResponse>(
 		"POST",
 		`/autofill/refine/${autofillId}/${fieldHash}`,
+		request,
+	);
+}
+
+export interface GenerateCoverLetterRequest {
+	autofillId: string;
+	instructions?: string;
+	settings?: CoverLetterSettings;
+}
+
+export interface GenerateCoverLetterResponse {
+	autofillId: string;
+	coverLetter: string;
+}
+
+export async function generateCoverLetter(
+	request: GenerateCoverLetterRequest,
+): Promise<GenerateCoverLetterResponse> {
+	return sendApiRequest<GenerateCoverLetterResponse>(
+		"POST",
+		"/autofill/cover-letter/generate",
 		request,
 	);
 }

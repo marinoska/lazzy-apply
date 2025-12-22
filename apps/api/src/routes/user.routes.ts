@@ -7,6 +7,10 @@ import {
 	classifyFormFieldsBodySchema,
 } from "@/domain/autofill/controllers/autofill.controller.js";
 import {
+	generateCoverLetterBodySchema,
+	generateCoverLetterController,
+} from "@/domain/autofill/controllers/coverLetter.controller.js";
+import {
 	refineBodySchema,
 	refineController,
 	refineParamsSchema,
@@ -64,4 +68,10 @@ userRouter.post(
 	"/autofill/refine/:autofillId/:fieldHash",
 	validateRequest({ params: refineParamsSchema, body: refineBodySchema }),
 	refineController,
+);
+
+userRouter.post(
+	"/autofill/cover-letter/generate",
+	validateRequest({ body: generateCoverLetterBodySchema }),
+	generateCoverLetterController,
 );
