@@ -121,6 +121,10 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
 		update({ loading: false, status: `Error: ${message}` });
 	};
 
+	const isVisible = (): boolean => {
+		return state.visible;
+	};
+
 	// Keyboard handler
 	const onKeyDown = (event: KeyboardEvent): void => {
 		if (event.key === "Escape" && state.visible) {
@@ -138,6 +142,7 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
 		hide,
 		updateSession,
 		showError,
+		isVisible,
 	};
 }
 

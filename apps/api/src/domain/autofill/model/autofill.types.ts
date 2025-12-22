@@ -85,18 +85,10 @@ export type CreateAutofillParams = Omit<TAutofill, "createdAt" | "updatedAt">;
 export type AutofillMethods = Record<string, never>;
 
 export type AutofillStatics = {
-	createAutofill(
-		this: AutofillModelWithStatics,
-		params: CreateAutofillParams,
-	): Promise<AutofillDocument>;
 	findByAutofillId(
 		this: AutofillModelWithStatics,
 		autofillId: string,
 	): Promise<TAutofill | null>;
-	findByUserId(
-		this: AutofillModelWithStatics,
-		userId: string,
-	): Promise<TAutofill[]>;
 	/** Find the most recent autofill by userId, uploadId, and formId */
 	findMostRecentByUserUploadForm(
 		this: AutofillModelWithStatics,

@@ -115,26 +115,13 @@ autofillSchema.index(
 	{ unique: true },
 );
 
-// Static methods
-autofillSchema.statics.createAutofill = async function (
-	this: AutofillModelWithStatics,
-	params,
-) {
-	const result = await this.create(params);
-	return result;
-};
-
-autofillSchema.statics.findByAutofillId = async function (
-	this: AutofillModelWithStatics,
-	autofillId: string,
-) {
-	const baseAutofill = await this.findOne({ autofillId }).lean();
-	if (!baseAutofill) {
-		return null;
-	}
-
-	// Returns only the latest refine per hash (aggregated by autofillId + hash)
-	const refines = await AutofillRefineModel.findByAutofillId(autofillId);
+// Helper method to apply refines to autofill data
+const applyRefinesToAutofill = async (
+	baseAutofill: TAutofill,
+): Promise<TAutofill> => {
+	const refines = await AutofillRefineModel.findByAutofillId(
+		baseAutofill.autofillId,
+	);
 
 	if (refines.length === 0) {
 		return baseAutofill;
@@ -170,11 +157,17 @@ autofillSchema.statics.findByAutofillId = async function (
 	};
 };
 
-autofillSchema.statics.findByUserId = async function (
+// Static methods
+autofillSchema.statics.findByAutofillId = async function (
 	this: AutofillModelWithStatics,
-	userId: string,
+	autofillId: string,
 ) {
-	return this.find({ userId }).lean();
+	const baseAutofill = await this.findOne({ autofillId }).lean();
+	if (!baseAutofill) {
+		return null;
+	}
+
+	return applyRefinesToAutofill(baseAutofill);
 };
 
 autofillSchema.statics.findMostRecentByUserUploadForm = async function (
@@ -183,13 +176,20 @@ autofillSchema.statics.findMostRecentByUserUploadForm = async function (
 	uploadId: string,
 	formId: string,
 ) {
-	return this.findOne({
+	const baseAutofill = await this.findOne({
 		userId,
 		uploadReference: uploadId,
 		formReference: formId,
 	})
 		.sort({ createdAt: -1 })
+		.lean()
 		.exec();
+
+	if (!baseAutofill) {
+		return null;
+	}
+
+	return applyRefinesToAutofill(baseAutofill);
 };
 
 export type { AutofillDocument } from "./autofill.types.js";

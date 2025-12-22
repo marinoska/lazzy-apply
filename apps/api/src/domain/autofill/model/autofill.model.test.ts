@@ -1,3 +1,4 @@
+import type { FormFieldPath } from "@lazyapply/types";
 import mongoose from "mongoose";
 import { beforeEach, describe, expect, it } from "vitest";
 import { FormFieldModel, FormModel } from "../index.js";
@@ -6,10 +7,12 @@ import { AutofillRefineModel } from "./autofillRefine.model.js";
 
 describe("AutofillModel", () => {
 	beforeEach(async () => {
-		await AutofillModel.deleteMany({});
-		await AutofillRefineModel.deleteMany({});
-		await FormModel.deleteMany({});
-		await FormFieldModel.deleteMany({});
+		await AutofillModel.collection.drop().catch(() => {});
+		await AutofillRefineModel.collection.drop().catch(() => {});
+		await FormModel.collection.drop().catch(() => {});
+		await FormFieldModel.collection.drop().catch(() => {});
+		await AutofillModel.createIndexes();
+		await AutofillRefineModel.createIndexes();
 	});
 
 	const TEST_USER_ID = "test-user-123";
@@ -30,7 +33,7 @@ describe("AutofillModel", () => {
 				fieldRef: new mongoose.Types.ObjectId(),
 				fieldName: "email",
 				label: "Email",
-				path: "personal.email",
+				path: "personal.email" as FormFieldPath,
 				pathFound: true,
 				value: "test@example.com",
 			},
@@ -38,8 +41,18 @@ describe("AutofillModel", () => {
 		...overrides,
 	});
 
+	const createTestRefineData = (overrides = {}) => ({
+		autofillId: TEST_AUTOFILL_ID,
+		hash: "hash-1",
+		value: "refined@example.com",
+		fieldLabel: "Email",
+		prevFieldText: "test@example.com",
+		userInstructions: "Update email",
+		...overrides,
+	});
+
 	describe("autofillId constraint validator", () => {
-		it("should allow multiple records with same userId, uploadReference, formReference, and autofillId", async () => {
+		it("should reject duplicate autofillId", async () => {
 			const data1 = createTestAutofillData();
 			const data2 = createTestAutofillData({
 				data: [
@@ -48,7 +61,7 @@ describe("AutofillModel", () => {
 						fieldRef: new mongoose.Types.ObjectId(),
 						fieldName: "phone",
 						label: "Phone",
-						path: "personal.phone",
+						path: "personal.phone" as FormFieldPath,
 						pathFound: true,
 						value: "123-456-7890",
 					},
@@ -56,18 +69,12 @@ describe("AutofillModel", () => {
 			});
 
 			await AutofillModel.create(data1);
-			await expect(AutofillModel.create(data2)).resolves.toBeDefined();
-
-			const count = await AutofillModel.countDocuments({
-				userId: TEST_USER_ID,
-				uploadReference: TEST_UPLOAD_ID,
-				formReference: TEST_FORM_ID,
-				autofillId: TEST_AUTOFILL_ID,
-			});
-			expect(count).toBe(2);
+			await expect(AutofillModel.create(data2)).rejects.toThrow(
+				/duplicate key/,
+			);
 		});
 
-		it("should reject records with same userId, uploadReference, formReference but different autofillId", async () => {
+		it("should allow different autofillId for same userId, uploadReference, formReference", async () => {
 			const data1 = createTestAutofillData();
 			await AutofillModel.create(data1);
 
@@ -75,9 +82,7 @@ describe("AutofillModel", () => {
 				autofillId: "different-autofill-id",
 			});
 
-			await expect(AutofillModel.create(data2)).rejects.toThrow(
-				/Cannot use different autofillId/,
-			);
+			await expect(AutofillModel.create(data2)).resolves.toBeDefined();
 		});
 
 		it("should allow different autofillId for different userId", async () => {
@@ -116,7 +121,7 @@ describe("AutofillModel", () => {
 			await expect(AutofillModel.create(data2)).resolves.toBeDefined();
 		});
 
-		it("should allow same autofillId across different groups", async () => {
+		it("should enforce unique autofillId globally", async () => {
 			const data1 = createTestAutofillData();
 			await AutofillModel.create(data1);
 
@@ -124,12 +129,9 @@ describe("AutofillModel", () => {
 				userId: "different-user-456",
 			});
 
-			await expect(AutofillModel.create(data2)).resolves.toBeDefined();
-
-			const count = await AutofillModel.countDocuments({
-				autofillId: TEST_AUTOFILL_ID,
-			});
-			expect(count).toBe(2);
+			await expect(AutofillModel.create(data2)).rejects.toThrow(
+				/duplicate key/,
+			);
 		});
 	});
 
@@ -146,6 +148,7 @@ describe("AutofillModel", () => {
 		it("findByUserId should return all records for a user", async () => {
 			const data1 = createTestAutofillData();
 			const data2 = createTestAutofillData({
+				autofillId: "autofill-def",
 				formReference: new mongoose.Types.ObjectId(),
 			});
 			await AutofillModel.create([data1, data2]);
@@ -161,13 +164,14 @@ describe("AutofillModel", () => {
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
 			const data2 = createTestAutofillData({
+				autofillId: "autofill-def",
 				data: [
 					{
 						hash: "hash-2",
 						fieldRef: new mongoose.Types.ObjectId(),
 						fieldName: "name",
 						label: "Name",
-						path: "personal.name",
+						path: "personal.fullName" as FormFieldPath,
 						pathFound: true,
 						value: "John Doe",
 					},
@@ -195,7 +199,7 @@ describe("AutofillModel", () => {
 						fieldRef: new mongoose.Types.ObjectId(),
 						fieldName: "email",
 						label: "Email",
-						path: "personal.email",
+						path: "personal.email" as FormFieldPath,
 						pathFound: true,
 						value: "original@example.com",
 					},
@@ -204,7 +208,7 @@ describe("AutofillModel", () => {
 						fieldRef: new mongoose.Types.ObjectId(),
 						fieldName: "phone",
 						label: "Phone",
-						path: "personal.phone",
+						path: "personal.phone" as FormFieldPath,
 						pathFound: true,
 						value: "111-111-1111",
 					},
@@ -212,11 +216,7 @@ describe("AutofillModel", () => {
 			});
 			await AutofillModel.create(data);
 
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-1",
-				value: "refined@example.com",
-			});
+			await AutofillRefineModel.create(createTestRefineData());
 
 			const result = await AutofillModel.findByAutofillId(TEST_AUTOFILL_ID);
 
@@ -238,7 +238,7 @@ describe("AutofillModel", () => {
 						fieldRef: new mongoose.Types.ObjectId(),
 						fieldName: "email",
 						label: "Email",
-						path: "personal.email",
+						path: "personal.email" as FormFieldPath,
 						pathFound: true,
 						value: "original@example.com",
 					},
@@ -246,19 +246,15 @@ describe("AutofillModel", () => {
 			});
 			await AutofillModel.create(data);
 
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-1",
-				value: "first@example.com",
-			});
+			await AutofillRefineModel.create(
+				createTestRefineData({ value: "first@example.com" }),
+			);
 
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-1",
-				value: "second@example.com",
-			});
+			await AutofillRefineModel.create(
+				createTestRefineData({ value: "second@example.com" }),
+			);
 
 			const result = await AutofillModel.findByAutofillId(TEST_AUTOFILL_ID);
 
@@ -285,7 +281,7 @@ describe("AutofillModel", () => {
 						fieldRef: new mongoose.Types.ObjectId(),
 						fieldName: "resume",
 						label: "Resume",
-						path: "resume_upload",
+						path: "resume_upload" as FormFieldPath,
 						pathFound: true,
 						fileUrl: "https://example.com/resume.pdf",
 						fileName: "resume.pdf",
@@ -295,11 +291,13 @@ describe("AutofillModel", () => {
 			});
 			await AutofillModel.create(data);
 
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-resume",
-				value: "should-not-apply",
-			});
+			await AutofillRefineModel.create(
+				createTestRefineData({
+					hash: "hash-resume",
+					value: "should-not-apply",
+					fieldLabel: "Resume",
+				}),
+			);
 
 			const result = await AutofillModel.findByAutofillId(TEST_AUTOFILL_ID);
 
@@ -308,23 +306,49 @@ describe("AutofillModel", () => {
 				(item) => item.hash === "hash-resume",
 			);
 			expect(resumeField?.fileUrl).toBe("https://example.com/resume.pdf");
-			expect("value" in resumeField! && resumeField.value).toBeUndefined();
+			expect(resumeField?.value).toBeUndefined();
 		});
 
 		it("findByAutofillId should handle null values in refines", async () => {
 			const data = createTestAutofillData();
 			await AutofillModel.create(data);
 
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-1",
-				value: null,
-			});
+			await AutofillRefineModel.create(createTestRefineData({ value: null }));
 
 			const result = await AutofillModel.findByAutofillId(TEST_AUTOFILL_ID);
 
 			expect(result).not.toBeNull();
 			expect(result?.data[0].value).toBeNull();
+		});
+
+		it("findMostRecentByUserUploadForm should apply refines to the result", async () => {
+			const data = createTestAutofillData({
+				data: [
+					{
+						hash: "hash-1",
+						fieldRef: new mongoose.Types.ObjectId(),
+						fieldName: "email",
+						label: "Email",
+						path: "personal.email" as FormFieldPath,
+						pathFound: true,
+						value: "original@example.com",
+					},
+				],
+			});
+			await AutofillModel.create(data);
+
+			await AutofillRefineModel.create(
+				createTestRefineData({ value: "refined@example.com" }),
+			);
+
+			const result = await AutofillModel.findMostRecentByUserUploadForm(
+				TEST_USER_ID,
+				TEST_UPLOAD_ID.toString(),
+				TEST_FORM_ID.toString(),
+			);
+
+			expect(result).not.toBeNull();
+			expect(result?.data[0].value).toBe("refined@example.com");
 		});
 	});
 
@@ -337,21 +361,20 @@ describe("AutofillModel", () => {
 
 		it("should return multiple refines for multiple hashes", async () => {
 			await AutofillRefineModel.create([
-				{
-					autofillId: TEST_AUTOFILL_ID,
+				createTestRefineData({
 					hash: "hash-1",
 					value: "email@example.com",
-				},
-				{
-					autofillId: TEST_AUTOFILL_ID,
+				}),
+				createTestRefineData({
 					hash: "hash-2",
 					value: "John Doe",
-				},
-				{
-					autofillId: TEST_AUTOFILL_ID,
+					fieldLabel: "Name",
+				}),
+				createTestRefineData({
 					hash: "hash-3",
 					value: "123-456-7890",
-				},
+					fieldLabel: "Phone",
+				}),
 			]);
 
 			const results =
@@ -363,27 +386,21 @@ describe("AutofillModel", () => {
 		});
 
 		it("should return only latest refine per hash when multiple refines exist", async () => {
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-1",
-				value: "first@example.com",
-			});
+			await AutofillRefineModel.create(
+				createTestRefineData({ value: "first@example.com" }),
+			);
 
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-1",
-				value: "second@example.com",
-			});
+			await AutofillRefineModel.create(
+				createTestRefineData({ value: "second@example.com" }),
+			);
 
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-1",
-				value: "third@example.com",
-			});
+			await AutofillRefineModel.create(
+				createTestRefineData({ value: "third@example.com" }),
+			);
 
 			const results =
 				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
@@ -394,31 +411,31 @@ describe("AutofillModel", () => {
 		});
 
 		it("should return latest refine per hash for multiple hashes with multiple refines each", async () => {
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-1",
-				value: "old-email@example.com",
-			});
+			await AutofillRefineModel.create(
+				createTestRefineData({ value: "old-email@example.com" }),
+			);
 
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-2",
-				value: "Old Name",
-			});
+			await AutofillRefineModel.create(
+				createTestRefineData({
+					hash: "hash-2",
+					value: "Old Name",
+					fieldLabel: "Name",
+				}),
+			);
 
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-1",
-				value: "new-email@example.com",
-			});
+			await AutofillRefineModel.create(
+				createTestRefineData({ value: "new-email@example.com" }),
+			);
 
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-2",
-				value: "New Name",
-			});
+			await AutofillRefineModel.create(
+				createTestRefineData({
+					hash: "hash-2",
+					value: "New Name",
+					fieldLabel: "Name",
+				}),
+			);
 
 			const results =
 				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
@@ -434,16 +451,11 @@ describe("AutofillModel", () => {
 
 		it("should only return refines for specified autofillId", async () => {
 			await AutofillRefineModel.create([
-				{
-					autofillId: TEST_AUTOFILL_ID,
-					hash: "hash-1",
-					value: "correct@example.com",
-				},
-				{
+				createTestRefineData({ value: "correct@example.com" }),
+				createTestRefineData({
 					autofillId: "different-autofill-id",
-					hash: "hash-1",
 					value: "wrong@example.com",
-				},
+				}),
 			]);
 
 			const results =

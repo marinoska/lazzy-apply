@@ -65,9 +65,9 @@ let sidebar: SidebarModule | null = null;
 // ============================================================================
 
 /**
- * Lazy-initialize the sidebar
+ * Lazy-initialize the sidebar and optionally show it if closed
  */
-function ensureSidebar(): SidebarModule {
+export function ensureSidebar(autoShow = true): SidebarModule {
 	if (!sidebar) {
 		sidebar = createSidebar({
 			fetchSession,
@@ -75,6 +75,11 @@ function ensureSidebar(): SidebarModule {
 			signOut,
 		});
 	}
+
+	if (autoShow && !sidebar.isVisible()) {
+		sidebar.show();
+	}
+
 	return sidebar;
 }
 

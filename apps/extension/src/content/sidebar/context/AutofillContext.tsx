@@ -17,6 +17,7 @@ import {
 import { classifyFormFields } from "@/lib/api/api.js";
 import { getLastDetectedJD } from "@/lib/api/backgroundClient.js";
 import { useUploads } from "@/lib/api/context/UploadsContext.js";
+import { ensureSidebar } from "../../index.js";
 import { formStore } from "../../scanner/FormStoreManager.js";
 import { detectApplicationForm } from "../../scanner/formDetector.js";
 import { clearFormFields, fillFormFields } from "../../scanner/formFiller.js";
@@ -63,6 +64,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 	const [autofillId, setAutofillId] = useState<string | null>(null);
 	const [inferFieldHash, setInferFieldHash] = useState<string | null>(null);
 	const fieldElementsRef = useRef<Map<string, HTMLElement>>(new Map());
+	const isIframeFormRef = useRef<boolean>(false);
 
 	// Check for forms on mount and when uploads change
 	const checkForForms = useCallback(() => {
@@ -96,6 +98,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 		// Register callback for edit icon clicks from iframe
 		formStore.onEditIconClicked((hash) => {
 			console.log(`[Autofill] Edit icon clicked in iframe for field ${hash}`);
+			ensureSidebar();
 			setInferFieldHash(hash);
 		});
 
@@ -180,6 +183,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 
 			// Store field elements for later use when saving edits
 			fieldElementsRef.current = applicationForm.fieldElements;
+			isIframeFormRef.current = isIframeForm;
 
 			// Add edit icons to inferred text fields
 			inferredFieldEditIcon.addEditIcons(
@@ -187,6 +191,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 				result,
 				(hash) => {
 					console.log(`[Autofill] Edit icon clicked for field ${hash}`);
+					ensureSidebar();
 					setInferFieldHash(hash);
 				},
 				isIframeForm,
@@ -218,15 +223,35 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 	}, []);
 
 	const handleEditFieldSave = useCallback((hash: string, newValue: string) => {
-		const element = fieldElementsRef.current.get(hash);
-		if (
-			element instanceof HTMLInputElement ||
-			element instanceof HTMLTextAreaElement
-		) {
-			element.value = newValue;
-			element.dispatchEvent(new Event("input", { bubbles: true }));
-			element.dispatchEvent(new Event("change", { bubbles: true }));
+		if (isIframeFormRef.current) {
+			formStore.fillFieldInIframe(hash, newValue);
+		} else {
+			const element = fieldElementsRef.current.get(hash);
+			if (
+				element instanceof HTMLInputElement ||
+				element instanceof HTMLTextAreaElement
+			) {
+				element.value = newValue;
+				element.dispatchEvent(new Event("input", { bubbles: true }));
+				element.dispatchEvent(new Event("change", { bubbles: true }));
+			}
 		}
+
+		setClassifications((prev) => {
+			if (!prev) return prev;
+
+			return {
+				...prev,
+				fields: {
+					...prev.fields,
+					[hash]: {
+						...prev.fields[hash],
+						value: newValue,
+					},
+				},
+			};
+		});
+
 		setInferFieldHash(null);
 	}, []);
 
