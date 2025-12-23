@@ -17,7 +17,7 @@ vi.stubGlobal("chrome", mockChrome);
 describe("content/index initialization", () => {
 	// Shared state for capturing callbacks
 	let capturedNavigationCallback: ((url: string) => void) | undefined;
-	let capturedIframeFormCallback: (() => void) | undefined;
+	let capturedIframeFormCallback: ((form: ApplicationForm) => void) | undefined;
 	let mockSidebar: {
 		show: ReturnType<typeof vi.fn>;
 		hide: ReturnType<typeof vi.fn>;
@@ -53,7 +53,7 @@ describe("content/index initialization", () => {
 				get isIframe() {
 					return !mockFormStoreIsParent;
 				},
-				onIframeFormReceived: vi.fn((cb: () => void) => {
+				onIframeFormReceived: vi.fn((cb: (form: ApplicationForm) => void) => {
 					capturedIframeFormCallback = cb;
 				}),
 			},
@@ -100,7 +100,69 @@ describe("content/index initialization", () => {
 			capturedNavigationCallback?.("https://example.com/apply");
 
 			expect(mockScanPage).toHaveBeenCalled();
-			expect(mockSidebar.show).toHaveBeenCalled();
+			expect(mockSidebar.show).toHaveBeenCalledTimes(1);
+		});
+
+		it("should not show sidebar multiple times for the same form (deduplication)", async () => {
+			const mockForm: ApplicationForm = {
+				formHash: "test-hash-123",
+				formDetected: true,
+				totalFields: 3,
+				fields: [],
+				url: "https://example.com/apply",
+				fieldElements: new Map(),
+			};
+			mockScanPage.mockReturnValue(mockForm);
+			mockFormStoreIsParent = true;
+
+			await import("./index.js");
+
+			// Simulate multiple navigation callbacks with the same form (e.g., DOM changes during page load)
+			capturedNavigationCallback?.("https://example.com/apply");
+			capturedNavigationCallback?.("https://example.com/apply");
+			capturedNavigationCallback?.("https://example.com/apply");
+
+			expect(mockScanPage).toHaveBeenCalledTimes(3);
+			// Sidebar should only be shown once, not 3 times
+			expect(mockSidebar.show).toHaveBeenCalledTimes(1);
+		});
+
+		it("should show sidebar again when a different form is detected", async () => {
+			const mockForm1: ApplicationForm = {
+				formHash: "form-hash-1",
+				formDetected: true,
+				totalFields: 3,
+				fields: [],
+				url: "https://example.com/apply/job1",
+				fieldElements: new Map(),
+			};
+			const mockForm2: ApplicationForm = {
+				formHash: "form-hash-2",
+				formDetected: true,
+				totalFields: 4,
+				fields: [],
+				url: "https://example.com/apply/job2",
+				fieldElements: new Map(),
+			};
+			mockFormStoreIsParent = true;
+
+			await import("./index.js");
+
+			// First form detected
+			mockScanPage.mockReturnValue(mockForm1);
+			capturedNavigationCallback?.("https://example.com/apply/job1");
+
+			expect(mockSidebar.show).toHaveBeenCalledTimes(1);
+
+			// Same form detected again (should not show sidebar)
+			capturedNavigationCallback?.("https://example.com/apply/job1");
+			expect(mockSidebar.show).toHaveBeenCalledTimes(1);
+
+			// Different form detected (should show sidebar again)
+			mockScanPage.mockReturnValue(mockForm2);
+			capturedNavigationCallback?.("https://example.com/apply/job2");
+
+			expect(mockSidebar.show).toHaveBeenCalledTimes(2);
 		});
 
 		it("should not show sidebar when no form detected", async () => {
@@ -169,10 +231,77 @@ describe("content/index initialization", () => {
 			);
 			expect(capturedIframeFormCallback).toBeDefined();
 
-			// Simulate iframe form received
-			capturedIframeFormCallback?.();
+			const mockForm: ApplicationForm = {
+				formHash: "iframe-form-hash",
+				formDetected: true,
+				totalFields: 3,
+				fields: [],
+				url: "https://example.com/apply",
+				fieldElements: new Map(),
+			};
 
-			expect(mockSidebar.show).toHaveBeenCalled();
+			// Simulate iframe form received
+			capturedIframeFormCallback?.(mockForm);
+
+			expect(mockSidebar.show).toHaveBeenCalledTimes(1);
+		});
+
+		it("should not show sidebar multiple times for the same iframe form (deduplication)", async () => {
+			mockFormStoreIsParent = true;
+
+			await import("./index.js");
+
+			const mockForm: ApplicationForm = {
+				formHash: "iframe-form-hash-456",
+				formDetected: true,
+				totalFields: 3,
+				fields: [],
+				url: "https://example.com/apply",
+				fieldElements: new Map(),
+			};
+
+			// Simulate multiple iframe form received events with the same form
+			capturedIframeFormCallback?.(mockForm);
+			capturedIframeFormCallback?.(mockForm);
+			capturedIframeFormCallback?.(mockForm);
+
+			// Sidebar should only be shown once
+			expect(mockSidebar.show).toHaveBeenCalledTimes(1);
+		});
+
+		it("should show sidebar again when a different iframe form is received", async () => {
+			mockFormStoreIsParent = true;
+
+			await import("./index.js");
+
+			const mockForm1: ApplicationForm = {
+				formHash: "iframe-form-1",
+				formDetected: true,
+				totalFields: 3,
+				fields: [],
+				url: "https://example.com/apply/job1",
+				fieldElements: new Map(),
+			};
+			const mockForm2: ApplicationForm = {
+				formHash: "iframe-form-2",
+				formDetected: true,
+				totalFields: 4,
+				fields: [],
+				url: "https://example.com/apply/job2",
+				fieldElements: new Map(),
+			};
+
+			// First form received
+			capturedIframeFormCallback?.(mockForm1);
+			expect(mockSidebar.show).toHaveBeenCalledTimes(1);
+
+			// Same form received again (should not show sidebar)
+			capturedIframeFormCallback?.(mockForm1);
+			expect(mockSidebar.show).toHaveBeenCalledTimes(1);
+
+			// Different form received (should show sidebar again)
+			capturedIframeFormCallback?.(mockForm2);
+			expect(mockSidebar.show).toHaveBeenCalledTimes(2);
 		});
 
 		it("should not register callback when in iframe (not parent)", async () => {

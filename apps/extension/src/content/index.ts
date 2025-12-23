@@ -59,6 +59,7 @@ interface BackgroundResponse {
 // ============================================================================
 
 let sidebar: SidebarModule | null = null;
+let lastDetectedFormHash = "";
 
 // ============================================================================
 // Sidebar Management
@@ -236,9 +237,12 @@ if (formStore.isParent) {
 	);
 
 	// Register callback to show sidebar when form is received from iframe
-	formStore.onIframeFormReceived(() => {
-		const sidebarInstance = ensureSidebar();
-		sidebarInstance.show();
+	formStore.onIframeFormReceived((form) => {
+		if (form.formHash !== lastDetectedFormHash) {
+			lastDetectedFormHash = form.formHash;
+			const sidebarInstance = ensureSidebar();
+			sidebarInstance.show();
+		}
 	});
 }
 
@@ -251,8 +255,13 @@ new NavigationWatcher(() => {
 	const applicationForm = scanPage();
 
 	// Auto-show sidebar when form detected in parent frame
+	// Only show if it's a new form (different formHash) to prevent blinking on rerenders
 	if (formStore.isParent && applicationForm?.formDetected) {
-		const sidebarInstance = ensureSidebar();
-		sidebarInstance.show();
+		const currentFormHash = applicationForm.formHash;
+		if (currentFormHash !== lastDetectedFormHash) {
+			lastDetectedFormHash = currentFormHash;
+			const sidebarInstance = ensureSidebar();
+			sidebarInstance.show();
+		}
 	}
 });
