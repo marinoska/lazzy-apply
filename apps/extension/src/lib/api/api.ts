@@ -172,6 +172,7 @@ export async function refineField(
 
 export interface GenerateCoverLetterRequest {
 	autofillId: string;
+	jdRawText?: string;
 	instructions?: string;
 	settings?: CoverLetterSettings;
 }

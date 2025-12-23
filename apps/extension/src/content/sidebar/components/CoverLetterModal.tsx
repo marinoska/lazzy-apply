@@ -1,6 +1,5 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import DownloadIcon from "@mui/icons-material/Download";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import Button from "@mui/joy/Button";
@@ -13,10 +12,7 @@ import { type ChangeEvent, useState } from "react";
 import { Snackbar } from "@/content/components/Snackbar.js";
 import { useGenerateCoverLetterMutation } from "@/lib/api/query/useGenerateCoverLetterMutation.js";
 import { useAutofill } from "../context/AutofillContext.js";
-import {
-	createCoverLetterPdf,
-	fillCoverLetterFields,
-} from "../services/coverLetterFiller.js";
+import { fillCoverLetterFields } from "../services/coverLetterFiller.js";
 import {
 	type CoverLetterSettings,
 	DEFAULT_COVER_LETTER_SETTINGS,
@@ -31,7 +27,7 @@ interface CoverLetterModalProps {
 const MAX_INSTRUCTIONS_LENGTH = 200;
 
 export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
-	const { classifications } = useAutofill();
+	const { classifications, jdRawText } = useAutofill();
 	const [coverLetter, setCoverLetter] = useState("");
 	const [instructions, setInstructions] = useState("");
 	const [error, setError] = useState<string | null>(null);
@@ -67,6 +63,7 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 		try {
 			const result = await generateMutation.mutateAsync({
 				autofillId: classifications.autofillId,
+				jdRawText: jdRawText || undefined,
 				instructions: instructions.trim() || undefined,
 				settings,
 			});
@@ -76,12 +73,6 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 			console.error("[CoverLetterModal] Failed to generate cover letter:", err);
 			setError("Failed to generate cover letter. Please try again.");
 		}
-	};
-
-	const handleRegenerate = async () => {
-		setCoverLetter("");
-		setInstructions("");
-		setError(null);
 	};
 
 	const handleFill = async () => {
@@ -119,20 +110,6 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 		}
 		if (fillResult && !fillResult.success) return "Fill Failed";
 		return "Add to form";
-	};
-
-	const handleDownload = () => {
-		if (!coverLetter) return;
-
-		const pdfBlob = createCoverLetterPdf(coverLetter);
-		const url = URL.createObjectURL(pdfBlob);
-		const link = document.createElement("a");
-		link.href = url;
-		link.download = "cover_letter.pdf";
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
-		URL.revokeObjectURL(url);
 	};
 
 	return (
@@ -179,123 +156,102 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 
 				{/* Content */}
 				<Stack sx={{ flex: 1, p: 2, gap: 2, overflow: "auto" }}>
-					{!coverLetter ? (
+					<Typography level="body-sm" color="neutral">
+						Generate a personalized cover letter based on your CV and the job
+						description on this page.
+					</Typography>
+
+					<QuickSetupRow settings={settings} onChange={setSettings} />
+
+					<Stack gap={0.5} width="100%">
 						<Stack
-							sx={{
-								flex: 1,
-								alignItems: "center",
-								justifyContent: "center",
-								gap: 2,
-							}}
+							direction="row"
+							alignItems="center"
+							justifyContent="space-between"
 						>
-							<Typography level="body-sm" textAlign="center" color="neutral">
-								Generate a personalized cover letter based on your CV and the
-								job description on this page.
+							<Typography level="body-xs" sx={{ color: "neutral.600" }}>
+								Short instructions (optional)
 							</Typography>
-							<QuickSetupRow settings={settings} onChange={setSettings} />
-							<Stack gap={0.5} width="100%">
-								<Stack
-									direction="row"
-									alignItems="center"
-									justifyContent="space-between"
-								>
-									<Typography level="body-xs" sx={{ color: "neutral.600" }}>
-										Short instructions (optional)
-									</Typography>
-									<Typography level="body-xs" sx={{ color: "neutral.500" }}>
-										{instructions.length}/{MAX_INSTRUCTIONS_LENGTH}
-									</Typography>
-								</Stack>
-								<Textarea
-									minRows={3}
-									maxRows={4}
-									value={instructions}
-									onChange={handleInstructionsChange}
-									placeholder="E.g. highlight leadership experience or focus on my most recent experience."
-									slotProps={{
-										textarea: {
-											maxLength: MAX_INSTRUCTIONS_LENGTH,
-										},
-									}}
-									sx={{
-										width: "100%",
-										"& textarea": {
-											fontSize: "0.85rem",
-										},
-									}}
-								/>
-							</Stack>
-							<Button
-								variant="solid"
-								color="primary"
-								size="lg"
-								onClick={handleGenerate}
-								loading={generateMutation.isPending}
-								disabled={!classifications?.autofillId || !!error}
-								startDecorator={<MailOutlineIcon />}
-							>
-								Generate Cover Letter
-							</Button>
+							<Typography level="body-xs" sx={{ color: "neutral.500" }}>
+								{instructions.length}/{MAX_INSTRUCTIONS_LENGTH}
+							</Typography>
 						</Stack>
-					) : (
-						<>
-							<Textarea
-								value={coverLetter}
-								onChange={(e) => setCoverLetter(e.target.value)}
-								minRows={12}
-								maxRows={20}
-								sx={{
-									flex: 1,
-									"& textarea": {
-										fontSize: "0.875rem",
-										lineHeight: 1.6,
-									},
-								}}
-							/>
-							<Stack direction="row" gap={1}>
-								<Button
-									variant="outlined"
-									color="neutral"
-									size="sm"
-									onClick={handleRegenerate}
-									loading={generateMutation.isPending}
-									startDecorator={<AutoAwesomeIcon />}
-									sx={{ flex: 1 }}
-								>
-									Regenerate
-								</Button>
-								<Button
-									variant="outlined"
-									color="neutral"
-									size="sm"
-									onClick={handleDownload}
-									disabled={!coverLetter}
-									startDecorator={<DownloadIcon />}
-									sx={{ flex: 1 }}
-								>
-									Download
-								</Button>
-								<Button
-									variant="solid"
-									color={
-										fillResult?.success
-											? "success"
-											: fillResult && !fillResult.success
-												? "danger"
-												: "primary"
-									}
-									size="sm"
-									onClick={handleFill}
-									loading={isFilling}
-									disabled={!coverLetter || !classifications}
-									startDecorator={<UploadFileIcon />}
-									sx={{ flex: 1 }}
-								>
-									{getButtonText()}
-								</Button>
-							</Stack>
-						</>
-					)}
+						<Textarea
+							minRows={2}
+							maxRows={3}
+							value={instructions}
+							onChange={handleInstructionsChange}
+							placeholder="E.g. highlight leadership experience or focus on my most recent experience."
+							slotProps={{
+								textarea: {
+									maxLength: MAX_INSTRUCTIONS_LENGTH,
+								},
+							}}
+							sx={{
+								width: "100%",
+								"& textarea": {
+									fontSize: "0.85rem",
+								},
+							}}
+						/>
+					</Stack>
+
+					<Textarea
+						value={coverLetter}
+						onChange={(e) => setCoverLetter(e.target.value)}
+						placeholder="Your generated cover letter will appear here..."
+						minRows={8}
+						maxRows={15}
+						sx={{
+							flex: 1,
+							"& textarea": {
+								fontSize: "0.875rem",
+								lineHeight: 1.6,
+							},
+						}}
+					/>
+
+					<Stack direction="row" gap={1}>
+						<Button
+							variant="outlined"
+							color="neutral"
+							size="sm"
+							onClick={onClose}
+							sx={{ flex: 1 }}
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="solid"
+							color="primary"
+							size="sm"
+							onClick={handleGenerate}
+							loading={generateMutation.isPending}
+							disabled={!classifications?.autofillId || !!error}
+							startDecorator={<AutoAwesomeIcon />}
+							sx={{ flex: 1 }}
+						>
+							{coverLetter ? "Regenerate" : "Generate"}
+						</Button>
+						<Button
+							variant="solid"
+							color={
+								fillResult?.success
+									? "success"
+									: fillResult && !fillResult.success
+										? "danger"
+										: "primary"
+							}
+							size="sm"
+							onClick={handleFill}
+							loading={isFilling}
+							disabled={!coverLetter || !classifications}
+							startDecorator={<UploadFileIcon />}
+							sx={{ flex: 1 }}
+						>
+							{getButtonText()}
+						</Button>
+					</Stack>
 				</Stack>
 			</Sheet>
 			<Snackbar

@@ -190,7 +190,7 @@ describe("classification.manager", () => {
 				jdRawText: "",
 				jdUrl: null,
 				formUrl: formInput.pageUrl,
-				formContext: [],
+				formContext: "",
 			});
 
 			expect(result.autofill).toBeDefined();
@@ -247,7 +247,7 @@ describe("classification.manager", () => {
 				jdRawText: "",
 				jdUrl: null,
 				formUrl: formInput.pageUrl,
-				formContext: [],
+				formContext: "",
 			});
 
 			// Should still return cached autofill data
@@ -290,7 +290,7 @@ describe("classification.manager", () => {
 				jdRawText: "",
 				jdUrl: null,
 				formUrl: formInput.pageUrl,
-				formContext: [],
+				formContext: "",
 			});
 
 			// Should have autofill data for both fields (one cached, one classified)
@@ -315,7 +315,7 @@ describe("classification.manager", () => {
 				jdRawText: "",
 				jdUrl: null,
 				formUrl: formInput.pageUrl,
-				formContext: [],
+				formContext: "",
 			});
 
 			expect(result.autofill.data).toHaveLength(1);
@@ -345,7 +345,7 @@ describe("classification.manager", () => {
 				jdRawText: "Some JD text",
 				jdUrl,
 				formUrl: formInput.pageUrl,
-				formContext: [],
+				formContext: "",
 			});
 
 			// validateJdFormMatch should NOT be called when URLs match
@@ -367,7 +367,7 @@ describe("classification.manager", () => {
 				jdRawText: "Some JD text",
 				jdUrl,
 				formUrl: formInput.pageUrl,
-				formContext: [],
+				formContext: "",
 			});
 
 			// validateJdFormMatch should be called when URLs differ
@@ -394,7 +394,7 @@ describe("classification.manager", () => {
 				jdRawText: "", // Empty JD text
 				jdUrl,
 				formUrl: formInput.pageUrl,
-				formContext: [],
+				formContext: "",
 			});
 
 			// validateJdFormMatch should NOT be called when JD text is empty
@@ -416,7 +416,7 @@ describe("classification.manager", () => {
 				jdRawText: "Some JD text",
 				jdUrl,
 				formUrl: formInput.pageUrl,
-				formContext: [],
+				formContext: "",
 			});
 
 			// When sameUrl is true, isMatch defaults to true (no validation needed)

@@ -10,13 +10,18 @@ export const USAGE_TYPES = [
 	"form_fields_inference",
 	"jd_form_match",
 	"autofill_refine",
+	"cover_letter",
 ] as const;
 export type UsageType = (typeof USAGE_TYPES)[number];
 
 /**
  * Reference table enum - identifies which table the reference refers to
  */
-export const USAGE_REFERENCE_TABLES = ["forms", "autofill_refines"] as const;
+export const USAGE_REFERENCE_TABLES = [
+	"forms",
+	"autofill_refines",
+	"autofill",
+] as const;
 export type UsageReferenceTable = (typeof USAGE_REFERENCE_TABLES)[number];
 
 /**

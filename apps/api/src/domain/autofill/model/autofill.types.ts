@@ -64,6 +64,8 @@ export type AutofillDataItem = AutofillDataItemText | AutofillDataItemFile;
  * Records each autofill request with its results
  */
 export type TAutofill = {
+	/** MongoDB document ID */
+	_id: Types.ObjectId;
 	/** User who triggered this autofill */
 	userId: string;
 	/** Unique ID for this autofill request */
@@ -80,7 +82,10 @@ export type TAutofill = {
 	updatedAt: Date;
 };
 
-export type CreateAutofillParams = Omit<TAutofill, "createdAt" | "updatedAt">;
+export type CreateAutofillParams = Omit<
+	TAutofill,
+	"_id" | "createdAt" | "updatedAt"
+>;
 
 export type AutofillMethods = Record<string, never>;
 

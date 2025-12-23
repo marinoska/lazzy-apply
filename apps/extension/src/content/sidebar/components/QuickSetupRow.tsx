@@ -1,39 +1,19 @@
 import {
-	COVER_LETTER_CTAS,
 	COVER_LETTER_FORMATS,
-	COVER_LETTER_LANGUAGES,
 	COVER_LETTER_LENGTHS,
-	COVER_LETTER_STYLES,
-	COVER_LETTER_TONES,
-	type CoverLetterCTA,
 	type CoverLetterFormat,
-	type CoverLetterLanguage,
 	type CoverLetterLength,
 	type CoverLetterSettings,
-	type CoverLetterStyle,
-	type CoverLetterTone,
 } from "@lazyapply/types";
 import Chip from "@mui/joy/Chip";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 
-export type {
-	CoverLetterCTA,
-	CoverLetterFormat,
-	CoverLetterLanguage,
-	CoverLetterLength,
-	CoverLetterSettings,
-	CoverLetterStyle,
-	CoverLetterTone,
-};
+export type { CoverLetterFormat, CoverLetterLength };
 
 export const DEFAULT_COVER_LETTER_SETTINGS: CoverLetterSettings = {
 	length: "medium" satisfies CoverLetterLength,
-	tone: "professional" satisfies CoverLetterTone,
-	format: "paragraph" satisfies CoverLetterFormat,
-	language: "neutral" satisfies CoverLetterLanguage,
-	cta: "minimal" satisfies CoverLetterCTA,
-	style: "to the point" satisfies CoverLetterStyle,
+	format: "bullet" satisfies CoverLetterFormat,
 };
 
 interface PillGroupProps<T extends string> {
@@ -83,11 +63,7 @@ function PillGroup<T extends string>({
 }
 
 const LENGTH_OPTIONS = COVER_LETTER_LENGTHS;
-const TONE_OPTIONS = COVER_LETTER_TONES;
 const FORMAT_OPTIONS = COVER_LETTER_FORMATS;
-const LANGUAGE_OPTIONS = COVER_LETTER_LANGUAGES;
-const CTA_OPTIONS = COVER_LETTER_CTAS;
-const STYLE_OPTIONS = COVER_LETTER_STYLES;
 
 interface QuickSetupRowProps {
 	settings: CoverLetterSettings;
@@ -104,34 +80,10 @@ export function QuickSetupRow({ settings, onChange }: QuickSetupRowProps) {
 				onChange={(length) => onChange({ ...settings, length })}
 			/>
 			<PillGroup
-				label="Tone"
-				options={TONE_OPTIONS}
-				value={settings.tone}
-				onChange={(tone) => onChange({ ...settings, tone })}
-			/>
-			<PillGroup
 				label="Format"
 				options={FORMAT_OPTIONS}
 				value={settings.format}
 				onChange={(format) => onChange({ ...settings, format })}
-			/>
-			<PillGroup
-				label="Language"
-				options={LANGUAGE_OPTIONS}
-				value={settings.language}
-				onChange={(language) => onChange({ ...settings, language })}
-			/>
-			<PillGroup
-				label="CTA"
-				options={CTA_OPTIONS}
-				value={settings.cta}
-				onChange={(cta) => onChange({ ...settings, cta })}
-			/>
-			<PillGroup
-				label="Style"
-				options={STYLE_OPTIONS}
-				value={settings.style}
-				onChange={(style) => onChange({ ...settings, style })}
 			/>
 		</Stack>
 	);

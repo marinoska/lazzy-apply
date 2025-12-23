@@ -104,7 +104,7 @@ export const autofillRequestSchema = z.object({
 	selectedUploadId: z.string().min(1),
 	jdRawText: z.string().optional(),
 	jdUrl: z.string().url().optional(),
-	formContext: z.array(formContextBlockSchema).optional(),
+	formContext: z.string().optional(),
 	/** Optional autofillId to retrieve existing autofill data */
 	autofillId: z.string().uuid().optional(),
 });

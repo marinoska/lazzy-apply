@@ -190,7 +190,7 @@ export async function autofill(
 		jdRawText: jdRawText ?? "",
 		jdUrl: jdUrl ?? null,
 		formUrl: form.pageUrl,
-		formContext: formContext ?? [],
+		formContext: formContext ?? "",
 	});
 
 	const response = await buildResponseFromAutofillDoc(

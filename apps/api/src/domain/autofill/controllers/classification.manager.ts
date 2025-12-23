@@ -2,7 +2,6 @@ import type {
 	AutofillResponseData,
 	AutofillResponseItem,
 	Field,
-	FormContextBlock,
 	FormInput,
 	ParsedCVData,
 	TokenUsage,
@@ -72,7 +71,7 @@ export interface ProcessParams {
 	jdRawText: string;
 	jdUrl: string | null;
 	formUrl: string;
-	formContext: FormContextBlock[];
+	formContext: string;
 }
 
 /**
@@ -305,24 +304,24 @@ export class ClassificationManager {
 		fields: InferenceField[],
 		jdMatches: boolean,
 		jdRawText: string,
-		formContext: FormContextBlock[],
+		formContext: string,
 	): Promise<InferenceResult> {
 		if (!this.cvData?.rawText) {
 			logger.error("No CV raw text available for inference");
-			return { answers: {}, usage: createEmptyUsage() };
+			return { answers: {}, usage: null };
 		}
 
-		logger.info(
-			{ fieldCount: fields.length, jdMatches },
-			"Processing inference fields",
-		);
+		if (!fields.length) {
+			logger.info("No fields to infer, skipping inference");
+			return { answers: {}, usage: null };
+		}
 
 		// Use JD text if it matches, otherwise fall back to form context
 		let contextText = "";
 		if (jdMatches && jdRawText.length) {
 			contextText = jdRawText;
-		} else if (formContext.length) {
-			contextText = formContext.map((block) => block.text).join("\n");
+		} else if (formContext) {
+			contextText = formContext;
 			logger.info("Using form context as fallback for inference");
 		}
 

@@ -366,8 +366,8 @@ export interface AutofillRequest {
 	jdRawText?: string;
 	/** URL where the JD was extracted from (optional) */
 	jdUrl?: string;
-	/** Text blocks extracted from the form page (headers, descriptions, etc.) */
-	formContext?: FormContextBlock[];
+	/** Text extracted from the form page (headers, descriptions, etc.) */
+	formContext?: string;
 	/** Optional autofillId to retrieve existing autofill data */
 	autofillId?: string;
 }
@@ -495,11 +495,7 @@ export type CoverLetterStyle = (typeof COVER_LETTER_STYLES)[number];
 
 export interface CoverLetterSettings {
 	length: CoverLetterLength;
-	tone: CoverLetterTone;
 	format: CoverLetterFormat;
-	language: CoverLetterLanguage;
-	cta: CoverLetterCTA;
-	style: CoverLetterStyle;
 }
 
 // Add more shared types here

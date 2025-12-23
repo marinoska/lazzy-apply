@@ -32,6 +32,8 @@ interface AutofillContextValue {
 	isLoading: boolean;
 	/** Classification results from the API */
 	classifications: AutofillResponse | null;
+	/** Job description raw text */
+	jdRawText: string | null;
 	/** Whether a cover letter field was detected */
 	hasCoverLetterField: boolean;
 	/** Run autofill on the detected form */
@@ -60,6 +62,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 	const [isLoading, setIsLoading] = useState(false);
 	const [classifications, setClassifications] =
 		useState<AutofillResponse | null>(null);
+	const [jdRawText, setJdRawText] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [autofillId, setAutofillId] = useState<string | null>(null);
 	const [inferFieldHash, setInferFieldHash] = useState<string | null>(null);
@@ -147,19 +150,25 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 
 			// Fetch stored JD from background script
 			const storedJD = await getLastDetectedJD();
-			const jdRawText =
-				storedJD?.blocks
-					?.map((block) => (block as { text?: string }).text ?? "")
-					.join("\n") ?? "";
+			const jdText = storedJD?.blocks
+				? storedJD.blocks
+						.map((block) => (block as { text?: string }).text)
+						.filter((text): text is string => !!text)
+						.join("\n")
+				: "";
+			setJdRawText(jdText);
 
 			// Extract text blocks from the current page for form context
-			const formContext: FormContextBlock[] = extractTextBlocks();
+			const formContextBlocks = extractTextBlocks();
+			const formContext = formContextBlocks
+				.map((block) => block.text)
+				.join("\n");
 
 			const request: AutofillRequest = {
 				form,
 				fields,
 				selectedUploadId: selectedUpload._id,
-				jdRawText,
+				jdRawText: jdText,
 				jdUrl: storedJD?.url,
 				formContext,
 				...(autofillId && { autofillId }),
@@ -260,6 +269,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 			formDetected,
 			isLoading,
 			classifications,
+			jdRawText,
 			hasCoverLetterField,
 			runAutofill,
 			error,
@@ -272,6 +282,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 			formDetected,
 			isLoading,
 			classifications,
+			jdRawText,
 			hasCoverLetterField,
 			runAutofill,
 			error,

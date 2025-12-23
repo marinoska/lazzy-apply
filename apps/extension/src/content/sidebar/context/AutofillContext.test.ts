@@ -21,12 +21,12 @@ describe("AutofillContext logic", () => {
 				fields: [],
 				selectedUploadId: "upload-123",
 				jdRawText: "",
-				formContext: [],
+				formContext: "",
 			};
 
 			const request: AutofillRequest = {
 				...baseRequest,
-				...(autofillId && { autofillId }),
+				...(autofillId ? { autofillId } : {}),
 			};
 
 			expect(request.autofillId).toBe("existing-autofill-id");
@@ -44,12 +44,12 @@ describe("AutofillContext logic", () => {
 				fields: [],
 				selectedUploadId: "upload-123",
 				jdRawText: "",
-				formContext: [],
+				formContext: "",
 			};
 
 			const request: AutofillRequest = {
 				...baseRequest,
-				...(autofillId && { autofillId }),
+				...(autofillId ? { autofillId } : {}),
 			};
 
 			expect(request.autofillId).toBeUndefined();
@@ -85,7 +85,7 @@ describe("AutofillContext logic", () => {
 				},
 				fields: [],
 				selectedUploadId: "upload-123",
-				...(storedAutofillId && { autofillId: storedAutofillId }),
+				...(storedAutofillId ? { autofillId: storedAutofillId } : {}),
 			};
 
 			expect(subsequentRequest.autofillId).toBe("first-autofill-id");
