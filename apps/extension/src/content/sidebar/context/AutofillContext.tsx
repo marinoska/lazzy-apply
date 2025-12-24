@@ -1,8 +1,8 @@
 import type {
 	AutofillRequest,
 	AutofillResponse,
+	CoverLetterData,
 	Field,
-	FormContextBlock,
 	FormInput,
 } from "@lazyapply/types";
 import {
@@ -36,6 +36,8 @@ interface AutofillContextValue {
 	jdRawText: string | null;
 	/** Whether a cover letter field was detected */
 	hasCoverLetterField: boolean;
+	/** Cover letter data from previous generation */
+	coverLetter: CoverLetterData | null;
 	/** Run autofill on the detected form */
 	runAutofill: () => Promise<void>;
 	/** Error message if autofill failed */
@@ -220,6 +222,11 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 				)
 			: false;
 	}, [classifications]);
+
+	const coverLetter = useMemo(() => {
+		return classifications?.coverLetter ?? null;
+	}, [classifications]);
+
 	console.log("[UploadsProvider]", { classifications });
 	const clearError = useCallback(() => setError(null), []);
 
@@ -271,6 +278,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 			classifications,
 			jdRawText,
 			hasCoverLetterField,
+			coverLetter,
 			runAutofill,
 			error,
 			clearError,
@@ -284,6 +292,7 @@ export function AutofillProvider({ children }: AutofillProviderProps) {
 			classifications,
 			jdRawText,
 			hasCoverLetterField,
+			coverLetter,
 			runAutofill,
 			error,
 			clearError,

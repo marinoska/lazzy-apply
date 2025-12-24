@@ -29,13 +29,25 @@ Generate exactly ONE complete cover letter that:
 
 PARAMETER RULES:
 length:
-- short: 120–160 words
-- medium: 200–300 words
-- detailed: 350–450 words
+- short: 120–160 words, 2 short paragraphs or 4–7 bullets
+- medium: 200–300 words, 3 paragraphs or 6–9 bullets
+- detailed: 350–450 words, 4 paragraphs or 8–12 bullets
 
 format:
-- paragraph: prose with natural breaks
-- bullet: light bullets only, not a CV or checklist
+- paragraph: use the paragraph count defined by length.
+  Separate paragraphs with blank lines.
+  Each paragraph should cover a different idea.
+  Do not write everything as one block.
+
+- bullet:
+  Write in bullets only.
+  Each bullet must be 1–2 short sentences max.
+  Each bullet must express a single concrete idea or activity.
+  Do not use narrative flow across bullets.
+  Do not chain bullets into a story.
+  Do not write paragraph-length bullets.
+  Do not include introductions or conclusions.
+  Use the bullet count defined by length.
 
 STRUCTURE:
 The letter should flow naturally and may include:

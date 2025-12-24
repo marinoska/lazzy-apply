@@ -418,6 +418,16 @@ export interface AutofillResponseItem {
 export type AutofillResponseData = Record<string, AutofillResponseItem>;
 
 /**
+ * Cover letter data for a specific field
+ */
+export interface CoverLetterData {
+	hash: string;
+	value: string;
+	length: string;
+	format: string;
+}
+
+/**
  * Autofill response returned to the client
  * Contains autofillId and field data
  */
@@ -428,6 +438,8 @@ export interface AutofillResponse {
 	fields: AutofillResponseData;
 	/** Whether the response was served from cache */
 	fromCache: boolean;
+	/** Cover letter data if available */
+	coverLetter?: CoverLetterData;
 }
 
 /**

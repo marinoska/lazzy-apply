@@ -12,7 +12,8 @@ import { getEnv } from "@/app/env.js";
 import { NotFound, Unauthorized } from "@/app/errors.js";
 import { createLogger } from "@/app/logger.js";
 import { AutofillModel } from "@/domain/autofill/model/autofill.model.js";
-import type { AutofillDocument } from "@/domain/autofill/model/autofill.types.js";
+import type { TAutofill } from "@/domain/autofill/model/autofill.types.js";
+import { AutofillCoverLetterModel } from "@/domain/autofill/model/autofillCoverLetter.model.js";
 import { FormModel } from "@/domain/autofill/model/form.model.js";
 import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
 import { ClassificationManager } from "./classification.manager.js";
@@ -72,7 +73,7 @@ async function getFreshFileInfo(
  * @see getFreshFileInfo - generates new presigned URLs from R2
  */
 async function buildResponseFromAutofillDoc(
-	autofillDoc: AutofillDocument,
+	autofillDoc: TAutofill,
 	uploadId: string,
 	userId: string,
 ): Promise<AutofillResponse> {
@@ -111,10 +112,15 @@ async function buildResponseFromAutofillDoc(
 		fields[item.hash] = responseItem;
 	}
 
+	const coverLetter = await AutofillCoverLetterModel.findByAutofillId(
+		autofillDoc.autofillId,
+	);
+
 	return {
 		autofillId: autofillDoc.autofillId,
 		fields,
 		fromCache: true,
+		...(coverLetter && { coverLetter }),
 	};
 }
 

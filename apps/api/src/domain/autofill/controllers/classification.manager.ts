@@ -289,6 +289,8 @@ export class ClassificationManager {
 				classificationUsage,
 				inferenceUsage,
 				shouldValidateJdMatch ? jdMatchResult.usage : undefined,
+				jdRawText,
+				formContext,
 			);
 		}
 

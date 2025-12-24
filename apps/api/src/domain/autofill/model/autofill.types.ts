@@ -78,6 +78,10 @@ export type TAutofill = {
 	cvDataReference: Types.ObjectId;
 	/** Autofill results stored as entries keyed by field hash */
 	data: AutofillDataItem[];
+	/** Job description raw text */
+	jdRawText: string;
+	/** Form context information */
+	formContext: string;
 	createdAt: Date;
 	updatedAt: Date;
 };
@@ -100,7 +104,7 @@ export type AutofillStatics = {
 		userId: string,
 		uploadId: string,
 		formId: string,
-	): Promise<AutofillDocument | null>;
+	): Promise<TAutofill | null>;
 };
 
 export type AutofillDocument = HydratedDocument<TAutofill, AutofillMethods>;

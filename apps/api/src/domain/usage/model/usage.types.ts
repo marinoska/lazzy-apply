@@ -21,6 +21,7 @@ export const USAGE_REFERENCE_TABLES = [
 	"forms",
 	"autofill_refines",
 	"autofill",
+	"autofill_cover_letters",
 ] as const;
 export type UsageReferenceTable = (typeof USAGE_REFERENCE_TABLES)[number];
 

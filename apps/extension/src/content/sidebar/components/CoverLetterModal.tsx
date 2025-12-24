@@ -8,7 +8,7 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Textarea from "@mui/joy/Textarea";
 import Typography from "@mui/joy/Typography";
-import { type ChangeEvent, useMemo, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Snackbar } from "@/content/components/Snackbar.js";
 import { useGenerateCoverLetterMutation } from "@/lib/api/query/useGenerateCoverLetterMutation.js";
 import { useAutofill } from "../context/AutofillContext.js";
@@ -27,7 +27,11 @@ interface CoverLetterModalProps {
 const MAX_INSTRUCTIONS_LENGTH = 200;
 
 export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
-	const { classifications, jdRawText } = useAutofill();
+	const {
+		classifications,
+		jdRawText,
+		coverLetter: existingCoverLetter,
+	} = useAutofill();
 	const [coverLetter, setCoverLetter] = useState("");
 	const [instructions, setInstructions] = useState("");
 	const [error, setError] = useState<string | null>(null);
@@ -48,6 +52,21 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 		);
 		return coverLetterField?.[0] ?? null;
 	}, [classifications]);
+
+	useEffect(() => {
+		if (
+			open &&
+			existingCoverLetter &&
+			!coverLetter &&
+			existingCoverLetter.hash === coverLetterFieldHash
+		) {
+			setCoverLetter(existingCoverLetter.value);
+			setSettings({
+				length: existingCoverLetter.length as CoverLetterSettings["length"],
+				format: existingCoverLetter.format as CoverLetterSettings["format"],
+			});
+		}
+	}, [open, existingCoverLetter, coverLetter, coverLetterFieldHash]);
 
 	if (!open) {
 		return null;

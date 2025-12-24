@@ -46,6 +46,16 @@ const autofillSchema = new Schema<TAutofill, AutofillModel, AutofillMethods>(
 			index: true,
 			immutable: true,
 		},
+		jdRawText: {
+			type: String,
+			default: "",
+			immutable: true,
+		},
+		formContext: {
+			type: String,
+			default: "",
+			immutable: true,
+		},
 		data: {
 			type: [
 				{

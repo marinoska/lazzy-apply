@@ -11,6 +11,7 @@ import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { UsageModel } from "@/domain/usage/index.js";
 import { generateCoverLetter } from "../llm/coverLetter.llm.js";
 import { AutofillModel } from "../model/autofill.model.js";
+import { AutofillCoverLetterModel } from "../model/autofillCoverLetter.model.js";
 
 const logger = createLogger("cover-letter");
 
@@ -110,9 +111,18 @@ export async function generateCoverLetterController(
 		instructions,
 	});
 
+	const coverLetterRecord = await AutofillCoverLetterModel.create({
+		autofillId,
+		hash: fieldHash,
+		value: result.coverLetter,
+		instructions: instructions ?? "",
+		length: coverLetterSettings.length,
+		format: coverLetterSettings.format,
+	});
+
 	await UsageModel.createUsage({
-		referenceTable: "autofill",
-		reference: autofill._id,
+		referenceTable: "autofill_cover_letters",
+		reference: coverLetterRecord._id,
 		userId: user.id,
 		autofillId,
 		type: "cover_letter",

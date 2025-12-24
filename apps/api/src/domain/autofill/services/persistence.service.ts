@@ -124,6 +124,8 @@ async function createAutofillRecord(
 	autofillId: string,
 	autofillResponse: AutofillResponseData,
 	fieldHashToIdMap: Map<string, Types.ObjectId>,
+	jdRawText: string,
+	formContext: string,
 ): Promise<AutofillDocument> {
 	const data: AutofillDataItem[] = [];
 
@@ -172,6 +174,8 @@ async function createAutofillRecord(
 				formReference,
 				uploadReference,
 				cvDataReference: cvDataReference,
+				jdRawText,
+				formContext,
 				data,
 			},
 		],
@@ -203,6 +207,8 @@ export async function persistNewFormAndFields(
 	classificationUsage: TokenUsage,
 	inferenceUsage?: TokenUsage,
 	jdMatchUsage?: TokenUsage,
+	jdRawText?: string,
+	formContext?: string,
 ): Promise<AutofillDocument> {
 	const autofillId = randomUUID();
 	const session = await mongoose.startSession();
@@ -250,6 +256,8 @@ export async function persistNewFormAndFields(
 				autofillId,
 				autofillResponse,
 				fieldHashToIdMap,
+				jdRawText ?? "",
+				formContext ?? "",
 			);
 
 			// Persist usage records
