@@ -1,4 +1,4 @@
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GenerateCoverLetterRequest } from "../api.js";
@@ -46,6 +46,7 @@ describe("useGenerateCoverLetterMutation", () => {
 
 		const request: GenerateCoverLetterRequest = {
 			autofillId: "test-autofill-id",
+			fieldHash: "test-field-hash",
 			instructions: "Highlight leadership experience",
 			settings: {
 				length: "medium",
@@ -75,6 +76,7 @@ describe("useGenerateCoverLetterMutation", () => {
 
 		const request: GenerateCoverLetterRequest = {
 			autofillId: "test-autofill-id",
+			fieldHash: "test-field-hash",
 			settings: {
 				length: "short",
 				format: "bullet",
@@ -102,6 +104,7 @@ describe("useGenerateCoverLetterMutation", () => {
 
 		const request: GenerateCoverLetterRequest = {
 			autofillId: "test-autofill-id",
+			fieldHash: "test-field-hash",
 			instructions: "Focus on technical skills",
 		};
 
@@ -126,6 +129,7 @@ describe("useGenerateCoverLetterMutation", () => {
 
 		const request: GenerateCoverLetterRequest = {
 			autofillId: "minimal-id",
+			fieldHash: "test-field-hash",
 		};
 
 		result.current.mutate(request);
@@ -145,6 +149,7 @@ describe("useGenerateCoverLetterMutation", () => {
 
 		const request: GenerateCoverLetterRequest = {
 			autofillId: "test-autofill-id",
+			fieldHash: "test-field-hash",
 		};
 
 		result.current.mutate(request);
@@ -164,6 +169,7 @@ describe("useGenerateCoverLetterMutation", () => {
 
 		result.current.mutate({
 			autofillId: "test-autofill-id",
+			fieldHash: "test-field-hash",
 		});
 
 		await waitFor(() => expect(result.current.isError).toBe(true));
@@ -192,6 +198,7 @@ describe("useGenerateCoverLetterMutation", () => {
 
 		result.current.mutate({
 			autofillId: "test-autofill-id",
+			fieldHash: "test-field-hash",
 		});
 
 		await waitFor(() => expect(result.current.isPending).toBe(true));
@@ -219,6 +226,7 @@ describe("useGenerateCoverLetterMutation", () => {
 		for (let i = 0; i < 3; i++) {
 			result.current.mutate({
 				autofillId: `id-${i + 1}`,
+				fieldHash: "test-field-hash",
 			});
 
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -245,6 +253,7 @@ describe("useGenerateCoverLetterMutation", () => {
 
 				result.current.mutate({
 					autofillId: "test-id",
+					fieldHash: "test-field-hash",
 					settings: {
 						length,
 						format,
@@ -268,7 +277,10 @@ describe("useGenerateCoverLetterMutation", () => {
 			wrapper,
 		});
 
-		result.current.mutate({ autofillId: "test-id" });
+		result.current.mutate({
+			autofillId: "test-id",
+			fieldHash: "test-field-hash",
+		});
 
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
@@ -292,7 +304,10 @@ describe("useGenerateCoverLetterMutation", () => {
 			wrapper,
 		});
 
-		result.current.mutate({ autofillId: "test-id" });
+		result.current.mutate({
+			autofillId: "test-id",
+			fieldHash: "test-field-hash",
+		});
 
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
@@ -313,7 +328,10 @@ describe("useGenerateCoverLetterMutation", () => {
 			wrapper,
 		});
 
-		result.current.mutate({ autofillId: "test-id" });
+		result.current.mutate({
+			autofillId: "test-id",
+			fieldHash: "test-field-hash",
+		});
 
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
@@ -328,7 +346,10 @@ describe("useGenerateCoverLetterMutation", () => {
 			wrapper,
 		});
 
-		result.current.mutate({ autofillId: "test-id" });
+		result.current.mutate({
+			autofillId: "test-id",
+			fieldHash: "test-field-hash",
+		});
 
 		await waitFor(() => expect(result.current.isError).toBe(true));
 
@@ -343,7 +364,10 @@ describe("useGenerateCoverLetterMutation", () => {
 			wrapper,
 		});
 
-		result.current.mutate({ autofillId: "test-id" });
+		result.current.mutate({
+			autofillId: "test-id",
+			fieldHash: "test-field-hash",
+		});
 
 		await waitFor(() => expect(result.current.isError).toBe(true));
 
@@ -364,6 +388,7 @@ describe("useGenerateCoverLetterMutation", () => {
 
 		const response = await result.current.mutateAsync({
 			autofillId: "test-id",
+			fieldHash: "test-field-hash",
 		});
 
 		expect(response).toEqual(mockResponse);
@@ -379,7 +404,10 @@ describe("useGenerateCoverLetterMutation", () => {
 		});
 
 		await expect(
-			result.current.mutateAsync({ autofillId: "test-id" }),
+			result.current.mutateAsync({
+				autofillId: "test-id",
+				fieldHash: "test-field-hash",
+			}),
 		).rejects.toThrow("Async error");
 	});
 });

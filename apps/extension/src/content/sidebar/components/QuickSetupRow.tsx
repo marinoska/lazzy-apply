@@ -88,3 +88,4 @@ export function QuickSetupRow({ settings, onChange }: QuickSetupRowProps) {
 		</Stack>
 	);
 }
+export type { CoverLetterSettings };

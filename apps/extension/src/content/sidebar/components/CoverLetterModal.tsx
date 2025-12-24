@@ -8,7 +8,7 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Textarea from "@mui/joy/Textarea";
 import Typography from "@mui/joy/Typography";
-import { type ChangeEvent, useState } from "react";
+import { type ChangeEvent, useMemo, useState } from "react";
 import { Snackbar } from "@/content/components/Snackbar.js";
 import { useGenerateCoverLetterMutation } from "@/lib/api/query/useGenerateCoverLetterMutation.js";
 import { useAutofill } from "../context/AutofillContext.js";
@@ -41,6 +41,14 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 		DEFAULT_COVER_LETTER_SETTINGS,
 	);
 
+	const coverLetterFieldHash = useMemo(() => {
+		if (!classifications) return null;
+		const coverLetterField = Object.entries(classifications.fields).find(
+			([_, field]) => field.path === "cover_letter",
+		);
+		return coverLetterField?.[0] ?? null;
+	}, [classifications]);
+
 	if (!open) {
 		return null;
 	}
@@ -58,11 +66,17 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 			return;
 		}
 
+		if (!coverLetterFieldHash) {
+			setError("No cover letter field found in the form.");
+			return;
+		}
+
 		setError(null);
 
 		try {
 			const result = await generateMutation.mutateAsync({
 				autofillId: classifications.autofillId,
+				fieldHash: coverLetterFieldHash,
 				jdRawText: jdRawText || undefined,
 				instructions: instructions.trim() || undefined,
 				settings,

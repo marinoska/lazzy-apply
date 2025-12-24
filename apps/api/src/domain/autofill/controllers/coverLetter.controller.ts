@@ -1,10 +1,6 @@
 import {
-	COVER_LETTER_CTAS,
 	COVER_LETTER_FORMATS,
-	COVER_LETTER_LANGUAGES,
 	COVER_LETTER_LENGTHS,
-	COVER_LETTER_STYLES,
-	COVER_LETTER_TONES,
 	type CoverLetterSettings,
 } from "@lazyapply/types";
 import type { Request, Response } from "express";
@@ -19,20 +15,20 @@ import { AutofillModel } from "../model/autofill.model.js";
 const logger = createLogger("cover-letter");
 
 export const generateCoverLetterBodySchema = z.object({
-	autofillId: z.string().min(1),
 	jdRawText: z.string().optional(),
 	instructions: z.string().optional(),
 	formContext: z.string().optional(),
 	settings: z
 		.object({
 			length: z.enum(COVER_LETTER_LENGTHS),
-			tone: z.enum(COVER_LETTER_TONES),
 			format: z.enum(COVER_LETTER_FORMATS),
-			language: z.enum(COVER_LETTER_LANGUAGES),
-			cta: z.enum(COVER_LETTER_CTAS),
-			style: z.enum(COVER_LETTER_STYLES),
 		})
 		.optional(),
+});
+
+export const generateCoverLetterQuerySchema = z.object({
+	autofillId: z.string().min(1),
+	fieldHash: z.string().min(1),
 });
 
 type GenerateCoverLetterBody = z.infer<typeof generateCoverLetterBodySchema>;
@@ -48,18 +44,15 @@ type GenerateCoverLetterErrorResponse = {
 
 const DEFAULT_COVER_LETTER_SETTINGS: CoverLetterSettings = {
 	length: "medium",
-	tone: "professional",
 	format: "paragraph",
-	language: "neutral",
-	cta: "minimal",
-	style: "to the point",
 };
 
 export async function generateCoverLetterController(
 	req: Request<
 		Record<string, never>,
 		GenerateCoverLetterResponse,
-		GenerateCoverLetterBody
+		GenerateCoverLetterBody,
+		z.infer<typeof generateCoverLetterQuerySchema>
 	>,
 	res: Response<GenerateCoverLetterResponse | GenerateCoverLetterErrorResponse>,
 ) {
@@ -68,8 +61,9 @@ export async function generateCoverLetterController(
 		throw new Unauthorized("Missing authenticated user");
 	}
 
-	const { autofillId, jdRawText, instructions, formContext, settings } =
-		req.body;
+	const { jdRawText, instructions, formContext, settings } = req.body;
+
+	const { autofillId, fieldHash } = req.query;
 
 	logger.debug(
 		{

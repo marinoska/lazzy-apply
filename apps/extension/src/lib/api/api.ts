@@ -172,6 +172,7 @@ export async function refineField(
 
 export interface GenerateCoverLetterRequest {
 	autofillId: string;
+	fieldHash: string;
 	jdRawText?: string;
 	instructions?: string;
 	settings?: CoverLetterSettings;
@@ -185,9 +186,10 @@ export interface GenerateCoverLetterResponse {
 export async function generateCoverLetter(
 	request: GenerateCoverLetterRequest,
 ): Promise<GenerateCoverLetterResponse> {
+	const { autofillId, fieldHash, ...body } = request;
 	return sendApiRequest<GenerateCoverLetterResponse>(
 		"POST",
-		"/autofill/cover-letter/generate",
-		request,
+		`/autofill/cover-letter/generate?autofillId=${autofillId}&fieldHash=${fieldHash}`,
+		body,
 	);
 }
