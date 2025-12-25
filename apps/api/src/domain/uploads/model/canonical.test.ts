@@ -1,6 +1,6 @@
 import type { FileUploadContentType } from "@lazyapply/types";
 import mongoose from "mongoose";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { FileUploadModel } from "./fileUpload.model.js";
 import {
 	BLOCKING_STATUSES,
@@ -57,6 +57,10 @@ const createUpload = async (
 		size: 1000,
 	});
 };
+
+beforeAll(async () => {
+	await FileUploadModel.createIndexes();
+});
 
 describe("Canonical Upload", () => {
 	describe("Status Constants", () => {

@@ -9,11 +9,58 @@ vi.mock("@/app/env.js", () => ({
 	getEnv: vi.fn(),
 }));
 
+vi.mock("../llm/coverLetter.llm.js", () => ({
+	generateCoverLetter: vi.fn(),
+}));
+
+vi.mock("../model/autofill.model.js", () => ({
+	AutofillModel: {
+		findByAutofillId: vi.fn(),
+	},
+}));
+
+vi.mock("../model/autofillCoverLetter.model.js", () => ({
+	AutofillCoverLetterModel: {
+		create: vi.fn(),
+	},
+}));
+
+vi.mock("@/domain/uploads/model/cvData.model.js", () => ({
+	CVDataModel: {
+		findById: vi.fn(() => ({
+			setOptions: vi.fn(() => ({
+				lean: vi.fn(),
+			})),
+		})),
+	},
+}));
+
+vi.mock("@/domain/usage/index.js", () => ({
+	UsageModel: {
+		createUsage: vi.fn(),
+	},
+}));
+
+import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
+import { UsageModel } from "@/domain/usage/index.js";
+import { generateCoverLetter } from "../llm/coverLetter.llm.js";
+import { AutofillModel } from "../model/autofill.model.js";
+import { AutofillCoverLetterModel } from "../model/autofillCoverLetter.model.js";
+
+const mockedGenerateCoverLetter = vi.mocked(generateCoverLetter);
+const mockedAutofillModel = vi.mocked(AutofillModel);
+const mockedCVDataModel = vi.mocked(CVDataModel);
+const mockedAutofillCoverLetterModel = vi.mocked(AutofillCoverLetterModel);
+const mockedUsageModel = vi.mocked(UsageModel);
+
 describe("coverLetter.controller", () => {
 	let mockReq: {
 		user: { id: string };
-		body: {
+		query: {
 			autofillId: string;
+			fieldHash: string;
+		};
+		body: {
 			instructions?: string;
 			settings?: {
 				length: "short" | "medium" | "detailed";
@@ -36,8 +83,11 @@ describe("coverLetter.controller", () => {
 
 		mockReq = {
 			user: { id: "test-user-id" },
-			body: {
+			query: {
 				autofillId: "test-autofill-id",
+				fieldHash: "test-field-hash",
+			},
+			body: {
 				instructions: "Highlight leadership experience",
 				settings: {
 					length: "medium",
@@ -45,6 +95,56 @@ describe("coverLetter.controller", () => {
 				},
 			},
 		};
+
+		mockedAutofillModel.findByAutofillId.mockResolvedValue({
+			userId: "test-user-id",
+			uploadReference: "test-upload-id",
+			cvDataReference: "test-cv-data-id",
+			autofillId: "test-autofill-id",
+			formReference: "test-form-id",
+			data: [],
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		} as never);
+
+		const mockLean = vi.fn().mockResolvedValue({
+			rawText: "John Doe, Software Engineer with 5 years experience",
+		});
+
+		const mockSetOptions = vi.fn().mockReturnValue({
+			lean: mockLean,
+		});
+
+		mockedCVDataModel.findById.mockReturnValue({
+			setOptions: mockSetOptions,
+		} as never);
+
+		mockedGenerateCoverLetter.mockResolvedValue({
+			coverLetter:
+				"Dear Hiring Manager,\n\nI am writing to express my interest...",
+			usage: {
+				promptTokens: 1000,
+				completionTokens: 200,
+				totalTokens: 1200,
+				inputCost: 0.01,
+				outputCost: 0.006,
+				totalCost: 0.016,
+			},
+		});
+
+		mockedAutofillCoverLetterModel.create.mockResolvedValue({
+			_id: "test-cover-letter-id",
+			autofillId: "test-autofill-id",
+			hash: "test-field-hash",
+			value: "Dear Hiring Manager,\n\nI am writing to express my interest...",
+			instructions: "Highlight leadership experience",
+			length: "medium",
+			format: "paragraph",
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		} as never);
+
+		mockedUsageModel.createUsage.mockResolvedValue({} as never);
 	});
 
 	describe("generateCoverLetterController", () => {
@@ -134,7 +234,7 @@ describe("coverLetter.controller", () => {
 			const autofillIds = ["autofill-123", "autofill-456", "test-autofill-789"];
 
 			for (const autofillId of autofillIds) {
-				mockReq.body.autofillId = autofillId;
+				mockReq.query.autofillId = autofillId;
 
 				await generateCoverLetterController(mockReq as never, mockRes as never);
 
@@ -226,9 +326,8 @@ describe("coverLetter.controller", () => {
 		});
 
 		it("should handle minimal request with only autofillId", async () => {
-			mockReq.body = {
-				autofillId: "minimal-autofill-id",
-			};
+			mockReq.query.autofillId = "minimal-autofill-id";
+			mockReq.body = {};
 
 			await generateCoverLetterController(mockReq as never, mockRes as never);
 
@@ -241,7 +340,6 @@ describe("coverLetter.controller", () => {
 
 		it("should handle request with only instructions", async () => {
 			mockReq.body = {
-				autofillId: "test-autofill-id",
 				instructions: "Focus on technical skills",
 			};
 
@@ -252,7 +350,6 @@ describe("coverLetter.controller", () => {
 
 		it("should handle request with only settings", async () => {
 			mockReq.body = {
-				autofillId: "test-autofill-id",
 				settings: {
 					length: "short",
 					format: "paragraph",
@@ -273,7 +370,7 @@ describe("coverLetter.controller", () => {
 		});
 
 		it("should handle autofillId with special characters", async () => {
-			mockReq.body.autofillId = "autofill-123-abc_def";
+			mockReq.query.autofillId = "autofill-123-abc_def";
 
 			await generateCoverLetterController(mockReq as never, mockRes as never);
 
@@ -321,6 +418,17 @@ describe("coverLetter.controller", () => {
 			for (const userId of userIds) {
 				mockReq.user.id = userId;
 
+				mockedAutofillModel.findByAutofillId.mockResolvedValue({
+					userId,
+					uploadReference: "test-upload-id",
+					cvDataReference: "test-cv-data-id",
+					autofillId: "test-autofill-id",
+					formReference: "test-form-id",
+					data: [],
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				} as never);
+
 				await generateCoverLetterController(mockReq as never, mockRes as never);
 
 				expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -335,6 +443,31 @@ describe("coverLetter.controller", () => {
 				expect.arrayContaining(["autofillId", "coverLetter"]),
 			);
 			expect(Object.keys(response).length).toBe(2);
+		});
+
+		it("should handle multiple setting combinations", async () => {
+			const combinations = [
+				{
+					length: "short" as const,
+					format: "bullet" as const,
+				},
+				{
+					length: "detailed" as const,
+					format: "paragraph" as const,
+				},
+				{
+					length: "medium" as const,
+					format: "bullet" as const,
+				},
+			];
+
+			for (const settings of combinations) {
+				mockReq.body.settings = settings;
+
+				await generateCoverLetterController(mockReq as never, mockRes as never);
+
+				expect(mockRes.status).toHaveBeenCalledWith(200);
+			}
 		});
 
 		it("should handle all settings at boundary values", async () => {

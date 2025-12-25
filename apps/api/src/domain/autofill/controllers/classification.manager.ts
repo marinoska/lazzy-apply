@@ -31,10 +31,7 @@ import {
 	isPathInCVData,
 	validateJdFormMatch,
 } from "../llm/index.js";
-import {
-	persistCachedAutofill,
-	persistNewFormAndFields,
-} from "../services/index.js";
+import { persistAutofill, persistNewFormAndFields } from "../services/index.js";
 
 const logger = createLogger("classification.manager");
 
@@ -201,9 +198,6 @@ export class ClassificationManager {
 		formUrl,
 		formContext,
 	}: ProcessParams) {
-		// Generate file info for resume_upload fields
-		const fileInfo = await this.getFileInfo();
-
 		// Determine if we need to classify new fields or validate JD match
 		const needsClassification = this.fieldsToClassify.length;
 		const hasJdText = jdRawText.length;
@@ -244,55 +238,48 @@ export class ClassificationManager {
 		const allFields = [...this.existingFields, ...classifiedFields];
 
 		// Handle inference for fields with inferenceHint
-		let inferenceUsage: TokenUsage | undefined;
-		let inferredAnswers: Record<string, string> = {};
 		const inferenceFields = this.collectInferenceFields(allFields);
-		if (inferenceFields.length) {
-			const inferenceResult = await this.inferFields(
-				inferenceFields,
-				jdMatchResult.isMatch,
-				jdRawText,
-				formContext,
-			);
-			inferredAnswers = inferenceResult.answers;
-			inferenceUsage = inferenceResult.usage;
-		}
+		const inferenceResult = inferenceFields.length
+			? await this.inferFields(
+					inferenceFields,
+					jdMatchResult.isMatch,
+					jdRawText,
+					formContext,
+				)
+			: { answers: {}, usage: createEmptyUsage() };
 
-		// Build final response with all data including inferred answers
-		const response = this.buildResponseFromFields(
-			allFields,
-			fileInfo,
-			inferredAnswers,
-		);
-
-		let autofill: Awaited<ReturnType<typeof persistCachedAutofill>>;
-
-		if (this.existingForm) {
-			logger.info("Form found in DB, saving autofill record");
-			autofill = await persistCachedAutofill(
-				this.existingForm._id,
-				this.fileUploadId,
-				this.cvDataId,
-				this.userId,
-				response,
-			);
-		} else {
+		if (!this.existingForm) {
 			logger.info("Persisting new form and fields");
-			autofill = await persistNewFormAndFields(
+			await persistNewFormAndFields(
 				this.formInput,
 				allFields,
 				classifiedFields,
-				this.userId,
-				this.fileUploadId,
-				this.cvDataId,
-				response,
-				classificationUsage,
-				inferenceUsage,
-				shouldValidateJdMatch ? jdMatchResult.usage : undefined,
-				jdRawText,
-				formContext,
 			);
+			await this.loadForm(this.formInput);
+			if (!this.existingForm) {
+				throw new Error("Form not found after persistence");
+			}
 		}
+
+		// Build final response with all data including inferred answers
+		const response = await this.buildResponseFromFields(
+			allFields,
+			inferenceResult.answers,
+		);
+
+		logger.info("Saving autofill record");
+		const autofill = await persistAutofill(
+			this.existingForm._id,
+			this.fileUploadId,
+			this.cvDataId,
+			this.userId,
+			response,
+			classificationUsage,
+			inferenceResult.usage ?? undefined,
+			jdMatchResult.usage ?? undefined,
+			jdRawText,
+			formContext,
+		);
 
 		return {
 			autofill,
@@ -310,12 +297,12 @@ export class ClassificationManager {
 	): Promise<InferenceResult> {
 		if (!this.cvData?.rawText) {
 			logger.error("No CV raw text available for inference");
-			return { answers: {}, usage: null };
+			return { answers: {}, usage: createEmptyUsage() };
 		}
 
 		if (!fields.length) {
 			logger.info("No fields to infer, skipping inference");
-			return { answers: {}, usage: null };
+			return { answers: {}, usage: createEmptyUsage() };
 		}
 
 		// Use JD text if it matches, otherwise fall back to form context
@@ -348,12 +335,14 @@ export class ClassificationManager {
 	/**
 	 * Builds autofill response from stored fields, enriched with CV data values
 	 */
-	private buildResponseFromFields(
+	private async buildResponseFromFields(
 		fields: (TFormField | EnrichedClassifiedField)[],
-		fileInfo: FileInfo | null,
 		inferredAnswers: Record<string, string> = {},
-	): AutofillResponseData {
+	): Promise<AutofillResponseData> {
 		const response: AutofillResponseData = {};
+
+		// Generate file info for resume_upload fields
+		const fileInfo = await this.getFileInfo();
 
 		for (const field of fields) {
 			const pathFound = isPathInCVData(field.classification);

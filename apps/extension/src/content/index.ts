@@ -186,7 +186,7 @@ async function handleShowModal(
 	sendResponse: (response: MessageResponse) => void,
 ): Promise<void> {
 	try {
-		const sidebarInstance = ensureSidebar();
+		const sidebarInstance = ensureSidebar(false);
 		await sidebarInstance.show();
 		sendResponse({ ok: true });
 	} catch (error) {
@@ -240,7 +240,7 @@ if (formStore.isParent) {
 	formStore.onIframeFormReceived((form) => {
 		if (form.formHash !== lastDetectedFormHash) {
 			lastDetectedFormHash = form.formHash;
-			const sidebarInstance = ensureSidebar();
+			const sidebarInstance = ensureSidebar(false);
 			sidebarInstance.show();
 		}
 	});
@@ -260,7 +260,7 @@ new NavigationWatcher(() => {
 		const currentFormHash = applicationForm.formHash;
 		if (currentFormHash !== lastDetectedFormHash) {
 			lastDetectedFormHash = currentFormHash;
-			const sidebarInstance = ensureSidebar();
+			const sidebarInstance = ensureSidebar(false);
 			sidebarInstance.show();
 		}
 	}

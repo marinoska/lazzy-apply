@@ -28,6 +28,10 @@ afterAll(async () => {
 });
 
 afterEach(async () => {
+	await mongoose.connection.db
+		?.admin()
+		.command({ killAllSessions: [] })
+		.catch(() => {});
 	const collections = mongoose.connection.collections;
 	for (const key in collections) {
 		await collections[key].deleteMany({});

@@ -1,11 +1,14 @@
 import type { FileUploadContentType } from "@lazyapply/types";
 import mongoose from "mongoose";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { OutboxModel } from "./outbox.model.js";
 
 const objectId = () => new mongoose.Types.ObjectId();
 
 describe("Outbox Model", () => {
+	beforeAll(async () => {
+		await OutboxModel.createIndexes();
+	});
 	describe("File Type Field", () => {
 		it("should accept PDF file type", async () => {
 			const outbox = await OutboxModel.create({

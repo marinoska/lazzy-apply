@@ -23,6 +23,7 @@ describe("content/index initialization", () => {
 		hide: ReturnType<typeof vi.fn>;
 		updateSession: ReturnType<typeof vi.fn>;
 		showError: ReturnType<typeof vi.fn>;
+		isVisible: ReturnType<typeof vi.fn>;
 	};
 	let mockScanPage: ReturnType<typeof vi.fn>;
 	let mockFormStoreIsParent: boolean;
@@ -40,6 +41,7 @@ describe("content/index initialization", () => {
 			hide: vi.fn(),
 			updateSession: vi.fn(),
 			showError: vi.fn(),
+			isVisible: vi.fn().mockReturnValue(false),
 		};
 
 		mockScanPage = vi.fn();

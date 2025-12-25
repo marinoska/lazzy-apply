@@ -8,7 +8,7 @@ export type TAutofillRefine = {
 	hash: FieldHash;
 	value: string | null;
 	fieldLabel: string;
-	fieldDescription: string;
+	fieldDescription?: string;
 	prevFieldText: string;
 	userInstructions: string;
 	createdAt: Date;

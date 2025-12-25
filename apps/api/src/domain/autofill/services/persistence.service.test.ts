@@ -9,7 +9,7 @@ import {
 import { UsageModel } from "@/domain/usage/index.js";
 import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
 import {
-	persistCachedAutofill,
+	persistAutofill,
 	persistNewFormAndFields,
 } from "./persistence.service.js";
 
@@ -58,34 +58,10 @@ describe("persistence.service", () => {
 				},
 			];
 
-			const tokenUsage = {
-				promptTokens: 100,
-				completionTokens: 50,
-				totalTokens: 150,
-				inputCost: 0.0001,
-				outputCost: 0.00005,
-				totalCost: 0.00015,
-			};
-
-			const autofillResponse: AutofillResponseData = {
-				"hash-1": {
-					fieldName: "email",
-					label: "Email",
-					path: "personal.email",
-					pathFound: true,
-					value: "test@example.com",
-				},
-			};
-
 			await persistNewFormAndFields(
 				formInput,
 				classifiedFields,
 				classifiedFields,
-				TEST_USER_ID,
-				TEST_UPLOAD_ID,
-				TEST_CV_DATA_ID,
-				autofillResponse,
-				tokenUsage,
 			);
 
 			const savedForm = await FormModel.findOne({ formHash: "test-form-hash" });
@@ -109,14 +85,6 @@ describe("persistence.service", () => {
 				isFileUpload: false,
 				accept: null,
 			});
-
-			// Check usage was saved to Usage model with form's _id as reference
-			const savedUsage = await UsageModel.findOne({
-				reference: savedForm?._id,
-			});
-			expect(savedUsage).not.toBeNull();
-			expect(savedUsage?.type).toBe("form_fields_classification");
-			expect(savedUsage?.totalTokens).toBe(150);
 		});
 
 		it("should handle form with no action", async () => {
@@ -133,42 +101,14 @@ describe("persistence.service", () => {
 				},
 			];
 
-			const autofillResponse: AutofillResponseData = {
-				"hash-1": {
-					fieldName: "email",
-					label: "Email",
-					path: "personal.email",
-					pathFound: true,
-				},
-			};
-
 			await persistNewFormAndFields(
 				formInput,
 				classifiedFields,
 				classifiedFields,
-				TEST_USER_ID,
-				TEST_UPLOAD_ID,
-				TEST_CV_DATA_ID,
-				autofillResponse,
-				{
-					promptTokens: 0,
-					completionTokens: 0,
-					totalTokens: 0,
-				},
 			);
 
 			const savedForm = await FormModel.findOne({ formHash: "test-form-hash" });
 			expect(savedForm?.action).toBeNull();
-
-			// Usage should be saved with 0 values
-			const savedUsage = await UsageModel.findOne({
-				reference: savedForm?._id,
-			});
-			expect(savedUsage).not.toBeNull();
-			expect(savedUsage?.totalTokens).toBe(0);
-			expect(savedUsage?.inputCost).toBe(0);
-			expect(savedUsage?.outputCost).toBe(0);
-			expect(savedUsage?.totalCost).toBe(0);
 		});
 	});
 
@@ -203,30 +143,10 @@ describe("persistence.service", () => {
 				classification: "personal.phone",
 			};
 
-			const autofillResponse: AutofillResponseData = {
-				"hash-cached": {
-					fieldName: "email",
-					label: "Email",
-					path: "personal.email",
-					pathFound: true,
-				},
-				"hash-new": {
-					fieldName: "phone",
-					label: "Phone",
-					path: "personal.phone",
-					pathFound: true,
-				},
-			};
-
 			await persistNewFormAndFields(
 				formInput,
 				[cachedFieldFromDb, newlyClassifiedField],
 				[newlyClassifiedField],
-				TEST_USER_ID,
-				TEST_UPLOAD_ID,
-				TEST_CV_DATA_ID,
-				autofillResponse,
-				{ promptTokens: 0, completionTokens: 0, totalTokens: 0 },
 			);
 
 			// Form should reference both fields
@@ -247,136 +167,6 @@ describe("persistence.service", () => {
 				hash: "hash-cached",
 			});
 			expect(cachedFieldInDb).not.toBeNull();
-		});
-	});
-
-	describe("persistNewFormAndFields autofill record", () => {
-		it("should save autofill record with field data", async () => {
-			const formInput = createTestFormInput();
-			const field = createTestField("hash-1", "email");
-
-			const classifiedFields: EnrichedClassifiedField[] = [
-				{
-					...field,
-					classification: "personal.email",
-				},
-			];
-
-			const autofillResponse: AutofillResponseData = {
-				"hash-1": {
-					fieldName: "email",
-					label: "Email",
-					path: "personal.email",
-					pathFound: true,
-					value: "test@example.com",
-				},
-			};
-
-			await persistNewFormAndFields(
-				formInput,
-				classifiedFields,
-				classifiedFields,
-				TEST_USER_ID,
-				TEST_UPLOAD_ID,
-				TEST_CV_DATA_ID,
-				autofillResponse,
-				{
-					promptTokens: 100,
-					completionTokens: 50,
-					totalTokens: 150,
-				},
-			);
-
-			// Check autofill record was saved
-			const savedAutofill = await AutofillModel.findOne({
-				userId: TEST_USER_ID,
-			});
-			expect(savedAutofill).not.toBeNull();
-			expect(savedAutofill?.userId).toBe(TEST_USER_ID);
-			expect(savedAutofill?.uploadReference.toString()).toBe(TEST_UPLOAD_ID);
-
-			// Check autofill data object
-			const dataEntry = savedAutofill?.data.find(
-				(entry) => entry.hash === "hash-1",
-			);
-			expect(dataEntry).toBeDefined();
-			expect(dataEntry?.fieldName).toBe("email");
-			expect(dataEntry?.label).toBe("Email");
-			expect(dataEntry?.path).toBe("personal.email");
-			expect(dataEntry?.pathFound).toBe(true);
-			expect(dataEntry?.value).toBe("test@example.com");
-		});
-	});
-
-	describe("persistNewFormAndFields with file upload fields", () => {
-		it("should save autofill record with file upload data", async () => {
-			const formInput: FormInput = {
-				formHash: "test-form-file-upload",
-				fields: [{ hash: "hash-resume" }],
-				pageUrl: "https://example.com/apply",
-				action: null,
-			};
-
-			const resumeField: Field = {
-				hash: "hash-resume",
-				field: {
-					tag: "input",
-					type: "file",
-					name: "_systemfield_resume",
-					label: "Resume",
-					placeholder: null,
-					description: null,
-					isFileUpload: true,
-					accept: ".pdf,.docx",
-				},
-			};
-
-			const classifiedFields: EnrichedClassifiedField[] = [
-				{
-					...resumeField,
-					classification: "resume_upload",
-				},
-			];
-
-			const autofillResponse: AutofillResponseData = {
-				"hash-resume": {
-					fieldName: "_systemfield_resume",
-					label: "Resume",
-					path: "resume_upload",
-					pathFound: true,
-					fileUrl: "https://example.com/presigned-url",
-					fileName: "John_Doe_CV.docx",
-					fileContentType: "DOCX",
-				},
-			};
-
-			await persistNewFormAndFields(
-				formInput,
-				classifiedFields,
-				classifiedFields,
-				TEST_USER_ID,
-				TEST_UPLOAD_ID,
-				TEST_CV_DATA_ID,
-				autofillResponse,
-				{ promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-			);
-
-			const savedAutofill = await AutofillModel.findOne({
-				userId: TEST_USER_ID,
-			});
-			expect(savedAutofill).not.toBeNull();
-
-			const fileEntry = savedAutofill?.data.find(
-				(entry) => entry.hash === "hash-resume",
-			);
-			expect(fileEntry).toBeDefined();
-			expect(fileEntry?.fieldName).toBe("_systemfield_resume");
-			expect(fileEntry?.path).toBe("resume_upload");
-			expect(fileEntry?.pathFound).toBe(true);
-			expect(fileEntry?.fileUrl).toBe("https://example.com/presigned-url");
-			expect(fileEntry?.fileName).toBe("John_Doe_CV.docx");
-			expect(fileEntry?.fileContentType).toBe("DOCX");
-			expect(fileEntry?.value).toBeUndefined();
 		});
 	});
 
@@ -423,7 +213,7 @@ describe("persistence.service", () => {
 				},
 			};
 
-			await persistCachedAutofill(
+			await persistAutofill(
 				savedForm._id,
 				TEST_UPLOAD_ID,
 				TEST_CV_DATA_ID,

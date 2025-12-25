@@ -40,7 +40,7 @@ const autofillRefineSchema = new Schema<
 		},
 		prevFieldText: {
 			type: String,
-			required: true,
+			default: "",
 		},
 		userInstructions: {
 			type: String,
@@ -69,19 +69,29 @@ autofillRefineSchema.statics.findByAutofillId = async function (
 				autofillId: { $first: "$autofillId" },
 				hash: { $first: "$hash" },
 				value: { $first: "$value" },
+				fieldLabel: { $first: "$fieldLabel" },
+				fieldDescription: { $first: "$fieldDescription" },
+				prevFieldText: { $first: "$prevFieldText" },
+				userInstructions: { $first: "$userInstructions" },
 				createdAt: { $first: "$createdAt" },
 				updatedAt: { $first: "$updatedAt" },
 			},
 		},
 	]);
 
-	return results.map((r) => ({
-		autofillId: r.autofillId,
-		hash: r.hash,
-		value: r.value,
-		createdAt: r.createdAt,
-		updatedAt: r.updatedAt,
-	}));
+	return results.map(
+		(r): TAutofillRefine => ({
+			autofillId: r.autofillId,
+			hash: r.hash,
+			value: r.value ?? null,
+			fieldLabel: r.fieldLabel,
+			fieldDescription: r.fieldDescription,
+			prevFieldText: r.prevFieldText,
+			userInstructions: r.userInstructions,
+			createdAt: r.createdAt,
+			updatedAt: r.updatedAt,
+		}),
+	);
 };
 
 export type { AutofillRefineDocument } from "./autofillRefine.types.js";

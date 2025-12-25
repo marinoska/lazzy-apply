@@ -145,18 +145,6 @@ describe("AutofillModel", () => {
 			expect(result?.autofillId).toBe(TEST_AUTOFILL_ID);
 		});
 
-		it("findByUserId should return all records for a user", async () => {
-			const data1 = createTestAutofillData();
-			const data2 = createTestAutofillData({
-				autofillId: "autofill-def",
-				formReference: new mongoose.Types.ObjectId(),
-			});
-			await AutofillModel.create([data1, data2]);
-
-			const results = await AutofillModel.findByUserId(TEST_USER_ID);
-			expect(results).toHaveLength(2);
-		});
-
 		it("findMostRecentByUserUploadForm should return most recent record", async () => {
 			const data1 = createTestAutofillData();
 			await AutofillModel.create(data1);

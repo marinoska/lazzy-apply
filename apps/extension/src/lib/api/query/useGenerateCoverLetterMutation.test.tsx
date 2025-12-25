@@ -286,9 +286,11 @@ describe("useGenerateCoverLetterMutation", () => {
 
 		result.current.reset();
 
-		expect(result.current.data).toBeUndefined();
-		expect(result.current.isSuccess).toBe(false);
-		expect(result.current.isError).toBe(false);
+		await waitFor(() => {
+			expect(result.current.data).toBeUndefined();
+			expect(result.current.isSuccess).toBe(false);
+			expect(result.current.isError).toBe(false);
+		});
 	});
 
 	it("should handle very long cover letters", async () => {
@@ -392,7 +394,7 @@ describe("useGenerateCoverLetterMutation", () => {
 		});
 
 		expect(response).toEqual(mockResponse);
-		expect(result.current.isSuccess).toBe(true);
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 	});
 
 	it("should handle mutateAsync errors", async () => {
