@@ -1,34 +1,116 @@
+import { randomUUID } from "node:crypto";
 import type {
-	AutofillResponseData,
-	AutofillResponseItem,
 	Field,
+	FormFieldPath,
 	FormInput,
+	InferenceHint,
 	ParsedCVData,
 	TokenUsage,
 } from "@lazyapply/types";
 import type { Types } from "mongoose";
+import mongoose from "mongoose";
 import { getPresignedDownloadUrl } from "@/app/cloudflare.js";
 import { getEnv } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
-import { AUTOFILL_MODEL_NAME } from "@/domain/autofill/index.js";
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
 import type { TFileUpload } from "@/domain/uploads/model/fileUpload.types.js";
-import { UsageModel } from "@/domain/usage/index.js";
-import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
 import {
-	classifyFieldsWithAI,
+	type AutofillDataItem,
+	type AutofillDataItemFile,
+	type AutofillDataItemText,
+	type AutofillDocument,
+	AutofillModel,
+} from "../index.js";
+import {
 	extractValueByPath,
 	type InferenceField,
 	type InferenceResult,
 	inferFieldValues,
 	isPathInCVData,
-	validateJdFormMatch as validateJdFormMatchWithAI,
+	validateJdFormMatchWithAI,
 } from "../llm/index.js";
-import { persistAutofill } from "../services/index.js";
-import { Form } from "./form.js";
+import { Form } from "./Form.js";
+import { Autofill } from "./index.js";
 
 const logger = createLogger("classification.manager");
+
+async function buildAutofillData(params: {
+	fields: Array<{
+		hash: string;
+		fieldRef: {
+			field: {
+				name: string | null;
+				label: string | null;
+			};
+			_id: Types.ObjectId;
+		};
+		classification: FormFieldPath;
+		linkType?: string;
+		inferenceHint?: InferenceHint;
+	}>;
+	fieldHashToIdMap: Map<string, Types.ObjectId>;
+	inferredAnswers: Record<string, string>;
+	cvData: ParsedCVData | null;
+	fileInfo: FileInfo | null;
+}): Promise<AutofillDataItem[]> {
+	const data: AutofillDataItem[] = [];
+
+	for (const field of params.fields) {
+		const fieldRef = params.fieldHashToIdMap.get(field.hash);
+		if (!fieldRef) {
+			continue;
+		}
+
+		const pathFound = isPathInCVData(field.classification);
+		let value: string | null = null;
+		let actualPathFound = pathFound;
+
+		if (isPathInCVData(field.classification) && params.cvData) {
+			value = extractValueByPath(
+				params.cvData,
+				field.classification,
+				field.linkType,
+			);
+		}
+
+		if (params.inferredAnswers[field.hash]) {
+			value = params.inferredAnswers[field.hash];
+			actualPathFound = true;
+		}
+
+		if (field.classification === "resume_upload" && params.fileInfo) {
+			const fileItem: AutofillDataItemFile = {
+				hash: field.hash,
+				fieldRef,
+				fieldName: field.fieldRef.field.name ?? "",
+				label: field.fieldRef.field.label ?? "",
+				path: field.classification,
+				pathFound: actualPathFound,
+				fileUrl: params.fileInfo.fileUrl,
+				fileName: params.fileInfo.fileName,
+				fileContentType: params.fileInfo.fileContentType,
+			};
+			data.push(fileItem);
+			continue;
+		}
+
+		const textItem: AutofillDataItemText = {
+			hash: field.hash,
+			fieldRef,
+			fieldName: field.fieldRef.field.name ?? "",
+			label: field.fieldRef.field.label ?? "",
+			path: field.classification,
+			pathFound: actualPathFound,
+			...(field.linkType && { linkType: field.linkType }),
+			...(field.inferenceHint && { inferenceHint: field.inferenceHint }),
+			value,
+		};
+		data.push(textItem);
+	}
+
+	return data;
+}
 
 type FileInfo = {
 	fileUrl: string;
@@ -48,7 +130,7 @@ function createEmptyUsage(): TokenUsage {
 }
 
 export interface AutofillResult {
-	autofill: Awaited<ReturnType<typeof persistAutofill>>;
+	autofill: AutofillDocument;
 	fromCache: boolean;
 }
 
@@ -87,6 +169,7 @@ export class ClassificationManager {
 	private mForm: Form;
 	private cvData: ParsedCVData | null = null;
 	private cvUpload: TFileUpload | null = null;
+	private autofill: Autofill;
 
 	private constructor(
 		private readonly userId: string,
@@ -94,6 +177,7 @@ export class ClassificationManager {
 		inputFieldsMap: Map<string, Field>,
 	) {
 		this.mForm = new Form(formInput, inputFieldsMap);
+		this.autofill = new Autofill(userId);
 	}
 
 	private get fileUploadId() {
@@ -122,7 +206,7 @@ export class ClassificationManager {
 		);
 
 		await Promise.all([
-			newInstance.mForm.load(),
+			newInstance.mForm.init(),
 			newInstance.loadCVData(deps.selectedUploadId),
 		]);
 
@@ -161,7 +245,7 @@ export class ClassificationManager {
 	 */
 	public async process(params: ProcessParams) {
 		const [classificationResult, jdMatchResult] = await Promise.all([
-			this.ensureFormPersisted(),
+			this.mForm.ensureFormPersisted(),
 			this.checkJdFormMatch(params),
 		]);
 
@@ -170,54 +254,39 @@ export class ClassificationManager {
 			params,
 		);
 
-		const response = await this.buildResponseFromFields(
-			inferenceResult.answers,
-		);
+		this.autofill.setClassificationUsage(classificationResult.usage);
+		this.autofill.setJdFormMatchUsage(jdMatchResult.usage);
+		this.autofill.setInferenceUsage(inferenceResult.usage);
 
-		const autofill = await this.persistAutofillRecord(
-			response,
-			params.jdRawText,
-			params.formContext,
-		);
-		await this.persistClassificationUsage(
-			classificationResult.usage,
-			autofill._id,
-		);
-		await this.persistJdFormMatchUsage(jdMatchResult.usage, autofill._id);
-		await this.persistInferenceUsage(inferenceResult.usage, autofill._id);
+		const fileInfo = await this.getFileInfo();
+		const data = await buildAutofillData({
+			fields: this.mForm.form.fields,
+			fieldHashToIdMap: this.mForm.getFieldHashToIdMap() as Map<
+				string,
+				Types.ObjectId
+			>,
+			inferredAnswers: inferenceResult.answers,
+			cvData: this.cvData,
+			fileInfo,
+		});
 
-		return { autofill };
-	}
+		const autofill = await AutofillModel.create({
+			userId: this.userId,
+			autofillId: randomUUID(),
+			formReference: this.mForm.form._id,
+			uploadReference: new mongoose.Types.ObjectId(
+				this.fileUploadId.toString(),
+			),
+			cvDataReference: new mongoose.Types.ObjectId(this.cvDataId.toString()),
+			jdRawText: params.jdRawText ?? "",
+			formContext: params.formContext ?? "",
+			data,
+		});
 
-	/**
-	 * Classifies fields that are not yet in the database using AI.
-	 * Persists form with all fields and returns usage data.
-	 */
-	private async ensureFormPersisted() {
-		let classifiedFields: EnrichedClassifiedField[] = [];
-		let usage = createEmptyUsage();
+		this.autofill.setAutofill(autofill);
+		await this.autofill.persistAllUsage();
 
-		if (this.mForm.formOrUndefined) {
-			return { usage: createEmptyUsage() };
-		}
-
-		if (this.mForm.hasFieldsToClassify()) {
-			const fieldsToClassify = this.mForm.getFieldsToClassify();
-			logger.info(
-				{ count: fieldsToClassify.length },
-				"Classifying missing fields",
-			);
-
-			const result = await classifyFieldsWithAI(fieldsToClassify);
-			classifiedFields = result.classifiedFields;
-			usage = result.usage;
-		}
-
-		const allFields = [...this.mForm.fields, ...classifiedFields];
-
-		await this.mForm.persist(allFields, classifiedFields);
-
-		return { usage };
+		return autofill;
 	}
 
 	/**
@@ -274,120 +343,6 @@ export class ClassificationManager {
 	}
 
 	/**
-	 * Ensures the form and its fields are persisted to the database.
-	 * Only persists if the form doesn't already exist.
-	 */
-
-	/**
-	 * Persists classification usage if it was generated.
-	 * Must be called after form is persisted.
-	 */
-	private async persistClassificationUsage(
-		usage: TokenUsage,
-		autofillId: Types.ObjectId,
-	) {
-		if (usage.totalTokens === 0) {
-			return;
-		}
-
-		this.mForm.ensureExists();
-
-		await UsageModel.create({
-			referenceTable: AUTOFILL_MODEL_NAME,
-			reference: autofillId,
-			userId: this.userId,
-			type: "form_fields_classification",
-			promptTokens: usage.promptTokens,
-			completionTokens: usage.completionTokens,
-			totalTokens: usage.totalTokens,
-			inputCost: usage.inputCost ?? 0,
-			outputCost: usage.outputCost ?? 0,
-			totalCost: usage.totalCost ?? 0,
-		});
-	}
-
-	/**
-	 * Persists inference usage if it was generated.
-	 * Must be called after autofill record is persisted.
-	 */
-	private async persistInferenceUsage(
-		usage: TokenUsage | undefined,
-		autofillId: Types.ObjectId,
-	) {
-		if (!usage || usage.totalTokens === 0) {
-			return;
-		}
-
-		await UsageModel.create({
-			referenceTable: AUTOFILL_MODEL_NAME,
-			reference: autofillId,
-			userId: this.userId,
-			type: "form_fields_inference",
-			promptTokens: usage.promptTokens,
-			completionTokens: usage.completionTokens,
-			totalTokens: usage.totalTokens,
-			inputCost: usage.inputCost ?? 0,
-			outputCost: usage.outputCost ?? 0,
-			totalCost: usage.totalCost ?? 0,
-		});
-	}
-
-	/**
-	 * Persists JD match usage if it was generated.
-	 * Must be called after ensureFormPersisted.
-	 */
-	private async persistJdFormMatchUsage(
-		usage: TokenUsage | null,
-		autofillId: Types.ObjectId,
-	) {
-		if (!usage) {
-			return;
-		}
-
-		this.mForm.ensureExists();
-
-		await UsageModel.create({
-			referenceTable: AUTOFILL_MODEL_NAME,
-			reference: autofillId,
-			userId: this.userId,
-			type: "jd_form_match",
-			promptTokens: usage.promptTokens,
-			completionTokens: usage.completionTokens,
-			totalTokens: usage.totalTokens,
-			inputCost: usage.inputCost ?? 0,
-			outputCost: usage.outputCost ?? 0,
-			totalCost: usage.totalCost ?? 0,
-		});
-	}
-
-	/**
-	 * Persists the autofill record with response data.
-	 * Requires the form to be persisted before calling this method.
-	 */
-	private async persistAutofillRecord(
-		response: AutofillResponseData,
-		jdRawText: string,
-		formContext: string,
-	) {
-		this.mForm.ensureExists();
-
-		logger.info("Saving autofill record");
-
-		const fieldHashToIdMap = this.mForm.getFieldHashToIdMap();
-
-		return persistAutofill(
-			this.mForm.form._id,
-			this.fileUploadId,
-			this.cvDataId,
-			this.userId,
-			response,
-			fieldHashToIdMap,
-			jdRawText,
-			formContext,
-		);
-	}
-
-	/**
 	 * Infer field values using CV and JD/form context text
 	 */
 	private async inferFields(
@@ -431,65 +386,6 @@ export class ClassificationManager {
 		);
 
 		return result;
-	}
-
-	/**
-	 * Builds autofill response from stored fields, enriched with CV data values
-	 */
-	private async buildResponseFromFields(
-		inferredAnswers: Record<string, string> = {},
-	): Promise<AutofillResponseData> {
-		const response: AutofillResponseData = {};
-
-		this.mForm.ensureExists();
-
-		const fileInfo = await this.getFileInfo();
-
-		for (const field of this.mForm.form.fields) {
-			const pathFound = isPathInCVData(field.classification);
-			const item: AutofillResponseItem = {
-				fieldName: field.fieldRef.field.name,
-				label: field.fieldRef.field.label,
-				path: field.classification,
-				pathFound,
-			};
-
-			if (field.linkType) {
-				item.linkType = field.linkType;
-			}
-
-			// Include inferenceHint for fields that can be answered via JD + CV
-			if ("inferenceHint" in field && field.inferenceHint) {
-				item.inferenceHint = field.inferenceHint;
-			}
-
-			// Extract value from CV data if path exists in CV structure
-			if (isPathInCVData(field.classification) && this.cvData) {
-				item.value = extractValueByPath(
-					this.cvData,
-					field.classification,
-					field.linkType,
-				);
-			}
-
-			// Apply inferred answer if available
-			if (inferredAnswers[field.hash]) {
-				item.value = inferredAnswers[field.hash];
-				item.pathFound = true;
-			}
-
-			// Add file info for resume_upload fields
-			if (field.classification === "resume_upload" && fileInfo) {
-				item.fileUrl = fileInfo.fileUrl;
-				item.fileName = fileInfo.fileName;
-				item.fileContentType = fileInfo.fileContentType;
-				item.pathFound = true;
-			}
-
-			response[field.hash] = item;
-		}
-
-		return response;
 	}
 
 	/**

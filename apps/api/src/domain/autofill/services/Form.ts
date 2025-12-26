@@ -1,4 +1,4 @@
-import type { Field, FormInput } from "@lazyapply/types";
+import type { Field, FormInput, TokenUsage } from "@lazyapply/types";
 import type { Types } from "mongoose";
 import mongoose from "mongoose";
 import { createLogger } from "@/app/logger.js";
@@ -14,9 +14,23 @@ import type {
 	TFormFieldPopulated,
 	TFormFieldRef,
 } from "@/domain/autofill/model/formField.types.js";
-import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
+import {
+	classifyFieldsWithAI,
+	type EnrichedClassifiedField,
+} from "../llm/classifier.llm.js";
 
 const logger = createLogger("form");
+
+function createEmptyUsage(): TokenUsage {
+	return {
+		promptTokens: 0,
+		completionTokens: 0,
+		totalTokens: 0,
+		inputCost: 0,
+		outputCost: 0,
+		totalCost: 0,
+	};
+}
 
 function buildFormFieldRefs(
 	classifiedFields: (EnrichedClassifiedField | TFormField)[],
@@ -99,7 +113,7 @@ export class Form {
 		return Array.from(this.inputFieldsMap.values());
 	}
 
-	async load() {
+	async init() {
 		const existingForm = await FormModel.findByHash(this.formInput.formHash, {
 			populate: true,
 		});
@@ -146,7 +160,7 @@ export class Form {
 		return this.fieldsToClassify;
 	}
 
-	async persist(
+	private async persist(
 		allFields: (TFormField | EnrichedClassifiedField)[],
 		classifiedFields: EnrichedClassifiedField[],
 	) {
@@ -210,5 +224,36 @@ export class Form {
 		return new Map(
 			this.form.fields.map((field) => [field.hash, field.fieldRef._id]),
 		);
+	}
+
+	/**
+	 * Classifies fields that are not yet in the database using AI.
+	 * Persists form with all fields and returns usage data.
+	 */
+	async ensureFormPersisted(): Promise<{ usage: TokenUsage }> {
+		let classifiedFields: EnrichedClassifiedField[] = [];
+		let usage = createEmptyUsage();
+
+		if (this.mForm) {
+			return { usage: createEmptyUsage() };
+		}
+
+		if (this.hasFieldsToClassify()) {
+			const fieldsToClassify = this.getFieldsToClassify();
+			logger.info(
+				{ count: fieldsToClassify.length },
+				"Classifying missing fields",
+			);
+
+			const result = await classifyFieldsWithAI(fieldsToClassify);
+			classifiedFields = result.classifiedFields;
+			usage = result.usage;
+		}
+
+		const allFields = [...this.knownFields, ...classifiedFields];
+
+		await this.persist(allFields, classifiedFields);
+
+		return { usage };
 	}
 }

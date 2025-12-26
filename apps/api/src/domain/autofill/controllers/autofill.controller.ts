@@ -16,7 +16,7 @@ import type { TAutofill } from "@/domain/autofill/model/autofill.types.js";
 import { AutofillCoverLetterModel } from "@/domain/autofill/model/autofillCoverLetter.model.js";
 import { FormModel } from "@/domain/autofill/model/form.model.js";
 import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
-import { ClassificationManager } from "./classification.manager.js";
+import { ClassificationManager } from "../services/autofill.manager.js";
 
 const logger = createLogger("autofill");
 
@@ -192,7 +192,7 @@ export async function autofill(
 		formInput: form,
 		fieldsInput: fields,
 	});
-	const { autofill } = await classificationManager.process({
+	const autofill = await classificationManager.process({
 		jdRawText: jdRawText ?? "",
 		jdUrl: jdUrl ?? null,
 		formUrl: form.pageUrl,

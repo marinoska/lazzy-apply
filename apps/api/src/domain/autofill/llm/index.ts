@@ -12,7 +12,7 @@ export {
 export {
 	type JdMatchInput,
 	type JdMatchResult,
-	validateJdFormMatch,
+	validateJdFormMatchWithAI,
 } from "./jdMatcher.llm.js";
 export {
 	type RefineInput,

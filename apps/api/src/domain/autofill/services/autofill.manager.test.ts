@@ -8,8 +8,7 @@ import {
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
 import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
-import { validateJdFormMatch } from "../llm/jdMatcher.llm.js";
-import { ClassificationManager } from "./classification.manager.js";
+import { ClassificationManager } from "./autofill.manager.js";
 
 // Mock the classifier service to avoid actual AI calls
 vi.mock("../llm/classifier.llm.js", () => ({
@@ -35,7 +34,7 @@ vi.mock("../llm/classifier.llm.js", () => ({
 
 // Mock the JD matcher service
 vi.mock("../llm/jdMatcher.llm.js", () => ({
-	validateJdFormMatch: vi.fn().mockResolvedValue({
+	validateJdFormMatchWithAI: vi.fn().mockResolvedValue({
 		isMatch: true,
 		usage: {
 			promptTokens: 50,
@@ -69,6 +68,8 @@ vi.mock("@/app/cloudflare.js", () => ({
 		.fn()
 		.mockResolvedValue("https://example.com/presigned-url"),
 }));
+
+import { validateJdFormMatchWithAI } from "../llm/jdMatcher.llm.js";
 
 const TEST_UPLOAD_ID = "507f1f77bcf86cd799439011";
 const CV_DATA_ID = "507f1f77bcf86cd799439033";
@@ -193,11 +194,11 @@ describe("classification.manager", () => {
 				formContext: "",
 			});
 
-			expect(result.autofill).toBeDefined();
-			expect(result.autofill.autofillId).toBeDefined();
-			expect(result.autofill.data).toHaveLength(1);
-			expect(result.autofill.data[0].fieldName).toBe("email");
-			expect(result.autofill.data[0].path).toBe("personal.email");
+			expect(result).toBeDefined();
+			expect(result.autofillId).toBeDefined();
+			expect(result.data).toHaveLength(1);
+			expect(result.data[0].fieldName).toBe("email");
+			expect(result.data[0].path).toBe("personal.email");
 		});
 
 		it("should return cached data when form exists with different URL", async () => {
@@ -251,8 +252,8 @@ describe("classification.manager", () => {
 			});
 
 			// Should still return cached autofill data
-			expect(result.autofill).toBeDefined();
-			expect(result.autofill.data).toHaveLength(1);
+			expect(result).toBeDefined();
+			expect(result.data).toHaveLength(1);
 		});
 
 		it("should use cached fields and classify only missing ones", async () => {
@@ -294,7 +295,7 @@ describe("classification.manager", () => {
 			});
 
 			// Should have autofill data for both fields (one cached, one classified)
-			expect(result.autofill.data.length).toBeGreaterThanOrEqual(1);
+			expect(result.data.length).toBeGreaterThanOrEqual(1);
 
 			// Form should be persisted
 			const savedForm = await FormModel.findOne({ formHash: "test-form-hash" });
@@ -318,7 +319,7 @@ describe("classification.manager", () => {
 				formContext: "",
 			});
 
-			expect(result.autofill.data).toHaveLength(1);
+			expect(result.data).toHaveLength(1);
 
 			// Form and field should be persisted
 			const savedForm = await FormModel.findOne({ formHash: "test-form-hash" });
@@ -349,7 +350,7 @@ describe("classification.manager", () => {
 			});
 
 			// validateJdFormMatch should NOT be called when URLs match
-			expect(validateJdFormMatch).not.toHaveBeenCalled();
+			expect(validateJdFormMatchWithAI).not.toHaveBeenCalled();
 		});
 
 		it("should call JD validation when jdUrl differs from formUrl", async () => {
@@ -371,7 +372,7 @@ describe("classification.manager", () => {
 			});
 
 			// validateJdFormMatch should be called when URLs differ
-			expect(validateJdFormMatch).toHaveBeenCalledWith({
+			expect(validateJdFormMatchWithAI).toHaveBeenCalledWith({
 				jdText: "Some JD text",
 				formFields: fields,
 				jdUrl: jdUrl,
@@ -398,7 +399,7 @@ describe("classification.manager", () => {
 			});
 
 			// validateJdFormMatch should NOT be called when JD text is empty
-			expect(validateJdFormMatch).not.toHaveBeenCalled();
+			expect(validateJdFormMatchWithAI).not.toHaveBeenCalled();
 		});
 
 		it("should return isMatch: true when jdUrl matches formUrl (sameUrl fallback)", async () => {
@@ -421,8 +422,8 @@ describe("classification.manager", () => {
 
 			// When sameUrl is true, isMatch defaults to true (no validation needed)
 			// The autofill should be generated successfully
-			expect(result.autofill).toBeDefined();
-			expect(result.autofill.data.length).toBeGreaterThan(0);
+			expect(result).toBeDefined();
+			expect(result.data.length).toBeGreaterThan(0);
 		});
 	});
 });

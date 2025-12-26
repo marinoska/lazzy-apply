@@ -27,14 +27,14 @@ vi.mock("@/app/logger.js", () => ({
 
 // Import after mocks are set up
 import { generateText } from "ai";
-import { validateJdFormMatch } from "./jdMatcher.llm.js";
+import { validateJdFormMatchWithAI } from "./jdMatcher.llm.js";
 
 const mockedGenerateText = vi.mocked(generateText);
 
 describe("jdMatcher.llm", () => {
-	describe("validateJdFormMatch", () => {
+	describe("validateJdFormMatchWithAI", () => {
 		it("should return isMatch: false for empty JD text", async () => {
-			const result = await validateJdFormMatch({
+			const result = await validateJdFormMatchWithAI({
 				jdText: "",
 				formFields: [
 					{
@@ -61,7 +61,7 @@ describe("jdMatcher.llm", () => {
 		});
 
 		it("should return isMatch: false for whitespace-only JD text", async () => {
-			const result = await validateJdFormMatch({
+			const result = await validateJdFormMatchWithAI({
 				jdText: "   \n\t  ",
 				formFields: [],
 				jdUrl: null,
@@ -85,7 +85,7 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			const result = await validateJdFormMatch({
+			const result = await validateJdFormMatchWithAI({
 				jdText:
 					"Senior Software Engineer at Acme Corp. Requirements: 5+ years experience...",
 				formFields: [
@@ -124,7 +124,7 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			const result = await validateJdFormMatch({
+			const result = await validateJdFormMatchWithAI({
 				jdText: "Marketing Manager position at XYZ Inc.",
 				formFields: [
 					{
@@ -165,7 +165,7 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			const result = await validateJdFormMatch({
+			const result = await validateJdFormMatchWithAI({
 				jdText: "Some job description",
 				formFields: [],
 				jdUrl: "https://example.com/job",
@@ -187,7 +187,7 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			const result = await validateJdFormMatch({
+			const result = await validateJdFormMatchWithAI({
 				jdText: "Some job description",
 				formFields: [],
 				jdUrl: null,
@@ -209,7 +209,7 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			await validateJdFormMatch({
+			await validateJdFormMatchWithAI({
 				jdText: "Job description text",
 				formFields: [
 					{
@@ -254,7 +254,7 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			await validateJdFormMatch({
+			await validateJdFormMatchWithAI({
 				jdText: "Job description",
 				formFields: [],
 				jdUrl: "https://company.com/careers/job-123",
@@ -287,7 +287,7 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			const result = await validateJdFormMatch({
+			const result = await validateJdFormMatchWithAI({
 				jdText: "Job description",
 				formFields: [],
 				jdUrl: null,
@@ -314,7 +314,7 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			const result = await validateJdFormMatch({
+			const result = await validateJdFormMatchWithAI({
 				jdText: "Job description",
 				formFields: [],
 				jdUrl: "https://example.com/job",
