@@ -1,4 +1,1 @@
-export {
-	persistAutofill,
-	persistNewFormAndFields,
-} from "./persistence.service.js";
+export { persistAutofill } from "./persistence.service.js";

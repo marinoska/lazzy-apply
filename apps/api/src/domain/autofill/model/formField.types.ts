@@ -14,6 +14,7 @@ export const FORM_MODEL_NAME = "forms" as const;
  * Only stores data needed for classification (no id, path is separate)
  */
 export type TFormField = {
+	_id: Types.ObjectId;
 	hash: string;
 	/** Classification-relevant field data (immutable) */
 	field: ClassificationFieldData;
@@ -25,7 +26,10 @@ export type TFormField = {
 	updatedAt: Date;
 };
 
-export type CreateFormFieldParams = Omit<TFormField, "createdAt" | "updatedAt">;
+export type CreateFormFieldParams = Omit<
+	TFormField,
+	"_id" | "createdAt" | "updatedAt"
+>;
 
 export type FormFieldMethods = Record<string, never>;
 

@@ -10,16 +10,7 @@ import type { Types } from "mongoose";
 import { getPresignedDownloadUrl } from "@/app/cloudflare.js";
 import { getEnv } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
-import {
-	AUTOFILL_MODEL_NAME,
-	FormFieldModel,
-	FormModel,
-	type TFormField,
-} from "@/domain/autofill/index.js";
-import type {
-	FormDocumentPopulated,
-	TFormFieldPopulated,
-} from "@/domain/autofill/model/formField.types.js";
+import { AUTOFILL_MODEL_NAME } from "@/domain/autofill/index.js";
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
 import type { TFileUpload } from "@/domain/uploads/model/fileUpload.types.js";
@@ -34,7 +25,8 @@ import {
 	isPathInCVData,
 	validateJdFormMatch as validateJdFormMatchWithAI,
 } from "../llm/index.js";
-import { persistAutofill, persistNewFormAndFields } from "../services/index.js";
+import { persistAutofill } from "../services/index.js";
+import { Form } from "./form.js";
 
 const logger = createLogger("classification.manager");
 
@@ -92,18 +84,17 @@ export interface ProcessParams {
  * 4. Persist new data
  */
 export class ClassificationManager {
-	private existingForm?: FormDocumentPopulated;
+	private mForm: Form;
 	private cvData: ParsedCVData | null = null;
 	private cvUpload: TFileUpload | null = null;
 
-	private existingFields: TFormField[] = [];
-	private fieldsToClassify: Field[] = [];
-
 	private constructor(
 		private readonly userId: string,
-		private readonly formInput: FormInput,
-		private inputFieldsMap: Map<string, Field>,
-	) {}
+		formInput: FormInput,
+		inputFieldsMap: Map<string, Field>,
+	) {
+		this.mForm = new Form(formInput, inputFieldsMap);
+	}
 
 	private get fileUploadId() {
 		if (!this.cvUpload) {
@@ -131,20 +122,9 @@ export class ClassificationManager {
 		);
 
 		await Promise.all([
-			newInstance.loadForm(deps.formInput),
+			newInstance.mForm.load(),
 			newInstance.loadCVData(deps.selectedUploadId),
 		]);
-
-		// Load fields - always needed for building response
-		if (newInstance.existingForm) {
-			// Form exists - use populated fields.fieldRef from FormFieldModel
-			newInstance.existingFields = newInstance.existingForm.fields.map(
-				(field: TFormFieldPopulated) => field.fieldRef,
-			);
-		} else {
-			logger.info("Form not found, looking up fields by hash");
-			await newInstance.loadFields();
-		}
 
 		return newInstance;
 	}
@@ -172,35 +152,6 @@ export class ClassificationManager {
 		this.cvData = cvData.toObject();
 		this.cvUpload = fileUpload.toObject();
 		logger.debug({ uploadId: selectedUploadId }, "CV data loaded");
-	}
-
-	private async loadForm(formInput: FormInput) {
-		// Step 1: Check if form exists
-		const existingForm = await FormModel.findByHash(formInput.formHash, {
-			populate: true,
-		});
-
-		if (existingForm) {
-			this.existingForm = existingForm;
-		}
-	}
-
-	private async loadFields() {
-		const hashes = Array.from(this.inputFieldsMap.keys());
-		this.existingFields = await FormFieldModel.findByHashes(hashes);
-
-		const existingFieldHashes = this.existingFields.map((f) => f.hash);
-
-		const missingHashes = hashes.filter(
-			(hash) => !existingFieldHashes.includes(hash),
-		);
-
-		for (const hash of missingHashes) {
-			const field = this.inputFieldsMap.get(hash);
-			if (field) {
-				this.fieldsToClassify.push(field);
-			}
-		}
 	}
 
 	/**
@@ -246,29 +197,25 @@ export class ClassificationManager {
 		let classifiedFields: EnrichedClassifiedField[] = [];
 		let usage = createEmptyUsage();
 
-		if (this.existingForm) {
+		if (this.mForm.formOrUndefined) {
 			return { usage: createEmptyUsage() };
 		}
 
-		if (this.fieldsToClassify.length) {
+		if (this.mForm.hasFieldsToClassify()) {
+			const fieldsToClassify = this.mForm.getFieldsToClassify();
 			logger.info(
-				{ count: this.fieldsToClassify.length },
+				{ count: fieldsToClassify.length },
 				"Classifying missing fields",
 			);
 
-			const result = await classifyFieldsWithAI(this.fieldsToClassify);
+			const result = await classifyFieldsWithAI(fieldsToClassify);
 			classifiedFields = result.classifiedFields;
 			usage = result.usage;
 		}
 
-		const allFields = [...this.existingFields, ...classifiedFields];
+		const allFields = [...this.mForm.fields, ...classifiedFields];
 
-		const newForm = await this.persistForm(allFields, classifiedFields);
-		this.existingForm = newForm;
-		this.existingFields = newForm.fields.map(
-			(field: TFormFieldPopulated) => field.fieldRef,
-		);
-		this.fieldsToClassify = [];
+		await this.mForm.persist(allFields, classifiedFields);
 
 		return { usage };
 	}
@@ -289,9 +236,11 @@ export class ClassificationManager {
 
 		logger.info({ jdUrl, formUrl }, "Validating JD match");
 
+		const formFields = this.mForm.getInputFields();
+
 		const result = await validateJdFormMatchWithAI({
 			jdText: jdRawText,
-			formFields: Array.from(this.inputFieldsMap.values()),
+			formFields,
 			jdUrl,
 			formUrl,
 		});
@@ -328,23 +277,6 @@ export class ClassificationManager {
 	 * Ensures the form and its fields are persisted to the database.
 	 * Only persists if the form doesn't already exist.
 	 */
-	private async persistForm(
-		allFields: (TFormField | EnrichedClassifiedField)[],
-		classifiedFields: EnrichedClassifiedField[],
-	) {
-		logger.info("Persisting new form and fields");
-		const form = await persistNewFormAndFields(
-			this.formInput,
-			allFields,
-			classifiedFields,
-		);
-
-		if (!form) {
-			throw new Error("Form not found after persistence");
-		}
-
-		return form;
-	}
 
 	/**
 	 * Persists classification usage if it was generated.
@@ -358,11 +290,7 @@ export class ClassificationManager {
 			return;
 		}
 
-		if (!this.existingForm) {
-			throw new Error(
-				"Form must be persisted before saving classification usage",
-			);
-		}
+		this.mForm.ensureExists();
 
 		await UsageModel.create({
 			referenceTable: AUTOFILL_MODEL_NAME,
@@ -416,9 +344,7 @@ export class ClassificationManager {
 			return;
 		}
 
-		if (!this.existingForm) {
-			throw new Error("Form must be persisted before saving JD match usage");
-		}
+		this.mForm.ensureExists();
 
 		await UsageModel.create({
 			referenceTable: AUTOFILL_MODEL_NAME,
@@ -443,18 +369,14 @@ export class ClassificationManager {
 		jdRawText: string,
 		formContext: string,
 	) {
-		if (!this.existingForm) {
-			throw new Error("Form must be persisted before saving autofill record");
-		}
+		this.mForm.ensureExists();
 
 		logger.info("Saving autofill record");
 
-		const fieldHashToIdMap = new Map(
-			this.existingForm.fields.map((field) => [field.hash, field.fieldRef._id]),
-		);
+		const fieldHashToIdMap = this.mForm.getFieldHashToIdMap();
 
 		return persistAutofill(
-			this.existingForm._id,
+			this.mForm.form._id,
 			this.fileUploadId,
 			this.cvDataId,
 			this.userId,
@@ -519,15 +441,11 @@ export class ClassificationManager {
 	): Promise<AutofillResponseData> {
 		const response: AutofillResponseData = {};
 
-		if (!this.existingForm) {
-			throw new Error(
-				"Form must be persisted before building autofill response",
-			);
-		}
-		// Generate file info for resume_upload fields
+		this.mForm.ensureExists();
+
 		const fileInfo = await this.getFileInfo();
 
-		for (const field of this.existingForm.fields) {
+		for (const field of this.mForm.form.fields) {
 			const pathFound = isPathInCVData(field.classification);
 			const item: AutofillResponseItem = {
 				fieldName: field.fieldRef.field.name,
@@ -579,15 +497,12 @@ export class ClassificationManager {
 	 */
 	private collectInferenceFields(): InferenceField[] {
 		const result: InferenceField[] = [];
-		if (!this.existingForm) {
-			throw new Error(
-				"Form must be persisted before collecting inference fields",
-			);
-		}
-		if (!Array.isArray(this.existingForm.fields)) {
+		this.mForm.ensureExists();
+
+		if (!Array.isArray(this.mForm.form.fields)) {
 			throw new Error("Form fields must be an array");
 		}
-		for (const field of this.existingForm.fields) {
+		for (const field of this.mForm.form.fields) {
 			if (
 				field.classification === "unknown" &&
 				"inferenceHint" in field &&
