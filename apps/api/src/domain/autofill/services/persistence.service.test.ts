@@ -218,6 +218,7 @@ describe("persistence.service", () => {
 				TEST_UPLOAD_ID,
 				TEST_CV_DATA_ID,
 				TEST_USER_ID,
+				"test-autofill-id",
 				autofillResponse,
 			);
 
@@ -230,14 +231,12 @@ describe("persistence.service", () => {
 				savedForm._id.toString(),
 			);
 
-			// Check empty usage was created
+			// Check no usage was created (classification usage is now persisted in ClassificationManager)
 			const savedUsage = await UsageModel.findOne({
 				reference: savedForm._id,
 				userId: TEST_USER_ID,
 			});
-			expect(savedUsage).not.toBeNull();
-			expect(savedUsage?.totalTokens).toBe(0);
-			expect(savedUsage?.totalCost).toBe(0);
+			expect(savedUsage).toBeNull();
 		});
 	});
 });

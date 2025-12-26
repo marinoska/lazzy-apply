@@ -164,7 +164,6 @@ describe("refine.controller", () => {
 				referenceTable: "autofill_refines",
 				reference: "test-refine-id",
 				userId: "test-user-id",
-				autofillId: "test-autofill-id",
 				type: "autofill_refine",
 				promptTokens: 500,
 				completionTokens: 100,

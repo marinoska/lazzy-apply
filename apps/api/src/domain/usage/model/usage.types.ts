@@ -36,8 +36,6 @@ export type TUsage = {
 	reference: Types.ObjectId;
 	/** User who triggered this usage */
 	userId: string;
-	/** Shared ID for all LLM calls within a single autofill request */
-	autofillId: string;
 	/** Type of usage - determines what operation generated the usage */
 	type: UsageType;
 	/** Token usage from AI processing */

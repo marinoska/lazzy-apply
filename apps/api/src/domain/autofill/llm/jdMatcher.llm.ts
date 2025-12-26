@@ -156,7 +156,7 @@ function parseJdMatchResponse(text: string): boolean {
  * @param input - JD and form data for matching
  * @returns Match result with boolean decision and token usage
  */
-export async function validateJdFormMatch(
+export async function validateJdFormMatchWithAI(
 	input: JdMatchInput,
 ): Promise<JdMatchResult> {
 	// Early return if JD is empty

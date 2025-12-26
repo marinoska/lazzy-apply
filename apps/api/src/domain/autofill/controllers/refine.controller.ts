@@ -101,7 +101,6 @@ export async function refineController(
 		referenceTable: "autofill_refines",
 		reference: refineRecord._id,
 		userId: user.id,
-		autofillId,
 		type: "autofill_refine",
 		promptTokens: result.usage.promptTokens,
 		completionTokens: result.usage.completionTokens,

@@ -6,10 +6,12 @@ import type {
 	ParsedCVData,
 	TokenUsage,
 } from "@lazyapply/types";
+import type { Types } from "mongoose";
 import { getPresignedDownloadUrl } from "@/app/cloudflare.js";
 import { getEnv } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
 import {
+	AUTOFILL_MODEL_NAME,
 	FormFieldModel,
 	FormModel,
 	type TFormField,
@@ -21,6 +23,7 @@ import type {
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
 import type { TFileUpload } from "@/domain/uploads/model/fileUpload.types.js";
+import { UsageModel } from "@/domain/usage/index.js";
 import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
 import {
 	classifyFieldsWithAI,
@@ -29,7 +32,7 @@ import {
 	type InferenceResult,
 	inferFieldValues,
 	isPathInCVData,
-	validateJdFormMatch,
+	validateJdFormMatch as validateJdFormMatchWithAI,
 } from "../llm/index.js";
 import { persistAutofill, persistNewFormAndFields } from "../services/index.js";
 
@@ -53,21 +56,29 @@ function createEmptyUsage(): TokenUsage {
 }
 
 export interface AutofillResult {
-	autofill: Awaited<ReturnType<typeof persistCachedAutofill>>;
+	autofill: Awaited<ReturnType<typeof persistAutofill>>;
 	fromCache: boolean;
 }
 
 export interface ClassificationManagerDeps {
+	/** Form metadata including hash and URL */
 	formInput: FormInput;
+	/** Array of form fields to be classified */
 	fieldsInput: Field[];
+	/** ID of the user requesting autofill */
 	userId: string;
+	/** ID of the selected CV/resume upload */
 	selectedUploadId: string;
 }
 
 export interface ProcessParams {
+	/** Raw text content extracted from the job description */
 	jdRawText: string;
+	/** URL of the job description page, null if not available */
 	jdUrl: string | null;
+	/** URL of the form being filled */
 	formUrl: string;
+	/** Contextual text extracted from the form page */
 	formContext: string;
 }
 
@@ -170,7 +181,7 @@ export class ClassificationManager {
 		});
 
 		if (existingForm) {
-			this.existingForm = existingForm.toObject();
+			this.existingForm = existingForm;
 		}
 	}
 
@@ -192,98 +203,266 @@ export class ClassificationManager {
 		}
 	}
 
-	public async process({
-		jdRawText,
-		jdUrl,
-		formUrl,
-		formContext,
-	}: ProcessParams) {
-		// Determine if we need to classify new fields or validate JD match
-		const needsClassification = this.fieldsToClassify.length;
-		const hasJdText = jdRawText.length;
-		const sameUrl = jdUrl === formUrl;
-		const shouldValidateJdMatch = hasJdText && !sameUrl;
+	/**
+	 * Main orchestration method for the autofill classification workflow.
+	 * Runs classification and JD validation in parallel, then processes inference,
+	 * persists data, and builds the final autofill response.
+	 */
+	public async process(params: ProcessParams) {
+		const [classificationResult, jdMatchResult] = await Promise.all([
+			this.ensureFormPersisted(),
+			this.checkJdFormMatch(params),
+		]);
 
-		if (needsClassification) {
+		const inferenceResult = await this.processInference(
+			jdMatchResult.isMatch,
+			params,
+		);
+
+		const response = await this.buildResponseFromFields(
+			inferenceResult.answers,
+		);
+
+		const autofill = await this.persistAutofillRecord(
+			response,
+			params.jdRawText,
+			params.formContext,
+		);
+		await this.persistClassificationUsage(
+			classificationResult.usage,
+			autofill._id,
+		);
+		await this.persistJdFormMatchUsage(jdMatchResult.usage, autofill._id);
+		await this.persistInferenceUsage(inferenceResult.usage, autofill._id);
+
+		return { autofill };
+	}
+
+	/**
+	 * Classifies fields that are not yet in the database using AI.
+	 * Persists form with all fields and returns usage data.
+	 */
+	private async ensureFormPersisted() {
+		let classifiedFields: EnrichedClassifiedField[] = [];
+		let usage = createEmptyUsage();
+
+		if (this.existingForm) {
+			return { usage: createEmptyUsage() };
+		}
+
+		if (this.fieldsToClassify.length) {
 			logger.info(
 				{ count: this.fieldsToClassify.length },
 				"Classifying missing fields",
 			);
+
+			const result = await classifyFieldsWithAI(this.fieldsToClassify);
+			classifiedFields = result.classifiedFields;
+			usage = result.usage;
 		}
 
-		if (shouldValidateJdMatch) {
-			logger.info({ jdUrl, formUrl: formUrl }, "Validating JD match");
-		}
-		// Run classification and JD match in parallel (using ternaries to skip when not needed)
-		const [classificationResult, jdMatchResult] = await Promise.all([
-			needsClassification
-				? classifyFieldsWithAI(this.fieldsToClassify)
-				: Promise.resolve({
-						classifiedFields: [] as EnrichedClassifiedField[],
-						usage: createEmptyUsage(),
-					}),
-			shouldValidateJdMatch
-				? validateJdFormMatch({
-						jdText: jdRawText,
-						formFields: Array.from(this.inputFieldsMap.values()),
-						jdUrl,
-						formUrl,
-					})
-				: Promise.resolve({ isMatch: sameUrl, usage: createEmptyUsage() }),
-		]);
-		const { classifiedFields, usage: classificationUsage } =
-			classificationResult;
-
-		// Build response from appropriate fields source
 		const allFields = [...this.existingFields, ...classifiedFields];
 
-		// Handle inference for fields with inferenceHint
-		const inferenceFields = this.collectInferenceFields(allFields);
-		const inferenceResult = inferenceFields.length
-			? await this.inferFields(
-					inferenceFields,
-					jdMatchResult.isMatch,
-					jdRawText,
-					formContext,
-				)
-			: { answers: {}, usage: createEmptyUsage() };
+		const newForm = await this.persistForm(allFields, classifiedFields);
+		this.existingForm = newForm;
+		this.existingFields = newForm.fields.map(
+			(field: TFormFieldPopulated) => field.fieldRef,
+		);
+		this.fieldsToClassify = [];
 
-		if (!this.existingForm) {
-			logger.info("Persisting new form and fields");
-			await persistNewFormAndFields(
-				this.formInput,
-				allFields,
-				classifiedFields,
-			);
-			await this.loadForm(this.formInput);
-			if (!this.existingForm) {
-				throw new Error("Form not found after persistence");
-			}
+		return { usage };
+	}
+
+	/**
+	 * Validates whether the job description matches the form.
+	 * Skips validation if JD and form URLs are the same or if no JD text is provided.
+	 * Returns usage to be persisted later after form is ensured to exist.
+	 */
+	private async checkJdFormMatch(params: ProcessParams) {
+		const { jdRawText, jdUrl, formUrl } = params;
+		const sameUrl = jdUrl === formUrl;
+		const shouldValidate = jdRawText.length > 0 && !sameUrl;
+
+		if (!shouldValidate) {
+			return { isMatch: sameUrl, usage: null };
 		}
 
-		// Build final response with all data including inferred answers
-		const response = await this.buildResponseFromFields(
+		logger.info({ jdUrl, formUrl }, "Validating JD match");
+
+		const result = await validateJdFormMatchWithAI({
+			jdText: jdRawText,
+			formFields: Array.from(this.inputFieldsMap.values()),
+			jdUrl,
+			formUrl,
+		});
+
+		return {
+			isMatch: result.isMatch,
+			usage: result.usage.totalTokens > 0 ? result.usage : null,
+		};
+	}
+
+	/**
+	 * Processes field inference for fields that require JD/CV context.
+	 * Collects fields with inference hints and delegates to inference logic.
+	 */
+	private async processInference(
+		useJDText: boolean,
+		params: ProcessParams,
+	): Promise<InferenceResult> {
+		const inferenceFields = this.collectInferenceFields();
+
+		if (inferenceFields.length === 0) {
+			return { answers: {}, usage: createEmptyUsage() };
+		}
+
+		return this.inferFields(
+			inferenceFields,
+			useJDText,
+			params.jdRawText,
+			params.formContext,
+		);
+	}
+
+	/**
+	 * Ensures the form and its fields are persisted to the database.
+	 * Only persists if the form doesn't already exist.
+	 */
+	private async persistForm(
+		allFields: (TFormField | EnrichedClassifiedField)[],
+		classifiedFields: EnrichedClassifiedField[],
+	) {
+		logger.info("Persisting new form and fields");
+		const form = await persistNewFormAndFields(
+			this.formInput,
 			allFields,
-			inferenceResult.answers,
+			classifiedFields,
 		);
 
+		if (!form) {
+			throw new Error("Form not found after persistence");
+		}
+
+		return form;
+	}
+
+	/**
+	 * Persists classification usage if it was generated.
+	 * Must be called after form is persisted.
+	 */
+	private async persistClassificationUsage(
+		usage: TokenUsage,
+		autofillId: Types.ObjectId,
+	) {
+		if (usage.totalTokens === 0) {
+			return;
+		}
+
+		if (!this.existingForm) {
+			throw new Error(
+				"Form must be persisted before saving classification usage",
+			);
+		}
+
+		await UsageModel.create({
+			referenceTable: AUTOFILL_MODEL_NAME,
+			reference: autofillId,
+			userId: this.userId,
+			type: "form_fields_classification",
+			promptTokens: usage.promptTokens,
+			completionTokens: usage.completionTokens,
+			totalTokens: usage.totalTokens,
+			inputCost: usage.inputCost ?? 0,
+			outputCost: usage.outputCost ?? 0,
+			totalCost: usage.totalCost ?? 0,
+		});
+	}
+
+	/**
+	 * Persists inference usage if it was generated.
+	 * Must be called after autofill record is persisted.
+	 */
+	private async persistInferenceUsage(
+		usage: TokenUsage | undefined,
+		autofillId: Types.ObjectId,
+	) {
+		if (!usage || usage.totalTokens === 0) {
+			return;
+		}
+
+		await UsageModel.create({
+			referenceTable: AUTOFILL_MODEL_NAME,
+			reference: autofillId,
+			userId: this.userId,
+			type: "form_fields_inference",
+			promptTokens: usage.promptTokens,
+			completionTokens: usage.completionTokens,
+			totalTokens: usage.totalTokens,
+			inputCost: usage.inputCost ?? 0,
+			outputCost: usage.outputCost ?? 0,
+			totalCost: usage.totalCost ?? 0,
+		});
+	}
+
+	/**
+	 * Persists JD match usage if it was generated.
+	 * Must be called after ensureFormPersisted.
+	 */
+	private async persistJdFormMatchUsage(
+		usage: TokenUsage | null,
+		autofillId: Types.ObjectId,
+	) {
+		if (!usage) {
+			return;
+		}
+
+		if (!this.existingForm) {
+			throw new Error("Form must be persisted before saving JD match usage");
+		}
+
+		await UsageModel.create({
+			referenceTable: AUTOFILL_MODEL_NAME,
+			reference: autofillId,
+			userId: this.userId,
+			type: "jd_form_match",
+			promptTokens: usage.promptTokens,
+			completionTokens: usage.completionTokens,
+			totalTokens: usage.totalTokens,
+			inputCost: usage.inputCost ?? 0,
+			outputCost: usage.outputCost ?? 0,
+			totalCost: usage.totalCost ?? 0,
+		});
+	}
+
+	/**
+	 * Persists the autofill record with response data.
+	 * Requires the form to be persisted before calling this method.
+	 */
+	private async persistAutofillRecord(
+		response: AutofillResponseData,
+		jdRawText: string,
+		formContext: string,
+	) {
+		if (!this.existingForm) {
+			throw new Error("Form must be persisted before saving autofill record");
+		}
+
 		logger.info("Saving autofill record");
-		const autofill = await persistAutofill(
+
+		const fieldHashToIdMap = new Map(
+			this.existingForm.fields.map((field) => [field.hash, field.fieldRef._id]),
+		);
+
+		return persistAutofill(
 			this.existingForm._id,
 			this.fileUploadId,
 			this.cvDataId,
 			this.userId,
 			response,
-			classificationUsage,
-			inferenceResult.usage ?? undefined,
-			jdMatchResult.usage ?? undefined,
+			fieldHashToIdMap,
 			jdRawText,
 			formContext,
 		);
-
-		return {
-			autofill,
-		};
 	}
 
 	/**
@@ -291,7 +470,7 @@ export class ClassificationManager {
 	 */
 	private async inferFields(
 		fields: InferenceField[],
-		jdMatches: boolean,
+		useJDText: boolean,
 		jdRawText: string,
 		formContext: string,
 	): Promise<InferenceResult> {
@@ -307,11 +486,11 @@ export class ClassificationManager {
 
 		// Use JD text if it matches, otherwise fall back to form context
 		let contextText = "";
-		if (jdMatches && jdRawText.length) {
+		if (useJDText && jdRawText.length) {
 			contextText = jdRawText;
 		} else if (formContext) {
 			contextText = formContext;
-			logger.info("Using form context as fallback for inference");
+			logger.debug("Using form context as fallback for inference");
 		}
 
 		logger.debug(
@@ -324,7 +503,7 @@ export class ClassificationManager {
 			fields,
 		});
 
-		logger.info(
+		logger.debug(
 			{ answeredCount: Object.keys(result.answers).length },
 			"Inference completed",
 		);
@@ -336,19 +515,23 @@ export class ClassificationManager {
 	 * Builds autofill response from stored fields, enriched with CV data values
 	 */
 	private async buildResponseFromFields(
-		fields: (TFormField | EnrichedClassifiedField)[],
 		inferredAnswers: Record<string, string> = {},
 	): Promise<AutofillResponseData> {
 		const response: AutofillResponseData = {};
 
+		if (!this.existingForm) {
+			throw new Error(
+				"Form must be persisted before building autofill response",
+			);
+		}
 		// Generate file info for resume_upload fields
 		const fileInfo = await this.getFileInfo();
 
-		for (const field of fields) {
+		for (const field of this.existingForm.fields) {
 			const pathFound = isPathInCVData(field.classification);
 			const item: AutofillResponseItem = {
-				fieldName: field.field.name,
-				label: field.field.label,
+				fieldName: field.fieldRef.field.name,
+				label: field.fieldRef.field.label,
 				path: field.classification,
 				pathFound,
 			};
@@ -394,25 +577,30 @@ export class ClassificationManager {
 	/**
 	 * Collects fields that require inference from classified fields
 	 */
-	private collectInferenceFields(
-		fields: (TFormField | EnrichedClassifiedField)[],
-	): InferenceField[] {
+	private collectInferenceFields(): InferenceField[] {
 		const result: InferenceField[] = [];
-
-		for (const field of fields) {
+		if (!this.existingForm) {
+			throw new Error(
+				"Form must be persisted before collecting inference fields",
+			);
+		}
+		if (!Array.isArray(this.existingForm.fields)) {
+			throw new Error("Form fields must be an array");
+		}
+		for (const field of this.existingForm.fields) {
 			if (
 				field.classification === "unknown" &&
 				"inferenceHint" in field &&
 				field.inferenceHint === "text_from_jd_cv"
 			) {
 				result.push({
-					hash: field.hash,
-					fieldName: field.field.name,
-					label: field.field.label ?? null,
-					description: field.field.description ?? null,
-					placeholder: field.field.placeholder ?? null,
-					tag: field.field.tag ?? null,
-					type: field.field.type ?? null,
+					hash: field.fieldRef.hash,
+					fieldName: field.fieldRef.field.name,
+					label: field.fieldRef.field.label ?? null,
+					description: field.fieldRef.field.description ?? null,
+					placeholder: field.fieldRef.field.placeholder ?? null,
+					tag: field.fieldRef.field.tag ?? null,
+					type: field.fieldRef.field.type ?? null,
 				});
 			}
 		}

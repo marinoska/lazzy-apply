@@ -124,7 +124,6 @@ export async function generateCoverLetterController(
 		referenceTable: "autofill_cover_letters",
 		reference: coverLetterRecord._id,
 		userId: user.id,
-		autofillId,
 		type: "cover_letter",
 		promptTokens: result.usage.promptTokens,
 		completionTokens: result.usage.completionTokens,

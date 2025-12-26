@@ -33,12 +33,6 @@ const usageSchema = new Schema<TUsage, UsageModel, UsageMethods>(
 			index: true,
 			immutable: true,
 		},
-		autofillId: {
-			type: String,
-			required: true,
-			index: true,
-			immutable: true,
-		},
 		type: {
 			type: String,
 			required: true,
