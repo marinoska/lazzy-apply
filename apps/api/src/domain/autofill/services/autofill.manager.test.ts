@@ -8,7 +8,7 @@ import {
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
 import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
-import { ClassificationManager } from "./autofill.manager.js";
+import { AutofillManager } from "./autofill.manager.js";
 
 // Mock the classifier service to avoid actual AI calls
 vi.mock("../llm/classifier.llm.js", () => ({
@@ -181,7 +181,7 @@ describe("classification.manager", () => {
 			const formInput = createTestFormInput();
 			const fields = [createTestField("hash-1", "email")];
 
-			const manager = await ClassificationManager.create({
+			const manager = await AutofillManager.create({
 				formInput,
 				fieldsInput: fields,
 				userId: "test-user-id",
@@ -238,7 +238,7 @@ describe("classification.manager", () => {
 			};
 			const fields = [createTestField("hash-1", "email")];
 
-			const manager = await ClassificationManager.create({
+			const manager = await AutofillManager.create({
 				formInput,
 				fieldsInput: fields,
 				userId: "test-user-id",
@@ -281,7 +281,7 @@ describe("classification.manager", () => {
 				createTestField("hash-2", "phone"),
 			];
 
-			const manager = await ClassificationManager.create({
+			const manager = await AutofillManager.create({
 				formInput,
 				fieldsInput: fields,
 				userId: "test-user-id",
@@ -306,7 +306,7 @@ describe("classification.manager", () => {
 			const formInput = createTestFormInput();
 			const fields = [createTestField("hash-1", "email")];
 
-			const manager = await ClassificationManager.create({
+			const manager = await AutofillManager.create({
 				formInput,
 				fieldsInput: fields,
 				userId: "test-user-id",
@@ -336,7 +336,7 @@ describe("classification.manager", () => {
 			const fields = [createTestField("hash-1", "email")];
 			const jdUrl = "https://example.com/apply"; // Same as formInput.pageUrl
 
-			const manager = await ClassificationManager.create({
+			const manager = await AutofillManager.create({
 				formInput,
 				fieldsInput: fields,
 				userId: "test-user-id",
@@ -358,7 +358,7 @@ describe("classification.manager", () => {
 			const fields = [createTestField("hash-1", "email")];
 			const jdUrl = "https://example.com/job-description"; // Different from formInput.pageUrl
 
-			const manager = await ClassificationManager.create({
+			const manager = await AutofillManager.create({
 				formInput,
 				fieldsInput: fields,
 				userId: "test-user-id",
@@ -385,7 +385,7 @@ describe("classification.manager", () => {
 			const fields = [createTestField("hash-1", "email")];
 			const jdUrl = "https://example.com/job-description";
 
-			const manager = await ClassificationManager.create({
+			const manager = await AutofillManager.create({
 				formInput,
 				fieldsInput: fields,
 				userId: "test-user-id",
@@ -407,7 +407,7 @@ describe("classification.manager", () => {
 			const fields = [createTestField("hash-1", "email")];
 			const jdUrl = "https://example.com/apply"; // Same as formInput.pageUrl
 
-			const manager = await ClassificationManager.create({
+			const manager = await AutofillManager.create({
 				formInput,
 				fieldsInput: fields,
 				userId: "test-user-id",

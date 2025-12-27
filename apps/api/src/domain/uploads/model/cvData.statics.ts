@@ -18,7 +18,12 @@ export function registerCVDataStatics(
 		uploadId: string,
 		userId: string,
 	) {
-		return this.findOne({ uploadId }).setOptions({ userId });
+		return this.findOne({ uploadId })
+			.populate({
+				path: "uploadId",
+				options: { userId },
+			})
+			.setOptions({ userId });
 	};
 
 	schema.statics.findByUserId = async function (userId: string) {

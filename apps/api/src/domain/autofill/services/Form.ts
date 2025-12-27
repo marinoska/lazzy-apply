@@ -1,10 +1,7 @@
-import type { Field, FormInput, TokenUsage } from "@lazyapply/types";
+import type { Field, FormInput } from "@lazyapply/types";
 import type { Types } from "mongoose";
-import mongoose from "mongoose";
 import { createLogger } from "@/app/logger.js";
 import {
-	type CreateFormFieldParams,
-	type CreateFormParams,
 	FormFieldModel,
 	FormModel,
 	type TFormField,
@@ -12,78 +9,15 @@ import {
 import type {
 	FormDocumentPopulated,
 	TFormFieldPopulated,
-	TFormFieldRef,
 } from "@/domain/autofill/model/formField.types.js";
-import {
-	classifyFieldsWithAI,
-	type EnrichedClassifiedField,
-} from "../llm/classifier.llm.js";
 
 const logger = createLogger("form");
 
-function createEmptyUsage(): TokenUsage {
-	return {
-		promptTokens: 0,
-		completionTokens: 0,
-		totalTokens: 0,
-		inputCost: 0,
-		outputCost: 0,
-		totalCost: 0,
-	};
-}
-
-function buildFormFieldRefs(
-	classifiedFields: (EnrichedClassifiedField | TFormField)[],
-	fieldHashToIdMap: Map<string, Types.ObjectId>,
-): TFormFieldRef[] {
-	return classifiedFields
-		.map(({ hash, classification, linkType, inferenceHint }) => {
-			const fieldRef = fieldHashToIdMap.get(hash);
-			if (!fieldRef) return null;
-			return {
-				hash,
-				classification,
-				fieldRef,
-				...(linkType && { linkType }),
-				...(inferenceHint && { inferenceHint }),
-			};
-		})
-		.filter((f): f is TFormFieldRef => f !== null);
-}
-
-function buildFormFieldDocuments(
-	classifiedFields: EnrichedClassifiedField[],
-): CreateFormFieldParams[] {
-	const fieldDocs: CreateFormFieldParams[] = [];
-
-	for (const {
-		hash,
-		classification,
-		linkType,
-		inferenceHint,
-		field,
-	} of classifiedFields) {
-		fieldDocs.push({
-			hash: hash,
-			field: {
-				tag: field.tag,
-				type: field.type,
-				name: field.name,
-				label: field.label,
-				placeholder: field.placeholder,
-				description: field.description,
-				isFileUpload: field.isFileUpload,
-				accept: field.accept,
-			},
-			classification,
-			linkType,
-			inferenceHint,
-		});
-	}
-
-	return fieldDocs;
-}
-
+/**
+ * Domain entity representing a form with its fields.
+ * Handles state management and DB lookups via static model methods.
+ * Classification orchestration is handled by AutofillManager.
+ */
 export class Form {
 	private mForm?: FormDocumentPopulated;
 	private knownFields: TFormField[] = [];
@@ -160,100 +94,35 @@ export class Form {
 		return this.fieldsToClassify;
 	}
 
-	private async persist(
-		allFields: (TFormField | EnrichedClassifiedField)[],
-		classifiedFields: EnrichedClassifiedField[],
-	) {
-		logger.info("Persisting new form and fields");
-		const session = await mongoose.startSession();
-
-		try {
-			await session.withTransaction(async () => {
-				const fieldDocs = buildFormFieldDocuments(classifiedFields);
-				if (fieldDocs.length) {
-					await FormFieldModel.insertMany(fieldDocs, {
-						session,
-						ordered: false,
-					});
-				}
-
-				const hashes = allFields.map((f) => f.hash);
-				const existingFields = await FormFieldModel.find(
-					{ hash: { $in: hashes } },
-					{ hash: 1, _id: 1 },
-				).session(session);
-				const fieldHashToIdMap = new Map(
-					existingFields.map((f) => [f.hash, f._id as Types.ObjectId]),
-				);
-
-				const formFieldRefs = buildFormFieldRefs(allFields, fieldHashToIdMap);
-
-				const formData: CreateFormParams = {
-					formHash: this.formInput.formHash,
-					fields: formFieldRefs,
-					pageUrl: this.formInput.pageUrl,
-					action: this.formInput.action,
-				};
-
-				await FormModel.create([formData], { session });
-			});
-
-			const createdForm = await FormModel.findByHash(this.formInput.formHash, {
-				populate: true,
-			});
-
-			if (!createdForm) {
-				throw new Error("Failed to create form: transaction aborted");
-			}
-
-			this.setFormState(createdForm);
-
-			return createdForm;
-		} finally {
-			await session.endSession();
-		}
+	getKnownFields(): TFormField[] {
+		return this.knownFields;
 	}
 
-	ensureExists() {
+	getFormInput(): FormInput {
+		return this.formInput;
+	}
+
+	isPersisted(): boolean {
+		return this.mForm !== undefined;
+	}
+
+	ensureExists(): void {
 		if (!this.mForm) {
 			throw new Error("Form must be persisted before this operation");
 		}
 	}
 
-	getFieldHashToIdMap(): Map<string, unknown> {
+	getFieldHashToIdMap(): Map<string, Types.ObjectId> {
 		return new Map(
 			this.form.fields.map((field) => [field.hash, field.fieldRef._id]),
 		);
 	}
 
 	/**
-	 * Classifies fields that are not yet in the database using AI.
-	 * Persists form with all fields and returns usage data.
+	 * Sets the form state after persistence.
+	 * Called by AutofillManager after form is persisted.
 	 */
-	async ensureFormPersisted(): Promise<{ usage: TokenUsage }> {
-		let classifiedFields: EnrichedClassifiedField[] = [];
-		let usage = createEmptyUsage();
-
-		if (this.mForm) {
-			return { usage: createEmptyUsage() };
-		}
-
-		if (this.hasFieldsToClassify()) {
-			const fieldsToClassify = this.getFieldsToClassify();
-			logger.info(
-				{ count: fieldsToClassify.length },
-				"Classifying missing fields",
-			);
-
-			const result = await classifyFieldsWithAI(fieldsToClassify);
-			classifiedFields = result.classifiedFields;
-			usage = result.usage;
-		}
-
-		const allFields = [...this.knownFields, ...classifiedFields];
-
-		await this.persist(allFields, classifiedFields);
-
-		return { usage };
+	setPersistedForm(form: FormDocumentPopulated): void {
+		this.setFormState(form);
 	}
 }

@@ -1,8 +1,6 @@
-import { openai } from "@ai-sdk/openai";
 import type { TokenUsage } from "@lazyapply/types";
-import { generateText } from "ai";
-import { env } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
+import { BaseLlmService, createEmptyUsage } from "./base/baseLlmService.js";
 import { GENERAL, SUMMARIZATION_AND_AGGREGATION } from "./rules.js";
 
 const logger = createLogger("inference.llm");
@@ -139,18 +137,30 @@ interface InferenceResponse {
 	answers: Record<string, string>;
 }
 
-function buildInferencePrompt(input: InferenceInput): string {
-	const fieldsJson = input.fields.map((f) => ({
-		hash: f.hash,
-		fieldName: f.fieldName,
-		label: f.label,
-		description: f.description,
-		placeholder: f.placeholder,
-		tag: f.tag,
-		type: f.type,
-	}));
+/**
+ * LLM service for inferring field values from CV and JD context.
+ * Extends BaseLlmService to leverage shared model invocation and usage calculation.
+ */
+class FieldInferenceService extends BaseLlmService<
+	InferenceInput,
+	Record<string, string>
+> {
+	protected get temperature(): number {
+		return 0.3;
+	}
 
-	return `${INFERENCE_PROMPT}
+	protected buildPrompt(input: InferenceInput): string {
+		const fieldsJson = input.fields.map((f) => ({
+			hash: f.hash,
+			fieldName: f.fieldName,
+			label: f.label,
+			description: f.description,
+			placeholder: f.placeholder,
+			tag: f.tag,
+			type: f.type,
+		}));
+
+		return `${INFERENCE_PROMPT}
 
 CV:
 ${input.cvRawText}
@@ -160,33 +170,30 @@ ${input.jdRawText || "(empty)"}
 
 Fields:
 ${JSON.stringify(fieldsJson, null, 2)}`;
-}
+	}
 
-function parseInferenceResponse(text: string): Record<string, string> {
-	let jsonText = text.trim();
-	if (jsonText.startsWith("```")) {
-		const lines = jsonText.split("\n");
-		lines.shift();
-		while (lines.length > 0 && lines[lines.length - 1].startsWith("```")) {
-			lines.pop();
+	protected parseResponse(text: string): Record<string, string> {
+		const parsed = this.parseJsonFromMarkdown(text);
+
+		if (
+			typeof parsed !== "object" ||
+			parsed === null ||
+			!("answers" in parsed)
+		) {
+			throw new Error("LLM response does not contain answers object");
 		}
-		jsonText = lines.join("\n");
+
+		const response = parsed as InferenceResponse;
+
+		if (typeof response.answers !== "object" || response.answers === null) {
+			throw new Error("LLM response answers is not an object");
+		}
+
+		return response.answers;
 	}
-
-	const parsed: unknown = JSON.parse(jsonText);
-
-	if (typeof parsed !== "object" || parsed === null || !("answers" in parsed)) {
-		throw new Error("LLM response does not contain answers object");
-	}
-
-	const response = parsed as InferenceResponse;
-
-	if (typeof response.answers !== "object" || response.answers === null) {
-		throw new Error("LLM response answers is not an object");
-	}
-
-	return response.answers;
 }
+
+const fieldInferenceService = new FieldInferenceService();
 
 /**
  * Infers field values using CV and JD text via a single LLM call
@@ -199,52 +206,14 @@ export async function inferFieldValues(
 		return { answers: {}, usage: createEmptyUsage() };
 	}
 
-	const prompt = buildInferencePrompt(input);
-
 	logger.info(
 		{ fieldCount: input.fields.length },
 		"Inferring field values from CV and JD",
 	);
 
-	const result = await generateText({
-		model: openai(env.OPENAI_MODEL),
-		prompt,
-		temperature: 0.3,
-		// maxOutputTokens: 1000,
-	});
-
-	const promptTokens = result.usage.inputTokens ?? 0;
-	const completionTokens = result.usage.outputTokens ?? 0;
-	const totalTokens = result.usage.totalTokens ?? 0;
-	const inputCost =
-		(promptTokens / 1_000_000) * env.OPENAI_MODEL_INPUT_PRICE_PER_1M;
-	const outputCost =
-		(completionTokens / 1_000_000) * env.OPENAI_MODEL_OUTPUT_PRICE_PER_1M;
-	const totalCost = inputCost + outputCost;
-
-	const usage: TokenUsage = {
-		promptTokens,
-		completionTokens,
-		totalTokens,
-		inputCost,
-		outputCost,
-		totalCost,
-	};
+	const { result: answers, usage } = await fieldInferenceService.execute(input);
 
 	logger.info({ usage }, "Inference token usage");
 
-	const answers = parseInferenceResponse(result.text);
-
 	return { answers, usage };
-}
-
-function createEmptyUsage(): TokenUsage {
-	return {
-		promptTokens: 0,
-		completionTokens: 0,
-		totalTokens: 0,
-		inputCost: 0,
-		outputCost: 0,
-		totalCost: 0,
-	};
 }

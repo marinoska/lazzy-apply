@@ -1,5 +1,6 @@
 import type { ParsedCVData } from "@lazyapply/types";
 import type { Document, Model } from "mongoose";
+import type { TFileUpload } from "./fileUpload.types.js";
 
 export const CV_DATA_MODEL_NAME = "cv_data" as const;
 
@@ -29,7 +30,7 @@ export type CVDataStatics = {
 		this: CVDataModelWithStatics,
 		uploadId: string,
 		userId: string,
-	): Promise<CVDataDocument | null>;
+	): Promise<CVDataDocumentPopulated | null>;
 	findByUserId(
 		this: CVDataModelWithStatics,
 		userId: string,
@@ -37,6 +38,10 @@ export type CVDataStatics = {
 };
 
 export type CVDataDocument = Document & TCVData & CVDataMethods;
+
+export type CVDataDocumentPopulated = Omit<CVDataDocument, "uploadId"> & {
+	uploadId: TFileUpload;
+};
 
 export type CVDataModelBase = Model<
 	TCVData,

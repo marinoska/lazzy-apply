@@ -9,31 +9,90 @@ import type {
 } from "@lazyapply/types";
 import type { Types } from "mongoose";
 import mongoose from "mongoose";
-import { getPresignedDownloadUrl } from "@/app/cloudflare.js";
-import { getEnv } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
-import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
-import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
-import type { TFileUpload } from "@/domain/uploads/model/fileUpload.types.js";
 import {
 	type AutofillDataItem,
 	type AutofillDataItemFile,
 	type AutofillDataItemText,
 	type AutofillDocument,
 	AutofillModel,
+	type CreateFormFieldParams,
+	type CreateFormParams,
+	FormFieldModel,
+	FormModel,
+	type TFormField,
 } from "../index.js";
+import { createEmptyUsage } from "../llm/base/baseLlmService.js";
+import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
 import {
 	extractValueByPath,
 	type InferenceField,
 	type InferenceResult,
-	inferFieldValues,
 	isPathInCVData,
-	validateJdFormMatchWithAI,
 } from "../llm/index.js";
+import type {
+	FormDocumentPopulated,
+	TFormFieldRef,
+} from "../model/formField.types.js";
+import type { AutofillLlmServices } from "./autofill.manager.types.js";
+import { CVContextVO, type FileInfo } from "./cvContextVO.js";
 import { Form } from "./Form.js";
 import { Autofill } from "./index.js";
+import { createDefaultLlmServices } from "./llmServices.js";
 
-const logger = createLogger("classification.manager");
+const logger = createLogger("autofill.manager");
+
+function buildFormFieldRefs(
+	classifiedFields: (EnrichedClassifiedField | TFormField)[],
+	fieldHashToIdMap: Map<string, Types.ObjectId>,
+): TFormFieldRef[] {
+	return classifiedFields
+		.map(({ hash, classification, linkType, inferenceHint }) => {
+			const fieldRef = fieldHashToIdMap.get(hash);
+			if (!fieldRef) return null;
+			return {
+				hash,
+				classification,
+				fieldRef,
+				...(linkType && { linkType }),
+				...(inferenceHint && { inferenceHint }),
+			};
+		})
+		.filter((f): f is TFormFieldRef => f !== null);
+}
+
+function buildFormFieldDocuments(
+	classifiedFields: EnrichedClassifiedField[],
+): CreateFormFieldParams[] {
+	const fieldDocs: CreateFormFieldParams[] = [];
+
+	for (const {
+		hash,
+		classification,
+		linkType,
+		inferenceHint,
+		field,
+	} of classifiedFields) {
+		fieldDocs.push({
+			hash: hash,
+			field: {
+				tag: field.tag,
+				type: field.type,
+				name: field.name,
+				label: field.label,
+				placeholder: field.placeholder,
+				description: field.description,
+				isFileUpload: field.isFileUpload,
+				accept: field.accept,
+			},
+			classification,
+			linkType,
+			inferenceHint,
+		});
+	}
+
+	return fieldDocs;
+}
 
 async function buildAutofillData(params: {
 	fields: Array<{
@@ -112,23 +171,6 @@ async function buildAutofillData(params: {
 	return data;
 }
 
-type FileInfo = {
-	fileUrl: string;
-	fileName: string;
-	fileContentType: string;
-};
-
-function createEmptyUsage(): TokenUsage {
-	return {
-		promptTokens: 0,
-		completionTokens: 0,
-		totalTokens: 0,
-		inputCost: 0,
-		outputCost: 0,
-		totalCost: 0,
-	};
-}
-
 export interface AutofillResult {
 	autofill: AutofillDocument;
 	fromCache: boolean;
@@ -165,77 +207,55 @@ export interface ProcessParams {
  * 3. Merge cached + newly classified fields
  * 4. Persist new data
  */
-export class ClassificationManager {
+export class AutofillManager {
 	private mForm: Form;
-	private cvData: ParsedCVData | null = null;
-	private cvUpload: TFileUpload | null = null;
-	private autofill: Autofill;
+	private cvContext!: CVContextVO;
+	private autofillUsageTracker: Autofill;
 
 	private constructor(
 		private readonly userId: string,
 		formInput: FormInput,
 		inputFieldsMap: Map<string, Field>,
+		private readonly llmServices: AutofillLlmServices,
 	) {
 		this.mForm = new Form(formInput, inputFieldsMap);
-		this.autofill = new Autofill(userId);
+		this.autofillUsageTracker = new Autofill(userId);
 	}
 
-	private get fileUploadId() {
-		if (!this.cvUpload) {
-			throw new Error("File upload not found for selected upload ID");
-		}
-		return this.cvUpload._id;
-	}
-
-	private get cvDataId() {
-		if (!this.cvData) {
-			throw new Error("CV data not loaded");
-		}
-		return this.cvData._id;
-	}
-
+	/**
+	 * Creates an AutofillManager with default (real) LLM services.
+	 */
 	static async create(deps: ClassificationManagerDeps) {
+		return AutofillManager.createWithServices(deps, createDefaultLlmServices());
+	}
+
+	/**
+	 * Creates an AutofillManager with custom LLM services.
+	 * Use this for testing with mock services.
+	 */
+	static async createWithServices(
+		deps: ClassificationManagerDeps,
+		llmServices: AutofillLlmServices,
+	) {
 		const inputFieldsMap = new Map(
 			deps.fieldsInput.map((field) => [field.hash, field]),
 		);
 
-		const newInstance = new ClassificationManager(
+		const newInstance = new AutofillManager(
 			deps.userId,
 			deps.formInput,
 			inputFieldsMap,
+			llmServices,
 		);
 
-		await Promise.all([
+		const [, cvContext] = await Promise.all([
 			newInstance.mForm.init(),
-			newInstance.loadCVData(deps.selectedUploadId),
+			CVContextVO.load(deps.selectedUploadId, deps.userId),
 		]);
+
+		newInstance.cvContext = cvContext;
 
 		return newInstance;
-	}
-	/**
-	 * Load CV data and file upload info from the provided selectedUploadId
-	 */
-	private async loadCVData(selectedUploadId: string) {
-		const [cvData, fileUpload] = await Promise.all([
-			CVDataModel.findByUploadId(selectedUploadId, this.userId),
-			FileUploadModel.findOne({ _id: selectedUploadId }).setOptions({
-				userId: this.userId,
-			}),
-		]);
-
-		if (!cvData || !fileUpload) {
-			logger.error(
-				{ uploadId: selectedUploadId },
-				!cvData
-					? "CV data not found for selected upload"
-					: "Upload not found for selected upload id",
-			);
-			throw new Error("CV data not found for selected upload");
-		}
-
-		this.cvData = cvData.toObject();
-		this.cvUpload = fileUpload.toObject();
-		logger.debug({ uploadId: selectedUploadId }, "CV data loaded");
 	}
 
 	/**
@@ -245,7 +265,7 @@ export class ClassificationManager {
 	 */
 	public async process(params: ProcessParams) {
 		const [classificationResult, jdMatchResult] = await Promise.all([
-			this.mForm.ensureFormPersisted(),
+			this.ensureFormPersisted(),
 			this.checkJdFormMatch(params),
 		]);
 
@@ -254,19 +274,18 @@ export class ClassificationManager {
 			params,
 		);
 
-		this.autofill.setClassificationUsage(classificationResult.usage);
-		this.autofill.setJdFormMatchUsage(jdMatchResult.usage);
-		this.autofill.setInferenceUsage(inferenceResult.usage);
+		this.autofillUsageTracker.setClassificationUsage(
+			classificationResult.usage,
+		);
+		this.autofillUsageTracker.setJdFormMatchUsage(jdMatchResult.usage);
+		this.autofillUsageTracker.setInferenceUsage(inferenceResult.usage);
 
-		const fileInfo = await this.getFileInfo();
+		const fileInfo = await this.cvContext.getFileInfo();
 		const data = await buildAutofillData({
 			fields: this.mForm.form.fields,
-			fieldHashToIdMap: this.mForm.getFieldHashToIdMap() as Map<
-				string,
-				Types.ObjectId
-			>,
+			fieldHashToIdMap: this.mForm.getFieldHashToIdMap(),
 			inferredAnswers: inferenceResult.answers,
-			cvData: this.cvData,
+			cvData: this.cvContext.cvData,
 			fileInfo,
 		});
 
@@ -275,18 +294,104 @@ export class ClassificationManager {
 			autofillId: randomUUID(),
 			formReference: this.mForm.form._id,
 			uploadReference: new mongoose.Types.ObjectId(
-				this.fileUploadId.toString(),
+				this.cvContext.fileUploadId.toString(),
 			),
-			cvDataReference: new mongoose.Types.ObjectId(this.cvDataId.toString()),
+			cvDataReference: new mongoose.Types.ObjectId(
+				this.cvContext.cvDataId.toString(),
+			),
 			jdRawText: params.jdRawText ?? "",
 			formContext: params.formContext ?? "",
 			data,
 		});
 
-		this.autofill.setAutofill(autofill);
-		await this.autofill.persistAllUsage();
+		this.autofillUsageTracker.setAutofill(autofill);
+		await this.autofillUsageTracker.persistAllUsage();
 
 		return autofill;
+	}
+
+	/**
+	 * Classifies fields that are not yet in the database using AI.
+	 * Persists form with all fields and returns usage data.
+	 */
+	private async ensureFormPersisted(): Promise<{ usage: TokenUsage }> {
+		if (this.mForm.isPersisted()) {
+			return { usage: createEmptyUsage() };
+		}
+
+		let classifiedFields: EnrichedClassifiedField[] = [];
+		let usage = createEmptyUsage();
+
+		if (this.mForm.hasFieldsToClassify()) {
+			const fieldsToClassify = this.mForm.getFieldsToClassify();
+			logger.debug(
+				{ count: fieldsToClassify.length },
+				"Classifying missing fields",
+			);
+
+			const result =
+				await this.llmServices.classifier.classify(fieldsToClassify);
+			classifiedFields = result.classifiedFields;
+			usage = result.usage;
+		}
+
+		const allFields = [...this.mForm.getKnownFields(), ...classifiedFields];
+
+		await this.persistForm(allFields, classifiedFields);
+
+		return { usage };
+	}
+
+	/**
+	 * Persists form and fields to the database within a transaction.
+	 */
+	private async persistForm(
+		allFields: (TFormField | EnrichedClassifiedField)[],
+		classifiedFields: EnrichedClassifiedField[],
+	): Promise<void> {
+		logger.info("Persisting new form and fields");
+		const session = await mongoose.startSession();
+		const formInput = this.mForm.getFormInput();
+
+		try {
+			await session.withTransaction(async () => {
+				const fieldDocs = buildFormFieldDocuments(classifiedFields);
+				if (fieldDocs.length) {
+					await FormFieldModel.insertMany(fieldDocs, {
+						session,
+						ordered: false,
+					});
+				}
+
+				const hashes = allFields.map((f) => f.hash);
+				const existingFields = await FormFieldModel.find(
+					{ hash: { $in: hashes } },
+					{ hash: 1, _id: 1 },
+				).session(session);
+				const fieldHashToIdMap = new Map(
+					existingFields.map((f) => [f.hash, f._id as Types.ObjectId]),
+				);
+
+				const formFieldRefs = buildFormFieldRefs(allFields, fieldHashToIdMap);
+
+				const formData: CreateFormParams = {
+					formHash: formInput.formHash,
+					fields: formFieldRefs,
+					pageUrl: formInput.pageUrl,
+					action: formInput.action,
+				};
+
+				const [created] = await FormModel.create([formData], { session });
+				const populated = await created.populate<{
+					fields: FormDocumentPopulated["fields"];
+				}>("fields.fieldRef");
+				this.mForm.setPersistedForm(
+					populated as unknown as FormDocumentPopulated,
+				);
+			});
+		} finally {
+			await session.endSession();
+		}
 	}
 
 	/**
@@ -307,7 +412,7 @@ export class ClassificationManager {
 
 		const formFields = this.mForm.getInputFields();
 
-		const result = await validateJdFormMatchWithAI({
+		const result = await this.llmServices.jdMatcher.match({
 			jdText: jdRawText,
 			formFields,
 			jdUrl,
@@ -351,7 +456,7 @@ export class ClassificationManager {
 		jdRawText: string,
 		formContext: string,
 	): Promise<InferenceResult> {
-		if (!this.cvData?.rawText) {
+		if (!this.cvContext.rawText) {
 			logger.error("No CV raw text available for inference");
 			return { answers: {}, usage: createEmptyUsage() };
 		}
@@ -371,11 +476,11 @@ export class ClassificationManager {
 		}
 
 		logger.debug(
-			{ cvRawText: this.cvData.rawText, contextText, fields },
+			{ cvRawText: this.cvContext.rawText, contextText, fields },
 			"Inference input",
 		);
-		const result = await inferFieldValues({
-			cvRawText: this.cvData.rawText,
+		const result = await this.llmServices.inferencer.infer({
+			cvRawText: this.cvContext.rawText,
 			jdRawText: contextText,
 			fields,
 		});
@@ -417,38 +522,5 @@ export class ClassificationManager {
 		}
 
 		return result;
-	}
-
-	/**
-	 * Generate presigned URL and file info for resume uploads
-	 */
-	private async getFileInfo(): Promise<FileInfo | null> {
-		if (!this.cvUpload) {
-			logger.warn(
-				{ uploadId: this.fileUploadId },
-				"File upload not found for presigned URL generation",
-			);
-			return null;
-		}
-
-		try {
-			const bucket = getEnv("CLOUDFLARE_BUCKET");
-			const fileUrl = await getPresignedDownloadUrl(
-				bucket,
-				this.cvUpload.objectKey,
-			);
-
-			return {
-				fileUrl,
-				fileName: this.cvUpload.originalFilename,
-				fileContentType: this.cvUpload.contentType,
-			};
-		} catch (error) {
-			logger.error(
-				{ uploadId: this.fileUploadId, error },
-				"Failed to generate presigned URL",
-			);
-			return null;
-		}
 	}
 }

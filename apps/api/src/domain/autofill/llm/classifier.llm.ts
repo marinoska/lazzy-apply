@@ -1,4 +1,3 @@
-import { openai } from "@ai-sdk/openai";
 import {
 	type ClassifiedField,
 	type Field,
@@ -8,9 +7,8 @@ import {
 	type InferenceHint,
 	type TokenUsage,
 } from "@lazyapply/types";
-import { generateText } from "ai";
-import { env } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
+import { BaseLlmService, createEmptyUsage } from "./base/baseLlmService.js";
 
 /**
  * Generates the valid paths section of the prompt from FORM_FIELD_PATH_MAP
@@ -113,144 +111,107 @@ export interface ClassificationResult {
 }
 
 /**
- * Builds the prompt for field classification
+ * LLM service for classifying form fields into CV data paths.
+ * Extends BaseLlmService to leverage shared model invocation and usage calculation.
  */
-function buildClassificationPrompt(fields: Field[]): string {
-	const fieldsForPrompt = fields.map(({ hash, field }) => ({
-		hash: hash,
-		tag: field.tag,
-		type: field.type,
-		name: field.name,
-		label: field.label,
-		placeholder: field.placeholder,
-		description: field.description,
-		isFileUpload: field.isFileUpload,
-		accept: field.accept,
-	}));
+class FieldClassifierService extends BaseLlmService<
+	Field[],
+	EnrichedClassifiedField[]
+> {
+	protected get temperature(): number {
+		return 0;
+	}
 
-	return `${CLASSIFICATION_PROMPT}\n${JSON.stringify(fieldsForPrompt, null, 2)}`;
+	protected buildPrompt(fields: Field[]): string {
+		const fieldsForPrompt = fields.map(({ hash, field }) => ({
+			hash: hash,
+			tag: field.tag,
+			type: field.type,
+			name: field.name,
+			label: field.label,
+			placeholder: field.placeholder,
+			description: field.description,
+			isFileUpload: field.isFileUpload,
+			accept: field.accept,
+		}));
+
+		return `${CLASSIFICATION_PROMPT}\n${JSON.stringify(fieldsForPrompt, null, 2)}`;
+	}
+
+	protected parseResponse(
+		text: string,
+		fields: Field[],
+	): EnrichedClassifiedField[] {
+		const fieldsByHash = new Map(fields.map((f) => [f.hash, f]));
+		const classifiedHashes = new Set<string>();
+
+		const parsed = this.parseJsonFromMarkdown(text);
+
+		if (!Array.isArray(parsed)) {
+			throw new Error("LLM response is not an array");
+		}
+
+		const results: EnrichedClassifiedField[] = [];
+
+		for (const item of parsed as RawClassificationItem[]) {
+			if (
+				typeof item !== "object" ||
+				item === null ||
+				typeof item.hash !== "string" ||
+				typeof item.path !== "string"
+			) {
+				continue;
+			}
+
+			const originalField = fieldsByHash.get(item.hash);
+			if (!originalField) {
+				continue;
+			}
+
+			classifiedHashes.add(item.hash);
+
+			const classification: FormFieldPath = VALID_PATHS.has(item.path)
+				? (item.path as FormFieldPath)
+				: "unknown";
+
+			const result: EnrichedClassifiedField = {
+				...originalField,
+				classification,
+			};
+
+			if (classification === "links" && typeof item.linkType === "string") {
+				result.linkType = item.linkType;
+			}
+
+			if (
+				classification === "unknown" &&
+				typeof item.inferenceHint === "string" &&
+				VALID_INFERENCE_HINTS.has(item.inferenceHint)
+			) {
+				result.inferenceHint = item.inferenceHint as InferenceHint;
+			}
+
+			results.push(result);
+		}
+
+		for (const field of fields) {
+			if (!classifiedHashes.has(field.hash)) {
+				logger.warn(
+					{ hash: field.hash, name: field.field.name },
+					"LLM did not classify field, defaulting to unknown",
+				);
+				results.push({
+					...field,
+					classification: "unknown",
+				});
+			}
+		}
+
+		return results;
+	}
 }
 
-/**
- * Calls the AI model to classify form fields
- */
-async function callClassificationModel(
-	prompt: string,
-): Promise<{ text: string; usage: TokenUsage }> {
-	const result = await generateText({
-		model: openai(env.OPENAI_MODEL),
-		prompt,
-		temperature: 0,
-	});
-
-	const promptTokens = result.usage.inputTokens ?? 0;
-	const completionTokens = result.usage.outputTokens ?? 0;
-	const totalTokens = result.usage.totalTokens ?? 0;
-	const inputCost =
-		(promptTokens / 1_000_000) * env.OPENAI_MODEL_INPUT_PRICE_PER_1M;
-	const outputCost =
-		(completionTokens / 1_000_000) * env.OPENAI_MODEL_OUTPUT_PRICE_PER_1M;
-	const totalCost = inputCost + outputCost;
-
-	return {
-		text: result.text,
-		usage: {
-			promptTokens,
-			completionTokens,
-			totalTokens,
-			inputCost,
-			outputCost,
-			totalCost,
-		},
-	};
-}
-
-/**
- * Parses the LLM response into structured classifications enriched with field data.
- * Ensures all input fields are returned, defaulting to "unknown" if LLM didn't classify them.
- */
-function parseClassificationResponse(
-	text: string,
-	fields: Field[],
-): EnrichedClassifiedField[] {
-	const fieldsByHash = new Map(fields.map((f) => [f.hash, f]));
-	const classifiedHashes = new Set<string>();
-	let jsonText = text.trim();
-	if (jsonText.startsWith("```")) {
-		const lines = jsonText.split("\n");
-		lines.shift();
-		while (lines.length > 0 && lines[lines.length - 1].startsWith("```")) {
-			lines.pop();
-		}
-		jsonText = lines.join("\n");
-	}
-
-	const parsed: unknown = JSON.parse(jsonText);
-
-	if (!Array.isArray(parsed)) {
-		throw new Error("LLM response is not an array");
-	}
-
-	const results: EnrichedClassifiedField[] = [];
-
-	for (const item of parsed as RawClassificationItem[]) {
-		if (
-			typeof item !== "object" ||
-			item === null ||
-			typeof item.hash !== "string" ||
-			typeof item.path !== "string"
-		) {
-			continue;
-		}
-
-		const originalField = fieldsByHash.get(item.hash);
-		if (!originalField) {
-			continue;
-		}
-
-		classifiedHashes.add(item.hash);
-
-		const classification: FormFieldPath = VALID_PATHS.has(item.path)
-			? (item.path as FormFieldPath)
-			: "unknown";
-
-		const result: EnrichedClassifiedField = {
-			...originalField,
-			classification,
-		};
-
-		if (classification === "links" && typeof item.linkType === "string") {
-			result.linkType = item.linkType;
-		}
-
-		// Only set inferenceHint when classification is "unknown" and hint is valid
-		if (
-			classification === "unknown" &&
-			typeof item.inferenceHint === "string" &&
-			VALID_INFERENCE_HINTS.has(item.inferenceHint)
-		) {
-			result.inferenceHint = item.inferenceHint as InferenceHint;
-		}
-
-		results.push(result);
-	}
-
-	// Ensure all input fields are classified, default to "unknown" if LLM skipped them
-	for (const field of fields) {
-		if (!classifiedHashes.has(field.hash)) {
-			logger.warn(
-				{ hash: field.hash, name: field.field.name },
-				"LLM did not classify field, defaulting to unknown",
-			);
-			results.push({
-				...field,
-				classification: "unknown",
-			});
-		}
-	}
-
-	return results;
-}
+const fieldClassifier = new FieldClassifierService();
 
 /**
  * Classifies form fields using AI
@@ -258,12 +219,14 @@ function parseClassificationResponse(
 export async function classifyFieldsWithAI(
 	fields: Field[],
 ): Promise<ClassificationResult> {
-	const prompt = buildClassificationPrompt(fields);
-	const { text, usage } = await callClassificationModel(prompt);
+	if (fields.length === 0) {
+		return { classifiedFields: [], usage: createEmptyUsage() };
+	}
+
+	const { result: classifiedFields, usage } =
+		await fieldClassifier.execute(fields);
 
 	logger.info({ usage }, "Token usage");
-
-	const classifiedFields = parseClassificationResponse(text, fields);
 
 	return { classifiedFields, usage };
 }

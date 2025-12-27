@@ -6,19 +6,9 @@ import {
 	type AutofillDocument,
 } from "@/domain/autofill/index.js";
 import { UsageModel } from "@/domain/usage/index.js";
+import { createEmptyUsage } from "../llm/base/baseLlmService.js";
 
 const _logger = createLogger("autofill.service");
-
-function createEmptyUsage(): TokenUsage {
-	return {
-		promptTokens: 0,
-		completionTokens: 0,
-		totalTokens: 0,
-		inputCost: 0,
-		outputCost: 0,
-		totalCost: 0,
-	};
-}
 
 export interface AutofillPersistParams {
 	formId: Types.ObjectId;

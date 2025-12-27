@@ -1,8 +1,6 @@
-import { openai } from "@ai-sdk/openai";
 import type { Field, TokenUsage } from "@lazyapply/types";
-import { generateText } from "ai";
-import { env } from "@/app/env.js";
 import { createLogger } from "@/app/logger.js";
+import { BaseLlmService, createEmptyUsage } from "./base/baseLlmService.js";
 
 const logger = createLogger("jdMatcher.llm");
 
@@ -63,91 +61,53 @@ OUTPUT FORMAT:
 `;
 
 /**
- * Builds the prompt for JD-to-form matching
+ * LLM service for validating JD-to-form matching.
+ * Extends BaseLlmService to leverage shared model invocation and usage calculation.
  */
-function buildJdMatchPrompt(input: JdMatchInput): string {
-	const formFieldsData = input.formFields.map(({ field }) => ({
-		label: field.label,
-		placeholder: field.placeholder,
-		description: field.description,
-		name: field.name,
-		type: field.type,
-	}));
+class JdMatcherService extends BaseLlmService<JdMatchInput, boolean> {
+	protected get temperature(): number {
+		return 0;
+	}
 
-	const inputData = {
-		jd: input.jdText || "(empty)",
-		formFields: formFieldsData,
-		jdURL: input.jdUrl,
-		formURL: input.formUrl,
-	};
+	protected buildPrompt(input: JdMatchInput): string {
+		const formFieldsData = input.formFields.map(({ field }) => ({
+			label: field.label,
+			placeholder: field.placeholder,
+			description: field.description,
+			name: field.name,
+			type: field.type,
+		}));
 
-	return `${JD_MATCH_PROMPT}\n\nINPUT DATA:\n${JSON.stringify(inputData, null, 2)}`;
-}
+		const inputData = {
+			jd: input.jdText || "(empty)",
+			formFields: formFieldsData,
+			jdURL: input.jdUrl,
+			formURL: input.formUrl,
+		};
 
-/**
- * Calls the AI model to determine JD-form match
- */
-async function callJdMatchModel(
-	prompt: string,
-): Promise<{ text: string; usage: TokenUsage }> {
-	const result = await generateText({
-		model: openai(env.OPENAI_MODEL),
-		prompt,
-		temperature: 0,
-	});
+		return `${JD_MATCH_PROMPT}\n\nINPUT DATA:\n${JSON.stringify(inputData, null, 2)}`;
+	}
 
-	const promptTokens = result.usage.inputTokens ?? 0;
-	const completionTokens = result.usage.outputTokens ?? 0;
-	const totalTokens = result.usage.totalTokens ?? 0;
-	const inputCost =
-		(promptTokens / 1_000_000) * env.OPENAI_MODEL_INPUT_PRICE_PER_1M;
-	const outputCost =
-		(completionTokens / 1_000_000) * env.OPENAI_MODEL_OUTPUT_PRICE_PER_1M;
-	const totalCost = inputCost + outputCost;
+	protected parseResponse(text: string): boolean {
+		const parsed = this.parseJsonFromMarkdown(text);
 
-	return {
-		text: result.text,
-		usage: {
-			promptTokens,
-			completionTokens,
-			totalTokens,
-			inputCost,
-			outputCost,
-			totalCost,
-		},
-	};
-}
-
-/**
- * Parses the LLM response into a boolean match result
- */
-function parseJdMatchResponse(text: string): boolean {
-	let jsonText = text.trim();
-	if (jsonText.startsWith("```")) {
-		const lines = jsonText.split("\n");
-		lines.shift();
-		while (lines.length > 0 && lines[lines.length - 1].startsWith("```")) {
-			lines.pop();
+		if (
+			typeof parsed !== "object" ||
+			parsed === null ||
+			typeof (parsed as { isMatch?: unknown }).isMatch !== "boolean"
+		) {
+			logger.warn(
+				{ parsed },
+				"Invalid JD match response format, defaulting to false",
+			);
+			return false;
 		}
-		jsonText = lines.join("\n");
+
+		return (parsed as { isMatch: boolean }).isMatch;
 	}
-
-	const parsed: unknown = JSON.parse(jsonText);
-
-	if (
-		typeof parsed !== "object" ||
-		parsed === null ||
-		typeof (parsed as { isMatch?: unknown }).isMatch !== "boolean"
-	) {
-		logger.warn(
-			{ parsed },
-			"Invalid JD match response format, defaulting to false",
-		);
-		return false;
-	}
-
-	return (parsed as { isMatch: boolean }).isMatch;
 }
+
+const jdMatcherService = new JdMatcherService();
 
 /**
  * Validates whether a job description matches a job application form.
@@ -159,28 +119,14 @@ function parseJdMatchResponse(text: string): boolean {
 export async function validateJdFormMatchWithAI(
 	input: JdMatchInput,
 ): Promise<JdMatchResult> {
-	// Early return if JD is empty
 	if (!input.jdText || input.jdText.trim().length === 0) {
 		logger.info("JD text is empty, returning isMatch: false");
-		return {
-			isMatch: false,
-			usage: {
-				promptTokens: 0,
-				completionTokens: 0,
-				totalTokens: 0,
-				inputCost: 0,
-				outputCost: 0,
-				totalCost: 0,
-			},
-		};
+		return { isMatch: false, usage: createEmptyUsage() };
 	}
 
-	const prompt = buildJdMatchPrompt(input);
-	const { text, usage } = await callJdMatchModel(prompt);
+	const { result: isMatch, usage } = await jdMatcherService.execute(input);
 
 	logger.info({ usage }, "JD match token usage");
-
-	const isMatch = parseJdMatchResponse(text);
 
 	logger.info(
 		{
