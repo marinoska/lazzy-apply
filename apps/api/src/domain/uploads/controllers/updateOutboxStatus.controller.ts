@@ -1,4 +1,4 @@
-import type { ParsedCVData } from "@lazyapply/types";
+import type { ParsedCVData, TokenUsage } from "@lazyapply/types";
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { z } from "zod";
@@ -6,8 +6,24 @@ import { NotFound, ValidationError } from "@/app/errors.js";
 import { createLogger } from "@/app/logger.js";
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { OutboxModel } from "@/domain/uploads/model/outbox.model.js";
+import { UsageTracker } from "@/domain/usage/index.js";
+import { FILE_UPLOAD_MODEL_NAME } from "../model/fileUpload.types.js";
 
 const log = createLogger("update-outbox-status");
+
+async function persistCvExtractionUsage(
+	userId: string,
+	uploadId: mongoose.Types.ObjectId,
+	usage: TokenUsage,
+	session?: mongoose.ClientSession,
+): Promise<void> {
+	const tracker = new UsageTracker(userId, {
+		referenceTable: FILE_UPLOAD_MODEL_NAME,
+	});
+	tracker.setReference(uploadId);
+	tracker.setUsage("cv_data_extraction", usage);
+	await tracker.persistAllUsage(session);
+}
 
 export const updateOutboxParamsSchema = z.object({
 	processId: z.string().min(1, "processId is required"),
@@ -54,7 +70,7 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 	const { processId } = req.params;
 	const { status, data, error, usage } = req.body;
 
-	log.info({ processId, status }, "Updating outbox status");
+	log.debug({ processId, status }, "Updating outbox status");
 
 	// Find the latest outbox entry for this processId (sorted by createdAt desc)
 	const outboxEntries = await OutboxModel.find({ processId })
@@ -62,7 +78,9 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 		.limit(1);
 
 	if (outboxEntries.length === 0) {
-		throw new NotFound(`Outbox entry not found: ${processId}`);
+		throw new NotFound(
+			`Outbox entry not found: ${processId}, ${JSON.stringify(usage)}`,
+		);
 	}
 
 	const latestEntry = outboxEntries[0];
@@ -96,95 +114,69 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 		);
 	}
 
-	if (status === "completed") {
-		// Use transaction to ensure atomicity
-		const session = await mongoose.startSession();
-		await session.withTransaction(async () => {
-			// 1. Create new outbox entry with completed status
-			await OutboxModel.markAsCompleted(latestEntry, usage);
+	const usageLog = usage
+		? {
+				promptTokens: usage.promptTokens,
+				completionTokens: usage.completionTokens,
+				totalTokens: usage.totalTokens,
+				inputCost: usage.inputCost,
+				outputCost: usage.outputCost,
+				totalCost: usage.totalCost,
+			}
+		: {};
 
-			// 2. Save parsed CV data (guaranteed to exist due to schema validation)
-			const cvDataPayload = {
-				uploadId: latestEntry.uploadId,
-				userId: latestEntry.userId,
-				...(data satisfies ParsedCVData),
-			};
+	const session = await mongoose.startSession();
+	await session.withTransaction(async () => {
+		switch (status) {
+			case "completed": {
+				// Use transaction to ensure atomicity
+				// 1. Create new outbox entry with completed status
+				await OutboxModel.markAsCompleted(latestEntry, session);
 
-			log.info(
-				{
-					processId,
-					personal: cvDataPayload.personal,
-					linksCount: cvDataPayload.links?.length,
-					languagesCount: cvDataPayload.languages?.length,
-					...(usage && {
-						promptTokens: usage.promptTokens,
-						completionTokens: usage.completionTokens,
-						totalTokens: usage.totalTokens,
-						inputCost: usage.inputCost,
-						outputCost: usage.outputCost,
-						totalCost: usage.totalCost,
-					}),
-				},
-				"Saving CV data to database",
-			);
-
-			await CVDataModel.createCVData(cvDataPayload);
-
-			log.info(
-				{
-					processId,
+				// 2. Save parsed CV data (guaranteed to exist due to schema validation)
+				const cvDataPayload = {
 					uploadId: latestEntry.uploadId,
-					...(usage && {
-						promptTokens: usage.promptTokens,
-						completionTokens: usage.completionTokens,
-						totalTokens: usage.totalTokens,
-						inputCost: usage.inputCost,
-						outputCost: usage.outputCost,
-						totalCost: usage.totalCost,
-					}),
-				},
-				"Created completed outbox entry and saved CV data",
+					userId: latestEntry.userId,
+					...(data satisfies ParsedCVData),
+				};
+
+				log.debug({ processId, ...usageLog }, "Saving CV data to database");
+
+				await CVDataModel.createCVData(cvDataPayload, session);
+				break;
+			}
+			case "failed": {
+				await OutboxModel.markAsFailed(
+					latestEntry,
+					error || "Processing failed",
+					session,
+				);
+				log.error(
+					{ processId, error, ...usageLog },
+					"Created failed outbox entry",
+				);
+				break;
+			}
+			case "not-a-cv": {
+				await OutboxModel.markAsNotACV(latestEntry, session);
+				log.warn(
+					{ processId, ...usageLog },
+					"File is not a CV - created not-a-cv outbox entry",
+				);
+				break;
+			}
+		}
+		// 3. Persist usage to usage collection
+		if (usage) {
+			await persistCvExtractionUsage(
+				latestEntry.userId,
+				latestEntry.uploadId,
+				usage,
+				session,
 			);
-		});
-		await session.endSession();
-	} else if (status === "failed") {
-		await OutboxModel.markAsFailed(
-			latestEntry,
-			error || "Processing failed",
-			usage,
-		);
-		log.error(
-			{
-				processId,
-				error,
-				...(usage && {
-					promptTokens: usage.promptTokens,
-					completionTokens: usage.completionTokens,
-					totalTokens: usage.totalTokens,
-					inputCost: usage.inputCost,
-					outputCost: usage.outputCost,
-					totalCost: usage.totalCost,
-				}),
-			},
-			"Created failed outbox entry",
-		);
-	} else if (status === "not-a-cv") {
-		await OutboxModel.markAsNotACV(latestEntry, usage);
-		log.warn(
-			{
-				processId,
-				...(usage && {
-					promptTokens: usage.promptTokens,
-					completionTokens: usage.completionTokens,
-					totalTokens: usage.totalTokens,
-					inputCost: usage.inputCost,
-					outputCost: usage.outputCost,
-					totalCost: usage.totalCost,
-				}),
-			},
-			"File is not a CV - created not-a-cv outbox entry",
-		);
-	}
+		}
+	});
+	await session.endSession();
 
 	return res.status(200).json({
 		processId,

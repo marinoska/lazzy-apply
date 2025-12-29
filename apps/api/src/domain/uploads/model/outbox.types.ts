@@ -1,5 +1,5 @@
-import type { FileUploadContentType, TokenUsage } from "@lazyapply/types";
-import type { Document, Model, Types } from "mongoose";
+import type { FileUploadContentType } from "@lazyapply/types";
+import type { ClientSession, Document, Model, Types } from "mongoose";
 
 export type OutboxStatus =
 	| "pending"
@@ -22,13 +22,6 @@ export type TOutbox = {
 	userId: string;
 	fileType: FileUploadContentType;
 	error?: string;
-	// Token usage from AI processing
-	promptTokens?: number;
-	completionTokens?: number;
-	totalTokens?: number;
-	inputCost?: number; // Input cost in USD
-	outputCost?: number; // Output cost in USD
-	totalCost?: number; // Total cost in USD
 	createdAt: Date;
 	updatedAt: Date;
 };
@@ -46,6 +39,7 @@ export type OutboxStatics = {
 	createOutbox(
 		this: OutboxModelWithStatics,
 		payload: CreateOutboxParams,
+		session?: ClientSession,
 	): Promise<OutboxDocument>;
 	createWithStatus(
 		this: OutboxModelWithStatics,
@@ -55,7 +49,7 @@ export type OutboxStatics = {
 		>,
 		status: OutboxStatus,
 		error?: string,
-		usage?: TokenUsage,
+		session?: ClientSession,
 	): Promise<OutboxDocument>;
 	markAsSending(
 		this: OutboxModelWithStatics,
@@ -67,6 +61,7 @@ export type OutboxStatics = {
 			TOutbox,
 			"processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType"
 		>,
+		session?: ClientSession,
 	): Promise<OutboxDocument>;
 	markAsCompleted(
 		this: OutboxModelWithStatics,
@@ -74,7 +69,7 @@ export type OutboxStatics = {
 			TOutbox,
 			"processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType"
 		>,
-		usage?: TokenUsage,
+		session?: ClientSession,
 	): Promise<OutboxDocument>;
 	markAsFailed(
 		this: OutboxModelWithStatics,
@@ -83,7 +78,7 @@ export type OutboxStatics = {
 			"processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType"
 		>,
 		error: string,
-		usage?: TokenUsage,
+		session?: ClientSession,
 	): Promise<OutboxDocument>;
 	markAsNotACV(
 		this: OutboxModelWithStatics,
@@ -91,7 +86,7 @@ export type OutboxStatics = {
 			TOutbox,
 			"processId" | "type" | "uploadId" | "fileId" | "userId" | "fileType"
 		>,
-		usage?: TokenUsage,
+		session?: ClientSession,
 	): Promise<OutboxDocument>;
 	findPendingLogs(
 		this: OutboxModelWithStatics,

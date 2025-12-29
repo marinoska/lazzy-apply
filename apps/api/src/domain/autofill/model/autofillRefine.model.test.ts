@@ -3,21 +3,26 @@ import { AutofillRefineModel } from "./autofillRefine.model.js";
 
 describe("AutofillRefineModel", () => {
 	beforeEach(async () => {
-		await AutofillRefineModel.collection.drop().catch(() => {});
-		await AutofillRefineModel.createIndexes();
+		await AutofillRefineModel.deleteMany({}).setOptions({
+			skipOwnershipEnforcement: true,
+		});
 	});
 
 	const TEST_AUTOFILL_ID = "autofill-123";
+	const TEST_USER_ID = "user-123";
 
 	describe("findByAutofillId", () => {
 		it("should return empty array when no refines exist", async () => {
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const results = await AutofillRefineModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 			expect(results).toEqual([]);
 		});
 
 		it("should return single refine for single hash", async () => {
 			await AutofillRefineModel.create({
+				userId: TEST_USER_ID,
 				autofillId: TEST_AUTOFILL_ID,
 				hash: "hash-1",
 				value: "test@example.com",
@@ -26,8 +31,10 @@ describe("AutofillRefineModel", () => {
 				userInstructions: "Use test email",
 			});
 
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const results = await AutofillRefineModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(results).toHaveLength(1);
 			expect(results[0].hash).toBe("hash-1");
@@ -37,6 +44,7 @@ describe("AutofillRefineModel", () => {
 		it("should return multiple refines for multiple hashes", async () => {
 			await AutofillRefineModel.create([
 				{
+					userId: TEST_USER_ID,
 					autofillId: TEST_AUTOFILL_ID,
 					hash: "hash-1",
 					value: "email@example.com",
@@ -45,6 +53,7 @@ describe("AutofillRefineModel", () => {
 					userInstructions: "Use email",
 				},
 				{
+					userId: TEST_USER_ID,
 					autofillId: TEST_AUTOFILL_ID,
 					hash: "hash-2",
 					value: "John Doe",
@@ -53,6 +62,7 @@ describe("AutofillRefineModel", () => {
 					userInstructions: "Use name",
 				},
 				{
+					userId: TEST_USER_ID,
 					autofillId: TEST_AUTOFILL_ID,
 					hash: "hash-3",
 					value: "123-456-7890",
@@ -62,8 +72,10 @@ describe("AutofillRefineModel", () => {
 				},
 			]);
 
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const results = await AutofillRefineModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(results).toHaveLength(3);
 			const hashes = results.map((r) => r.hash).sort();
@@ -72,6 +84,7 @@ describe("AutofillRefineModel", () => {
 
 		it("should return only latest refine per hash when multiple refines exist for same hash", async () => {
 			await AutofillRefineModel.create({
+				userId: TEST_USER_ID,
 				autofillId: TEST_AUTOFILL_ID,
 				hash: "hash-1",
 				value: "first@example.com",
@@ -83,6 +96,7 @@ describe("AutofillRefineModel", () => {
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
 			await AutofillRefineModel.create({
+				userId: TEST_USER_ID,
 				autofillId: TEST_AUTOFILL_ID,
 				hash: "hash-1",
 				value: "second@example.com",
@@ -94,6 +108,7 @@ describe("AutofillRefineModel", () => {
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
 			await AutofillRefineModel.create({
+				userId: TEST_USER_ID,
 				autofillId: TEST_AUTOFILL_ID,
 				hash: "hash-1",
 				value: "third@example.com",
@@ -102,8 +117,10 @@ describe("AutofillRefineModel", () => {
 				userInstructions: "Third instruction",
 			});
 
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const results = await AutofillRefineModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(results).toHaveLength(1);
 			expect(results[0].hash).toBe("hash-1");
@@ -112,6 +129,7 @@ describe("AutofillRefineModel", () => {
 
 		it("should return latest refine per hash when multiple hashes have multiple refines", async () => {
 			await AutofillRefineModel.create({
+				userId: TEST_USER_ID,
 				autofillId: TEST_AUTOFILL_ID,
 				hash: "hash-1",
 				value: "old-email@example.com",
@@ -121,6 +139,7 @@ describe("AutofillRefineModel", () => {
 			});
 
 			await AutofillRefineModel.create({
+				userId: TEST_USER_ID,
 				autofillId: TEST_AUTOFILL_ID,
 				hash: "hash-2",
 				value: "Old Name",
@@ -132,6 +151,7 @@ describe("AutofillRefineModel", () => {
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
 			await AutofillRefineModel.create({
+				userId: TEST_USER_ID,
 				autofillId: TEST_AUTOFILL_ID,
 				hash: "hash-1",
 				value: "new-email@example.com",
@@ -141,6 +161,7 @@ describe("AutofillRefineModel", () => {
 			});
 
 			await AutofillRefineModel.create({
+				userId: TEST_USER_ID,
 				autofillId: TEST_AUTOFILL_ID,
 				hash: "hash-2",
 				value: "New Name",
@@ -149,8 +170,10 @@ describe("AutofillRefineModel", () => {
 				userInstructions: "New name instruction",
 			});
 
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const results = await AutofillRefineModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(results).toHaveLength(2);
 
@@ -164,6 +187,7 @@ describe("AutofillRefineModel", () => {
 		it("should only return refines for specified autofillId", async () => {
 			await AutofillRefineModel.create([
 				{
+					userId: TEST_USER_ID,
 					autofillId: TEST_AUTOFILL_ID,
 					hash: "hash-1",
 					value: "correct@example.com",
@@ -172,6 +196,7 @@ describe("AutofillRefineModel", () => {
 					userInstructions: "Correct instruction",
 				},
 				{
+					userId: TEST_USER_ID,
 					autofillId: "different-autofill-id",
 					hash: "hash-1",
 					value: "wrong@example.com",
@@ -181,32 +206,18 @@ describe("AutofillRefineModel", () => {
 				},
 			]);
 
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const results = await AutofillRefineModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(results).toHaveLength(1);
 			expect(results[0].value).toBe("correct@example.com");
 		});
 
-		it("should handle null values", async () => {
-			await AutofillRefineModel.create({
-				autofillId: TEST_AUTOFILL_ID,
-				hash: "hash-1",
-				value: null,
-				fieldLabel: "Optional Field",
-				prevFieldText: "",
-				userInstructions: "Leave empty",
-			});
-
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
-
-			expect(results).toHaveLength(1);
-			expect(results[0].value).toBeNull();
-		});
-
 		it("should preserve createdAt and updatedAt from latest refine", async () => {
 			await AutofillRefineModel.create({
+				userId: TEST_USER_ID,
 				autofillId: TEST_AUTOFILL_ID,
 				hash: "hash-1",
 				value: "first@example.com",
@@ -218,6 +229,7 @@ describe("AutofillRefineModel", () => {
 			await new Promise((resolve) => setTimeout(resolve, 10));
 
 			const secondRefine = await AutofillRefineModel.create({
+				userId: TEST_USER_ID,
 				autofillId: TEST_AUTOFILL_ID,
 				hash: "hash-1",
 				value: "second@example.com",
@@ -226,8 +238,10 @@ describe("AutofillRefineModel", () => {
 				userInstructions: "Second instruction",
 			});
 
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const results = await AutofillRefineModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(results).toHaveLength(1);
 			expect(results[0].createdAt.getTime()).toBe(

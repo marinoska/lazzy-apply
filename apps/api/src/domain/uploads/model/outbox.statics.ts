@@ -9,18 +9,24 @@ import type {
 export const registerOutboxStatics = (
 	schema: Schema<TOutbox, OutboxModelWithStatics, OutboxMethods>,
 ) => {
-	schema.statics.createOutbox = async function (payload) {
-		return await this.create({
-			...payload,
-			status: "pending",
-		});
+	schema.statics.createOutbox = async function (payload, session) {
+		const docs = await this.create(
+			[
+				{
+					...payload,
+					status: "pending",
+				},
+			],
+			session ? { session } : {},
+		);
+		return docs[0];
 	};
 
 	schema.statics.createWithStatus = async function (
 		original,
 		status,
 		error,
-		usage,
+		session,
 	) {
 		const newEntry: Partial<TOutbox> = {
 			processId: original.processId,
@@ -36,22 +42,8 @@ export const registerOutboxStatics = (
 			newEntry.error = error;
 		}
 
-		if (usage) {
-			newEntry.promptTokens = usage.promptTokens;
-			newEntry.completionTokens = usage.completionTokens;
-			newEntry.totalTokens = usage.totalTokens;
-			if (usage.inputCost !== undefined) {
-				newEntry.inputCost = usage.inputCost;
-			}
-			if (usage.outputCost !== undefined) {
-				newEntry.outputCost = usage.outputCost;
-			}
-			if (usage.totalCost !== undefined) {
-				newEntry.totalCost = usage.totalCost;
-			}
-		}
-
-		return await this.create(newEntry);
+		const docs = await this.create([newEntry], session ? { session } : {});
+		return docs[0];
 	};
 
 	// Atomically find pending entry and create new "sending" entry
@@ -73,20 +65,35 @@ export const registerOutboxStatics = (
 		return await this.createWithStatus(pendingEntry, "sending");
 	};
 
-	schema.statics.markAsProcessing = async function (original) {
-		return await this.createWithStatus(original, "processing");
+	schema.statics.markAsProcessing = async function (original, session) {
+		return await this.createWithStatus(
+			original,
+			"processing",
+			undefined,
+			session,
+		);
 	};
 
-	schema.statics.markAsCompleted = async function (original, usage) {
-		return await this.createWithStatus(original, "completed", undefined, usage);
+	schema.statics.markAsCompleted = async function (original, session) {
+		return await this.createWithStatus(
+			original,
+			"completed",
+			undefined,
+			session,
+		);
 	};
 
-	schema.statics.markAsFailed = async function (original, error, usage) {
-		return await this.createWithStatus(original, "failed", error, usage);
+	schema.statics.markAsFailed = async function (original, error, session) {
+		return await this.createWithStatus(original, "failed", error, session);
 	};
 
-	schema.statics.markAsNotACV = async function (original, usage) {
-		return await this.createWithStatus(original, "not-a-cv", undefined, usage);
+	schema.statics.markAsNotACV = async function (original, session) {
+		return await this.createWithStatus(
+			original,
+			"not-a-cv",
+			undefined,
+			session,
+		);
 	};
 
 	schema.statics.findPendingLogs = async function (limit) {

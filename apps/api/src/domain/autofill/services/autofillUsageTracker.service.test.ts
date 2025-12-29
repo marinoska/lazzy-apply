@@ -1,24 +1,21 @@
 import type { Types } from "mongoose";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { UsageModel } from "@/domain/usage/index.js";
+import { UsageTracker } from "@/domain/usage/index.js";
 import { AutofillUsageTracker } from "./autofillUsageTracker.service.js";
 
+const mockSetReference = vi.fn();
+const mockSetUsage = vi.fn();
+const mockPersistAllUsage = vi.fn();
+
 vi.mock("@/domain/usage/index.js", () => ({
-	UsageModel: {
-		create: vi.fn(),
-	},
+	UsageTracker: vi.fn().mockImplementation(() => ({
+		setReference: mockSetReference,
+		setUsage: mockSetUsage,
+		persistAllUsage: mockPersistAllUsage,
+	})),
 }));
 
-vi.mock("@/app/logger.js", () => ({
-	createLogger: () => ({
-		info: vi.fn(),
-		debug: vi.fn(),
-		error: vi.fn(),
-		warn: vi.fn(),
-	}),
-}));
-
-describe("Autofill", () => {
+describe("AutofillUsageTracker", () => {
 	const userId = "test-user-id";
 	const mockAutofillId =
 		"507f1f77bcf86cd799439011" as unknown as Types.ObjectId;
@@ -27,100 +24,99 @@ describe("Autofill", () => {
 		vi.clearAllMocks();
 	});
 
-	describe("persist", () => {
-		it("should persist autofill and all usage tracking", async () => {
-			const autofill = new AutofillUsageTracker(userId);
+	describe("constructor", () => {
+		it("should create UsageTracker with autofill reference table", () => {
+			new AutofillUsageTracker(userId);
 
-			const mockAutofillDoc = {
-				_id: mockAutofillId,
-			};
+			expect(UsageTracker).toHaveBeenCalledWith(userId, {
+				referenceTable: "autofill",
+			});
+		});
+	});
 
-			autofill.setClassificationUsage({
+	describe("setAutofill", () => {
+		it("should set reference on the underlying tracker", () => {
+			const tracker = new AutofillUsageTracker(userId);
+			const mockAutofillDoc = { _id: mockAutofillId };
+
+			tracker.setAutofill(mockAutofillDoc as never);
+
+			expect(mockSetReference).toHaveBeenCalledWith(mockAutofillId);
+		});
+	});
+
+	describe("setClassificationUsage", () => {
+		it("should set form_fields_classification usage", () => {
+			const tracker = new AutofillUsageTracker(userId);
+			const usage = {
 				promptTokens: 100,
 				completionTokens: 50,
 				totalTokens: 150,
 				inputCost: 0.01,
 				outputCost: 0.02,
 				totalCost: 0.03,
-			});
+			};
 
-			autofill.setJdFormMatchUsage({
+			tracker.setClassificationUsage(usage);
+
+			expect(mockSetUsage).toHaveBeenCalledWith(
+				"form_fields_classification",
+				usage,
+			);
+		});
+	});
+
+	describe("setJdFormMatchUsage", () => {
+		it("should set jd_form_match usage", () => {
+			const tracker = new AutofillUsageTracker(userId);
+			const usage = {
 				promptTokens: 200,
 				completionTokens: 100,
 				totalTokens: 300,
 				inputCost: 0.02,
 				outputCost: 0.04,
 				totalCost: 0.06,
-			});
+			};
 
-			autofill.setInferenceUsage({
+			tracker.setJdFormMatchUsage(usage);
+
+			expect(mockSetUsage).toHaveBeenCalledWith("jd_form_match", usage);
+		});
+
+		it("should handle null usage", () => {
+			const tracker = new AutofillUsageTracker(userId);
+
+			tracker.setJdFormMatchUsage(null);
+
+			expect(mockSetUsage).toHaveBeenCalledWith("jd_form_match", null);
+		});
+	});
+
+	describe("setInferenceUsage", () => {
+		it("should set form_fields_inference usage", () => {
+			const tracker = new AutofillUsageTracker(userId);
+			const usage = {
 				promptTokens: 300,
 				completionTokens: 150,
 				totalTokens: 450,
 				inputCost: 0.03,
 				outputCost: 0.06,
 				totalCost: 0.09,
-			});
-
-			autofill.setAutofill(mockAutofillDoc as never);
-			await autofill.persistAllUsage();
-
-			expect(UsageModel.create).toHaveBeenCalledTimes(3);
-			expect(UsageModel.create).toHaveBeenCalledWith(
-				expect.objectContaining({
-					type: "form_fields_classification",
-					totalTokens: 150,
-				}),
-			);
-			expect(UsageModel.create).toHaveBeenCalledWith(
-				expect.objectContaining({
-					type: "jd_form_match",
-					totalTokens: 300,
-				}),
-			);
-			expect(UsageModel.create).toHaveBeenCalledWith(
-				expect.objectContaining({
-					type: "form_fields_inference",
-					totalTokens: 450,
-				}),
-			);
-		});
-
-		it("should skip persisting usage with zero tokens", async () => {
-			const autofill = new AutofillUsageTracker(userId);
-
-			const mockAutofillDoc = {
-				_id: mockAutofillId,
 			};
 
-			autofill.setClassificationUsage({
-				promptTokens: 0,
-				completionTokens: 0,
-				totalTokens: 0,
-				inputCost: 0,
-				outputCost: 0,
-				totalCost: 0,
-			});
+			tracker.setInferenceUsage(usage);
 
-			autofill.setAutofill(mockAutofillDoc as never);
-			await autofill.persistAllUsage();
-
-			expect(UsageModel.create).not.toHaveBeenCalled();
+			expect(mockSetUsage).toHaveBeenCalledWith("form_fields_inference", usage);
 		});
+	});
 
-		it("should skip persisting null jd form match usage", async () => {
-			const autofill = new AutofillUsageTracker(userId);
+	describe("persistAllUsage", () => {
+		it("should delegate to underlying tracker", async () => {
+			const tracker = new AutofillUsageTracker(userId);
 
-			const mockAutofillDoc = {
-				_id: mockAutofillId,
-			};
+			await tracker.persistAllUsage();
 
-			autofill.setJdFormMatchUsage(null);
-
-			autofill.setAutofill(mockAutofillDoc as never);
-			await autofill.persistAllUsage();
-
-			expect(UsageModel.create).not.toHaveBeenCalled();
+			expect(mockPersistAllUsage).toHaveBeenCalled();
 		});
 	});
 });

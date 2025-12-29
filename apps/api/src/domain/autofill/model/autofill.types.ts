@@ -97,6 +97,7 @@ export type AutofillStatics = {
 	findByAutofillId(
 		this: AutofillModelWithStatics,
 		autofillId: string,
+		userId: string,
 	): Promise<TAutofill | null>;
 	/** Find the most recent autofill by userId, uploadId, and formId */
 	findMostRecentByUserUploadForm(

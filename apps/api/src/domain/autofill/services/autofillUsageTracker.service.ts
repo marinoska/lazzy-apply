@@ -1,25 +1,7 @@
-import type { AutofillResponseData, TokenUsage } from "@lazyapply/types";
-import type { Types } from "mongoose";
-import { createLogger } from "@/app/logger.js";
-import {
-	AUTOFILL_MODEL_NAME,
-	type AutofillDocument,
-} from "@/domain/autofill/index.js";
-import { UsageModel } from "@/domain/usage/index.js";
-import { createEmptyUsage } from "../llm/base/baseLlmService.js";
-
-const _logger = createLogger("autofill.service");
-
-export interface AutofillPersistParams {
-	formId: Types.ObjectId;
-	uploadId: string;
-	cvDataId: string;
-	userId: string;
-	response: AutofillResponseData;
-	fieldHashToIdMap: Map<string, Types.ObjectId>;
-	jdRawText: string;
-	formContext: string;
-}
+import type { TokenUsage } from "@lazyapply/types";
+import type { AutofillDocument } from "@/domain/autofill/index.js";
+import { UsageTracker } from "@/domain/usage/index.js";
+import type { ClientSession } from "mongoose";
 
 export interface UsageTracking {
 	classification: TokenUsage;
@@ -27,75 +9,34 @@ export interface UsageTracking {
 	inference: TokenUsage | undefined;
 }
 
+/**
+ * Autofill-specific usage tracker that wraps the universal UsageTracker.
+ * Provides convenience methods for autofill-specific usage types.
+ */
 export class AutofillUsageTracker {
-	private autofillId?: Types.ObjectId;
+	private readonly tracker: UsageTracker;
 
-	constructor(
-		private readonly userId: string,
-		private readonly usageTracking: UsageTracking = {
-			classification: createEmptyUsage(),
-			jdFormMatch: null,
-			inference: undefined,
-		},
-	) {}
-
-	setAutofill(autofill: AutofillDocument) {
-		this.autofillId = autofill._id;
+	constructor(userId: string) {
+		this.tracker = new UsageTracker(userId, { referenceTable: "autofill" });
 	}
 
-	setClassificationUsage(usage: TokenUsage) {
-		this.usageTracking.classification = usage;
+	setAutofill(autofill: AutofillDocument): void {
+		this.tracker.setReference(autofill._id);
 	}
 
-	setJdFormMatchUsage(usage: TokenUsage | null) {
-		this.usageTracking.jdFormMatch = usage;
+	setClassificationUsage(usage: TokenUsage): void {
+		this.tracker.setUsage("form_fields_classification", usage);
 	}
 
-	setInferenceUsage(usage: TokenUsage | undefined) {
-		this.usageTracking.inference = usage;
+	setJdFormMatchUsage(usage: TokenUsage | null): void {
+		this.tracker.setUsage("jd_form_match", usage);
 	}
 
-	async persistAllUsage() {
-		if (!this.autofillId) {
-			throw new Error("Autofill must be persisted before tracking usage");
-		}
-
-		await Promise.all([
-			this.persistUsage(
-				this.usageTracking.classification,
-				"form_fields_classification",
-			),
-			this.persistUsage(this.usageTracking.jdFormMatch, "jd_form_match"),
-			this.persistUsage(this.usageTracking.inference, "form_fields_inference"),
-		]);
+	setInferenceUsage(usage: TokenUsage | undefined): void {
+		this.tracker.setUsage("form_fields_inference", usage);
 	}
 
-	private async persistUsage(
-		usage: TokenUsage | null | undefined,
-		type:
-			| "form_fields_classification"
-			| "jd_form_match"
-			| "form_fields_inference",
-	) {
-		if (!usage || usage.totalTokens === 0) {
-			return;
-		}
-
-		if (!this.autofillId) {
-			throw new Error("Autofill must be persisted before tracking usage");
-		}
-
-		await UsageModel.create({
-			referenceTable: AUTOFILL_MODEL_NAME,
-			reference: this.autofillId,
-			userId: this.userId,
-			type,
-			promptTokens: usage.promptTokens,
-			completionTokens: usage.completionTokens,
-			totalTokens: usage.totalTokens,
-			inputCost: usage.inputCost ?? 0,
-			outputCost: usage.outputCost ?? 0,
-			totalCost: usage.totalCost ?? 0,
-		});
+	async persistAllUsage(session: ClientSession): Promise<void> {
+		await this.tracker.persistAllUsage(session);
 	}
 }

@@ -1,4 +1,5 @@
 import { model, Schema } from "mongoose";
+import { applyOwnershipEnforcement } from "@/app/middleware/mongoOwnershipEnforcement.middleware.js";
 import {
 	AUTOFILL_REFINE_MODEL_NAME,
 	type AutofillRefineMethods,
@@ -14,6 +15,12 @@ const autofillRefineSchema = new Schema<
 	AutofillRefineMethods
 >(
 	{
+		userId: {
+			type: String,
+			required: true,
+			index: true,
+			immutable: true,
+		},
 		autofillId: {
 			type: String,
 			required: true,
@@ -59,13 +66,20 @@ autofillRefineSchema.index({ autofillId: 1, createdAt: -1 });
 autofillRefineSchema.statics.findByAutofillId = async function (
 	this: AutofillRefineModelWithStatics,
 	autofillId: string,
+	userId?: string,
 ) {
+	const matchStage: Record<string, unknown> = { autofillId };
+	if (userId) {
+		matchStage.userId = userId;
+	}
+
 	const results = await this.aggregate([
-		{ $match: { autofillId } },
+		{ $match: matchStage },
 		{ $sort: { createdAt: -1 } },
 		{
 			$group: {
 				_id: { autofillId: "$autofillId", hash: "$hash" },
+				userId: { $first: "$userId" },
 				autofillId: { $first: "$autofillId" },
 				hash: { $first: "$hash" },
 				value: { $first: "$value" },
@@ -81,6 +95,7 @@ autofillRefineSchema.statics.findByAutofillId = async function (
 
 	return results.map(
 		(r): TAutofillRefine => ({
+			userId: r.userId,
 			autofillId: r.autofillId,
 			hash: r.hash,
 			value: r.value ?? null,
@@ -93,6 +108,8 @@ autofillRefineSchema.statics.findByAutofillId = async function (
 		}),
 	);
 };
+
+applyOwnershipEnforcement(autofillRefineSchema);
 
 export type { AutofillRefineDocument } from "./autofillRefine.types.js";
 

@@ -7,12 +7,19 @@ import { AutofillRefineModel } from "./autofillRefine.model.js";
 
 describe("AutofillModel", () => {
 	beforeEach(async () => {
-		await AutofillModel.collection.drop().catch(() => {});
-		await AutofillRefineModel.collection.drop().catch(() => {});
-		await FormModel.collection.drop().catch(() => {});
-		await FormFieldModel.collection.drop().catch(() => {});
-		await AutofillModel.createIndexes();
-		await AutofillRefineModel.createIndexes();
+		await AutofillModel.deleteMany({}).setOptions({
+			skipOwnershipEnforcement: true,
+		});
+		await AutofillRefineModel.deleteMany({}).setOptions({
+			skipOwnershipEnforcement: true,
+		});
+		await FormModel.deleteMany({}).setOptions({
+			skipOwnershipEnforcement: true,
+		});
+		await FormFieldModel.deleteMany({}).setOptions({
+			skipOwnershipEnforcement: true,
+		});
+		await AutofillModel.syncIndexes();
 	});
 
 	const TEST_USER_ID = "test-user-123";
@@ -42,6 +49,7 @@ describe("AutofillModel", () => {
 	});
 
 	const createTestRefineData = (overrides = {}) => ({
+		userId: TEST_USER_ID,
 		autofillId: TEST_AUTOFILL_ID,
 		hash: "hash-1",
 		value: "refined@example.com",
@@ -121,7 +129,7 @@ describe("AutofillModel", () => {
 			await expect(AutofillModel.create(data2)).resolves.toBeDefined();
 		});
 
-		it("should enforce unique autofillId globally", async () => {
+		it("should enforce unique autofillId globally even across different users", async () => {
 			const data1 = createTestAutofillData();
 			await AutofillModel.create(data1);
 
@@ -140,7 +148,10 @@ describe("AutofillModel", () => {
 			const data = createTestAutofillData();
 			await AutofillModel.create(data);
 
-			const result = await AutofillModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const result = await AutofillModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 			expect(result).not.toBeNull();
 			expect(result?.autofillId).toBe(TEST_AUTOFILL_ID);
 		});
@@ -206,7 +217,10 @@ describe("AutofillModel", () => {
 
 			await AutofillRefineModel.create(createTestRefineData());
 
-			const result = await AutofillModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const result = await AutofillModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(result).not.toBeNull();
 			expect(result?.data).toHaveLength(2);
@@ -244,7 +258,10 @@ describe("AutofillModel", () => {
 				createTestRefineData({ value: "second@example.com" }),
 			);
 
-			const result = await AutofillModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const result = await AutofillModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(result).not.toBeNull();
 			const emailField = result?.data.find((item) => item.hash === "hash-1");
@@ -255,7 +272,10 @@ describe("AutofillModel", () => {
 			const data = createTestAutofillData();
 			await AutofillModel.create(data);
 
-			const result = await AutofillModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const result = await AutofillModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(result).not.toBeNull();
 			expect(result?.data[0].value).toBe("test@example.com");
@@ -287,7 +307,10 @@ describe("AutofillModel", () => {
 				}),
 			);
 
-			const result = await AutofillModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const result = await AutofillModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(result).not.toBeNull();
 			const resumeField = result?.data.find(
@@ -303,7 +326,10 @@ describe("AutofillModel", () => {
 
 			await AutofillRefineModel.create(createTestRefineData({ value: null }));
 
-			const result = await AutofillModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const result = await AutofillModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(result).not.toBeNull();
 			expect(result?.data[0].value).toBeNull();
@@ -342,8 +368,10 @@ describe("AutofillModel", () => {
 
 	describe("AutofillRefineModel.findByAutofillId", () => {
 		it("should return empty array when no refines exist", async () => {
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const results = await AutofillRefineModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 			expect(results).toEqual([]);
 		});
 
@@ -365,8 +393,10 @@ describe("AutofillModel", () => {
 				}),
 			]);
 
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const results = await AutofillRefineModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(results).toHaveLength(3);
 			const hashes = results.map((r) => r.hash).sort();
@@ -390,8 +420,10 @@ describe("AutofillModel", () => {
 				createTestRefineData({ value: "third@example.com" }),
 			);
 
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const results = await AutofillRefineModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(results).toHaveLength(1);
 			expect(results[0].hash).toBe("hash-1");
@@ -425,8 +457,10 @@ describe("AutofillModel", () => {
 				}),
 			);
 
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const results = await AutofillRefineModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(results).toHaveLength(2);
 
@@ -446,8 +480,10 @@ describe("AutofillModel", () => {
 				}),
 			]);
 
-			const results =
-				await AutofillRefineModel.findByAutofillId(TEST_AUTOFILL_ID);
+			const results = await AutofillRefineModel.findByAutofillId(
+				TEST_AUTOFILL_ID,
+				TEST_USER_ID,
+			);
 
 			expect(results).toHaveLength(1);
 			expect(results[0].value).toBe("correct@example.com");

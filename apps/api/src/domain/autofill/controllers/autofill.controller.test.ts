@@ -86,7 +86,9 @@ describe("autofill.controller", () => {
 	beforeEach(async () => {
 		await FormModel.deleteMany({});
 		await FormFieldModel.deleteMany({});
-		await AutofillModel.deleteMany({});
+		await AutofillModel.deleteMany({}).setOptions({
+			skipOwnershipEnforcement: true,
+		});
 		await FileUploadModel.deleteMany({}).setOptions({
 			skipOwnershipEnforcement: true,
 		});

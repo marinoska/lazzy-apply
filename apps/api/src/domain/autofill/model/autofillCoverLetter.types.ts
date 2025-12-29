@@ -5,6 +5,7 @@ export const AUTOFILL_COVER_LETTER_MODEL_NAME =
 	"autofill_cover_letters" as const;
 
 export type TAutofillCoverLetter = {
+	userId: string;
 	autofillId: string;
 	hash: FieldHash;
 	value: string;
@@ -26,6 +27,7 @@ export type AutofillCoverLetterStatics = {
 	findByAutofillId(
 		this: AutofillCoverLetterModelWithStatics,
 		autofillId: string,
+		userId?: string,
 	): Promise<TAutofillCoverLetter | null>;
 };
 

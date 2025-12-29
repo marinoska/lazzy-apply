@@ -1,4 +1,4 @@
-export { BaseLlmService, createEmptyUsage } from "./base/baseLlmService.js";
+export { BaseLlmService } from "./base/baseLlmService.js";
 export {
 	type ClassificationResult,
 	classifyFieldsWithAI,

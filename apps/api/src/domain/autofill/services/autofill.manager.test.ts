@@ -78,7 +78,9 @@ describe("classification.manager", () => {
 	beforeEach(async () => {
 		await FormModel.deleteMany({});
 		await FormFieldModel.deleteMany({});
-		await AutofillModel.deleteMany({});
+		await AutofillModel.deleteMany({}).setOptions({
+			skipOwnershipEnforcement: true,
+		});
 		await CVDataModel.deleteMany({}).setOptions({
 			skipOwnershipEnforcement: true,
 		});

@@ -1,6 +1,7 @@
 import type { TokenUsage } from "@lazyapply/types";
 import { createLogger } from "@/app/logger.js";
-import { BaseLlmService, createEmptyUsage } from "./base/baseLlmService.js";
+import { createEmptyUsage } from "@/domain/usage/index.js";
+import { BaseLlmService } from "./base/baseLlmService.js";
 import { GENERAL, SUMMARIZATION_AND_AGGREGATION } from "./rules.js";
 
 const logger = createLogger("inference.llm");

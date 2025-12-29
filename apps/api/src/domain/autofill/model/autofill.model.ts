@@ -1,4 +1,5 @@
 import { model, Schema } from "mongoose";
+import { applyOwnershipEnforcement } from "@/app/middleware/mongoOwnershipEnforcement.middleware.js";
 import {
 	AUTOFILL_MODEL_NAME,
 	type AutofillMethods,
@@ -131,6 +132,7 @@ const applyRefinesToAutofill = async (
 ): Promise<TAutofill> => {
 	const refines = await AutofillRefineModel.findByAutofillId(
 		baseAutofill.autofillId,
+		baseAutofill.userId,
 	);
 
 	if (refines.length === 0) {
@@ -171,8 +173,13 @@ const applyRefinesToAutofill = async (
 autofillSchema.statics.findByAutofillId = async function (
 	this: AutofillModelWithStatics,
 	autofillId: string,
+	userId?: string,
 ) {
-	const baseAutofill = await this.findOne({ autofillId }).lean();
+	const query = this.findOne({ autofillId });
+	if (userId) {
+		query.setOptions({ userId });
+	}
+	const baseAutofill = await query.lean();
 	if (!baseAutofill) {
 		return null;
 	}
@@ -191,6 +198,7 @@ autofillSchema.statics.findMostRecentByUserUploadForm = async function (
 		uploadReference: uploadId,
 		formReference: formId,
 	})
+		.setOptions({ userId })
 		.sort({ createdAt: -1 })
 		.lean()
 		.exec();
@@ -201,6 +209,8 @@ autofillSchema.statics.findMostRecentByUserUploadForm = async function (
 
 	return applyRefinesToAutofill(baseAutofill);
 };
+
+applyOwnershipEnforcement(autofillSchema);
 
 export type { AutofillDocument } from "./autofill.types.js";
 

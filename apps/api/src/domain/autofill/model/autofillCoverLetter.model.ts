@@ -1,4 +1,5 @@
 import { model, Schema } from "mongoose";
+import { applyOwnershipEnforcement } from "@/app/middleware/mongoOwnershipEnforcement.middleware.js";
 import {
 	AUTOFILL_COVER_LETTER_MODEL_NAME,
 	type AutofillCoverLetterMethods,
@@ -14,6 +15,12 @@ const autofillCoverLetterSchema = new Schema<
 	AutofillCoverLetterMethods
 >(
 	{
+		userId: {
+			type: String,
+			required: true,
+			index: true,
+			immutable: true,
+		},
 		autofillId: {
 			type: String,
 			required: true,
@@ -55,13 +62,18 @@ autofillCoverLetterSchema.index({ autofillId: 1, createdAt: -1 });
 autofillCoverLetterSchema.statics.findByAutofillId = async function (
 	this: AutofillCoverLetterModelWithStatics,
 	autofillId: string,
+	userId?: string,
 ) {
-	const result = await this.findOne({ autofillId })
-		.sort({ createdAt: -1 })
-		.lean();
+	const query = this.findOne({ autofillId }).sort({ createdAt: -1 });
+	if (userId) {
+		query.setOptions({ userId });
+	}
+	const result = await query.lean();
 
 	return result;
 };
+
+applyOwnershipEnforcement(autofillCoverLetterSchema);
 
 export type { AutofillCoverLetterDocument } from "./autofillCoverLetter.types.js";
 

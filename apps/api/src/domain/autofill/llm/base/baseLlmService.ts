@@ -101,17 +101,3 @@ export abstract class BaseLlmService<TInput, TOutput> {
 		return JSON.parse(jsonText);
 	}
 }
-
-/**
- * Create an empty token usage object
- */
-export function createEmptyUsage(): TokenUsage {
-	return {
-		promptTokens: 0,
-		completionTokens: 0,
-		totalTokens: 0,
-		inputCost: 0,
-		outputCost: 0,
-		totalCost: 0,
-	};
-}

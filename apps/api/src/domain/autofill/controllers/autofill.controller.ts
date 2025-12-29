@@ -39,7 +39,10 @@ export async function autofill(
 	// If autofillId is provided, return stored autofill data directly
 	if (autofillId) {
 		logger.info({ autofillId }, "Looking up autofill by ID");
-		const autofillDoc = await AutofillModel.findByAutofillId(autofillId);
+		const autofillDoc = await AutofillModel.findByAutofillId(
+			autofillId,
+			user.id,
+		);
 		if (!autofillDoc || autofillDoc.userId !== user.id) {
 			throw new NotFound("Autofill not found");
 		}

@@ -1,4 +1,5 @@
 import type { Document, Model, Types } from "mongoose";
+import { FILE_UPLOAD_MODEL_NAME } from "@/domain/uploads/model/fileUpload.types.js";
 
 export const USAGE_MODEL_NAME = "usage" as const;
 
@@ -11,6 +12,7 @@ export const USAGE_TYPES = [
 	"jd_form_match",
 	"autofill_refine",
 	"cover_letter",
+	"cv_data_extraction",
 ] as const;
 export type UsageType = (typeof USAGE_TYPES)[number];
 
@@ -22,6 +24,8 @@ export const USAGE_REFERENCE_TABLES = [
 	"autofill_refines",
 	"autofill",
 	"autofill_cover_letters",
+	"cv_data",
+	FILE_UPLOAD_MODEL_NAME,
 ] as const;
 export type UsageReferenceTable = (typeof USAGE_REFERENCE_TABLES)[number];
 
@@ -63,6 +67,7 @@ export type UsageStatics = {
 		this: UsageModelWithStatics,
 		reference: Types.ObjectId,
 		type: UsageType,
+		userId?: string,
 	): Promise<UsageDocument | null>;
 	findByType(this: UsageModelWithStatics, type: UsageType): Promise<TUsage[]>;
 };

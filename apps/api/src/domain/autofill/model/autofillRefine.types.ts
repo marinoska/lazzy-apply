@@ -4,6 +4,7 @@ import type { FieldHash } from "./autofill.types.js";
 export const AUTOFILL_REFINE_MODEL_NAME = "autofill_refines" as const;
 
 export type TAutofillRefine = {
+	userId: string;
 	autofillId: string;
 	hash: FieldHash;
 	value: string | null;
@@ -26,6 +27,7 @@ export type AutofillRefineStatics = {
 	findByAutofillId(
 		this: AutofillRefineModelWithStatics,
 		autofillId: string,
+		userId?: string,
 	): Promise<TAutofillRefine[]>;
 };
 

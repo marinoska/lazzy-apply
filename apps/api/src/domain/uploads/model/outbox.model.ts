@@ -73,30 +73,6 @@ const outboxSchema = new Schema<TOutbox, OutboxModel, OutboxMethods>(
 			type: String,
 			required: false,
 		},
-		promptTokens: {
-			type: Number,
-			required: false,
-		},
-		completionTokens: {
-			type: Number,
-			required: false,
-		},
-		totalTokens: {
-			type: Number,
-			required: false,
-		},
-		inputCost: {
-			type: Number,
-			required: false,
-		},
-		outputCost: {
-			type: Number,
-			required: false,
-		},
-		totalCost: {
-			type: Number,
-			required: false,
-		},
 	},
 	{ timestamps: true, collection: OUTBOX_MODEL_NAME },
 );

@@ -41,6 +41,7 @@ export class AutofillResponseBuilder {
 		const fields = await this.buildFields(autofillDoc);
 		const coverLetter = await AutofillCoverLetterModel.findByAutofillId(
 			autofillDoc.autofillId,
+			this.userId,
 		);
 
 		return {

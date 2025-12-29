@@ -10,6 +10,7 @@ import type {
 import type { Types } from "mongoose";
 import mongoose from "mongoose";
 import { createLogger } from "@/app/logger.js";
+import { createEmptyUsage } from "@/domain/usage/index.js";
 import {
 	type AutofillDataItem,
 	type AutofillDataItemFile,
@@ -22,7 +23,6 @@ import {
 	FormModel,
 	type TFormField,
 } from "../index.js";
-import { createEmptyUsage } from "../llm/base/baseLlmService.js";
 import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
 import {
 	extractValueByPath,
@@ -288,7 +288,8 @@ export class AutofillManager {
 			cvData: this.cvContext.cvData,
 			fileInfo,
 		});
-
+		const session = await mongoose.startSession();
+		// TODO transaction
 		const autofill = await AutofillModel.create({
 			userId: this.userId,
 			autofillId: randomUUID(),
@@ -305,7 +306,7 @@ export class AutofillManager {
 		});
 
 		this.autofillUsageTracker.setAutofill(autofill);
-		await this.autofillUsageTracker.persistAllUsage();
+		await this.autofillUsageTracker.persistAllUsage(session);
 
 		return autofill;
 	}

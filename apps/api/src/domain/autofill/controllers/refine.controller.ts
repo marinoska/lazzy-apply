@@ -57,7 +57,7 @@ export async function refineController(
 		"Refine request received",
 	);
 
-	const autofill = await AutofillModel.findByAutofillId(autofillId);
+	const autofill = await AutofillModel.findByAutofillId(autofillId, user.id);
 	if (!autofill) {
 		logger.warn({ autofillId }, "Autofill session not found");
 		return res.status(404).json({ error: "Autofill session not found" });
@@ -88,6 +88,7 @@ export async function refineController(
 	});
 
 	const refineRecord = await AutofillRefineModel.create({
+		userId: user.id,
 		autofillId,
 		hash: fieldHash,
 		value: result.refinedAnswer,

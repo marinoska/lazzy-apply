@@ -10,8 +10,12 @@ import type {
 export function registerCVDataStatics(
 	schema: Schema<TCVData, CVDataModel, CVDataMethods>,
 ): void {
-	schema.statics.createCVData = async function (payload: CreateCVDataParams) {
-		return this.create(payload);
+	schema.statics.createCVData = async function (
+		payload: CreateCVDataParams,
+		session,
+	) {
+		const docs = await this.create([payload], session ? { session } : {});
+		return docs[0];
 	};
 
 	schema.statics.findByUploadId = async function (

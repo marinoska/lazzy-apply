@@ -9,6 +9,19 @@ import {
 	updateOutboxStatus,
 } from "./updateOutboxStatus.controller.js";
 
+vi.mock("@/domain/usage/index.js", async (importOriginal) => {
+	const original =
+		await importOriginal<typeof import("@/domain/usage/index.js")>();
+	return {
+		...original,
+		UsageTracker: vi.fn().mockImplementation(() => ({
+			setReference: vi.fn(),
+			setUsage: vi.fn(),
+			persistAllUsage: vi.fn().mockResolvedValue(undefined),
+		})),
+	};
+});
+
 describe("Update Outbox Status", () => {
 	let mockReq: Partial<Request>;
 	let mockRes: Partial<Response>;
@@ -296,9 +309,6 @@ describe("Update Outbox Status", () => {
 			expect(allEntries).toHaveLength(2); // Original + not-a-cv
 			const latestEntry = allEntries[0];
 			expect(latestEntry.status).toBe("not-a-cv");
-			expect(latestEntry.promptTokens).toBe(100);
-			expect(latestEntry.completionTokens).toBe(50);
-			expect(latestEntry.totalTokens).toBe(150);
 
 			// Verify no CV data was created
 			const cvData = await CVDataModel.findOne({ uploadId }, null, {
@@ -327,6 +337,193 @@ describe("Update Outbox Status", () => {
 			await expect(updateOutboxStatus(mockReq, mockRes)).rejects.toThrow(
 				"Outbox entry not found",
 			);
+		});
+	});
+
+	describe("Transaction Session Handling", () => {
+		it("should pass session to all database operations in completed flow", async () => {
+			const uploadId = new mongoose.Types.ObjectId();
+			const markAsCompletedSpy = vi.spyOn(OutboxModel, "markAsCompleted");
+			const createCVDataSpy = vi.spyOn(CVDataModel, "createCVData");
+
+			await OutboxModel.create({
+				processId: "test-session-completed",
+				type: "file_upload",
+				status: "processing",
+				uploadId,
+				fileId: "test-file-session",
+				userId: "test-user-session",
+				fileType: "PDF" as FileUploadContentType,
+			});
+
+			const parsedData: ParsedCVData = {
+				personal: {
+					fullName: "Session Test",
+					email: "session@test.com",
+					phone: null,
+					location: null,
+				},
+				links: [],
+				headline: null,
+				summary: "Test",
+				experience: [],
+				education: [],
+				certifications: [],
+				languages: [],
+				extras: {},
+				rawText: "Test",
+			};
+
+			mockReq = {
+				params: { processId: "test-session-completed" },
+				body: {
+					status: "completed",
+					data: parsedData,
+					usage: {
+						promptTokens: 100,
+						completionTokens: 50,
+						totalTokens: 150,
+					},
+				},
+			};
+
+			await updateOutboxStatus(mockReq, mockRes);
+
+			expect(markAsCompletedSpy).toHaveBeenCalled();
+			const markAsCompletedCall = markAsCompletedSpy.mock.calls[0];
+			expect(markAsCompletedCall[1]).toBeDefined();
+			expect(markAsCompletedCall[1]).toHaveProperty("withTransaction");
+
+			expect(createCVDataSpy).toHaveBeenCalled();
+			const createCVDataCall = createCVDataSpy.mock.calls[0];
+			expect(createCVDataCall[1]).toBeDefined();
+			expect(createCVDataCall[1]).toHaveProperty("withTransaction");
+
+			markAsCompletedSpy.mockRestore();
+			createCVDataSpy.mockRestore();
+		});
+
+		it("should pass session to markAsFailed in failed flow", async () => {
+			const uploadId = new mongoose.Types.ObjectId();
+			const markAsFailedSpy = vi.spyOn(OutboxModel, "markAsFailed");
+
+			await OutboxModel.create({
+				processId: "test-session-failed",
+				type: "file_upload",
+				status: "processing",
+				uploadId,
+				fileId: "test-file-failed-session",
+				userId: "test-user-failed-session",
+				fileType: "PDF" as FileUploadContentType,
+			});
+
+			mockReq = {
+				params: { processId: "test-session-failed" },
+				body: {
+					status: "failed",
+					error: "Test error",
+				},
+			};
+
+			await updateOutboxStatus(mockReq, mockRes);
+
+			expect(markAsFailedSpy).toHaveBeenCalled();
+			const markAsFailedCall = markAsFailedSpy.mock.calls[0];
+			expect(markAsFailedCall[2]).toBeDefined();
+			expect(markAsFailedCall[2]).toHaveProperty("withTransaction");
+
+			markAsFailedSpy.mockRestore();
+		});
+
+		it("should pass session to markAsNotACV in not-a-cv flow", async () => {
+			const uploadId = new mongoose.Types.ObjectId();
+			const markAsNotACVSpy = vi.spyOn(OutboxModel, "markAsNotACV");
+
+			await OutboxModel.create({
+				processId: "test-session-not-a-cv",
+				type: "file_upload",
+				status: "processing",
+				uploadId,
+				fileId: "test-file-not-a-cv-session",
+				userId: "test-user-not-a-cv-session",
+				fileType: "PDF" as FileUploadContentType,
+			});
+
+			mockReq = {
+				params: { processId: "test-session-not-a-cv" },
+				body: {
+					status: "not-a-cv",
+				},
+			};
+
+			await updateOutboxStatus(mockReq, mockRes);
+
+			expect(markAsNotACVSpy).toHaveBeenCalled();
+			const markAsNotACVCall = markAsNotACVSpy.mock.calls[0];
+			expect(markAsNotACVCall[1]).toBeDefined();
+			expect(markAsNotACVCall[1]).toHaveProperty("withTransaction");
+
+			markAsNotACVSpy.mockRestore();
+		});
+
+		it("should rollback transaction if CVData creation fails", async () => {
+			const uploadId = new mongoose.Types.ObjectId();
+			const createCVDataSpy = vi
+				.spyOn(CVDataModel, "createCVData")
+				.mockRejectedValueOnce(new Error("CV Data creation failed"));
+
+			await OutboxModel.create({
+				processId: "test-rollback",
+				type: "file_upload",
+				status: "processing",
+				uploadId,
+				fileId: "test-file-rollback",
+				userId: "test-user-rollback",
+				fileType: "PDF" as FileUploadContentType,
+			});
+
+			const parsedData: ParsedCVData = {
+				personal: {
+					fullName: "Rollback Test",
+					email: "rollback@test.com",
+					phone: null,
+					location: null,
+				},
+				links: [],
+				headline: null,
+				summary: "Test",
+				experience: [],
+				education: [],
+				certifications: [],
+				languages: [],
+				extras: {},
+				rawText: "Test",
+			};
+
+			mockReq = {
+				params: { processId: "test-rollback" },
+				body: {
+					status: "completed",
+					data: parsedData,
+				},
+			};
+
+			await expect(updateOutboxStatus(mockReq, mockRes)).rejects.toThrow(
+				"CV Data creation failed",
+			);
+
+			const allEntries = await OutboxModel.find({
+				processId: "test-rollback",
+			}).sort({ createdAt: -1 });
+			expect(allEntries).toHaveLength(1);
+			expect(allEntries[0].status).toBe("processing");
+
+			const cvData = await CVDataModel.findOne({ uploadId }, null, {
+				skipOwnershipEnforcement: true,
+			});
+			expect(cvData).toBeNull();
+
+			createCVDataSpy.mockRestore();
 		});
 	});
 });

@@ -141,6 +141,7 @@ describe("refine.controller", () => {
 
 			expect(mockedAutofillModel.findByAutofillId).toHaveBeenCalledWith(
 				"test-autofill-id",
+				"test-user-id",
 			);
 			expect(mockedRefineFieldValue).toHaveBeenCalledWith({
 				cvRawText: "John Doe, Software Engineer",
@@ -151,6 +152,7 @@ describe("refine.controller", () => {
 			});
 
 			expect(mockedAutofillRefineModel.create).toHaveBeenCalledWith({
+				userId: "test-user-id",
 				autofillId: "test-autofill-id",
 				hash: "test-field-hash",
 				value: "John Michael Doe",
@@ -215,6 +217,7 @@ describe("refine.controller", () => {
 
 			expect(mockedAutofillModel.findByAutofillId).toHaveBeenCalledWith(
 				"test-autofill-id",
+				"test-user-id",
 			);
 			expect(mockedRefineFieldValue).toHaveBeenCalledWith({
 				cvRawText: "John Doe, Software Engineer",

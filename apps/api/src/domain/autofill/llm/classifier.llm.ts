@@ -8,7 +8,8 @@ import {
 	type TokenUsage,
 } from "@lazyapply/types";
 import { createLogger } from "@/app/logger.js";
-import { BaseLlmService, createEmptyUsage } from "./base/baseLlmService.js";
+import { createEmptyUsage } from "@/domain/usage/index.js";
+import { BaseLlmService } from "./base/baseLlmService.js";
 
 /**
  * Generates the valid paths section of the prompt from FORM_FIELD_PATH_MAP

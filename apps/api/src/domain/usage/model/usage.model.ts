@@ -1,5 +1,9 @@
 import { model, Schema } from "mongoose";
 
+import { createLogger } from "@/app/logger.js";
+import { applyOwnershipEnforcement } from "@/app/middleware/mongoOwnershipEnforcement.middleware.js";
+import { isDuplicateKeyError } from "@/util/mongoErrors.js";
+
 import {
 	type TUsage,
 	USAGE_MODEL_NAME,
@@ -9,6 +13,8 @@ import {
 	type UsageModelWithStatics,
 	type UsageType,
 } from "./usage.types.js";
+
+const logger = createLogger("usage.model");
 
 export type UsageModel = UsageModelWithStatics;
 
@@ -74,24 +80,44 @@ const usageSchema = new Schema<TUsage, UsageModel, UsageMethods>(
 	{ timestamps: true, collection: USAGE_MODEL_NAME },
 );
 
-// Compound index for efficient lookups
-usageSchema.index({ reference: 1, type: 1 });
+// Compound unique index - each reference can only have one usage record per type
+usageSchema.index({ reference: 1, type: 1 }, { unique: true });
 
 // Static methods
 usageSchema.statics.createUsage = async function (
 	this: UsageModelWithStatics,
 	params,
 ) {
-	const result = await this.create(params);
-	return result;
+	try {
+		return await this.create(params);
+	} catch (error) {
+		if (isDuplicateKeyError(error)) {
+			logger.error(
+				{ reference: params.reference, type: params.type },
+				"Duplicate usage record detected, returning existing",
+			);
+			const existing = await this.findByReference(
+				params.reference,
+				params.type,
+				params.userId,
+			);
+			if (existing) return existing;
+		}
+		throw error;
+	}
 };
 
 usageSchema.statics.findByReference = async function (
 	this: UsageModelWithStatics,
 	reference: Schema.Types.ObjectId,
 	type: UsageType,
+	userId?: string,
 ) {
-	return this.findOne({ reference, type });
+	const query = this.findOne({ reference, type });
+	if (userId) {
+		query.setOptions({ userId });
+	}
+	return query;
 };
 
 usageSchema.statics.findByType = async function (
@@ -100,6 +126,8 @@ usageSchema.statics.findByType = async function (
 ) {
 	return this.find({ type }).lean();
 };
+
+applyOwnershipEnforcement(usageSchema);
 
 export type { UsageDocument } from "./usage.types.js";
 
