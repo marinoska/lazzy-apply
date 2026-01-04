@@ -37,7 +37,7 @@ import type {
 import type { AutofillLlmServices } from "./autofill.manager.types.js";
 import { CVContextVO, type FileInfo } from "./cvContextVO.js";
 import { Form } from "./Form.js";
-import { Autofill } from "./index.js";
+import { AutofillUsageTracker } from "./index.js";
 import { createDefaultLlmServices } from "./llmServices.js";
 
 const logger = createLogger("autofill.manager");
@@ -210,7 +210,7 @@ export interface ProcessParams {
 export class AutofillManager {
 	private mForm: Form;
 	private cvContext!: CVContextVO;
-	private autofillUsageTracker: Autofill;
+	private autofillUsageTracker: AutofillUsageTracker;
 
 	private constructor(
 		private readonly userId: string,
@@ -219,7 +219,7 @@ export class AutofillManager {
 		private readonly llmServices: AutofillLlmServices,
 	) {
 		this.mForm = new Form(formInput, inputFieldsMap);
-		this.autofillUsageTracker = new Autofill(userId);
+		this.autofillUsageTracker = new AutofillUsageTracker(userId);
 	}
 
 	/**
@@ -289,24 +289,41 @@ export class AutofillManager {
 			fileInfo,
 		});
 		const session = await mongoose.startSession();
-		// TODO transaction
-		const autofill = await AutofillModel.create({
-			userId: this.userId,
-			autofillId: randomUUID(),
-			formReference: this.mForm.form._id,
-			uploadReference: new mongoose.Types.ObjectId(
-				this.cvContext.fileUploadId.toString(),
-			),
-			cvDataReference: new mongoose.Types.ObjectId(
-				this.cvContext.cvDataId.toString(),
-			),
-			jdRawText: params.jdRawText ?? "",
-			formContext: params.formContext ?? "",
-			data,
-		});
+		let autofill: AutofillDocument | null = null;
 
-		this.autofillUsageTracker.setAutofill(autofill);
-		await this.autofillUsageTracker.persistAllUsage(session);
+		try {
+			await session.withTransaction(async () => {
+				const [createdAutofill] = await AutofillModel.create(
+					[
+						{
+							userId: this.userId,
+							autofillId: randomUUID(),
+							formReference: this.mForm.form._id,
+							uploadReference: new mongoose.Types.ObjectId(
+								this.cvContext.fileUploadId.toString(),
+							),
+							cvDataReference: new mongoose.Types.ObjectId(
+								this.cvContext.cvDataId.toString(),
+							),
+							jdRawText: params.jdRawText ?? "",
+							formContext: params.formContext ?? "",
+							data,
+						},
+					],
+					{ session },
+				);
+				autofill = createdAutofill;
+
+				this.autofillUsageTracker.setAutofill(autofill);
+				await this.autofillUsageTracker.persistAllUsage(session);
+			});
+		} finally {
+			await session.endSession();
+		}
+
+		if (!autofill) {
+			throw new Error("Failed to create autofill record");
+		}
 
 		return autofill;
 	}

@@ -112,6 +112,7 @@ autofillRefineSchema.statics.findByAutofillId = async function (
 applyOwnershipEnforcement(autofillRefineSchema);
 
 export type { AutofillRefineDocument } from "./autofillRefine.types.js";
+export { AUTOFILL_REFINE_MODEL_NAME } from "./autofillRefine.types.js";
 
 export const AutofillRefineModel = model<TAutofillRefine, AutofillRefineModel>(
 	AUTOFILL_REFINE_MODEL_NAME,

@@ -59,6 +59,11 @@ export type CreateUsageParams = Omit<TUsage, "createdAt" | "updatedAt">;
 export type UsageMethods = Record<string, never>;
 
 export type UsageStatics = {
+	/**
+	 * @deprecated Use UsageTracker instead to ensure user balance is updated.
+	 * Direct usage creation does not update user balances.
+	 * This method should only be used internally by UsageTracker.
+	 */
 	createUsage(
 		this: UsageModelWithStatics,
 		params: CreateUsageParams,

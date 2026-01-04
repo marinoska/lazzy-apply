@@ -4,14 +4,19 @@ import {
 	type CoverLetterSettings,
 } from "@lazyapply/types";
 import type { Request, Response } from "express";
+import mongoose from "mongoose";
 import { z } from "zod";
 import { Unauthorized } from "@/app/errors.js";
 import { createLogger } from "@/app/logger.js";
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
-import { UsageModel } from "@/domain/usage/index.js";
+import { UsageTracker } from "@/domain/usage/index.js";
 import { generateCoverLetter } from "../llm/coverLetter.llm.js";
 import { AutofillModel } from "../model/autofill.model.js";
-import { AutofillCoverLetterModel } from "../model/autofillCoverLetter.model.js";
+import {
+	AUTOFILL_COVER_LETTER_MODEL_NAME,
+	AutofillCoverLetterModel,
+	type AutofillCoverLetterDocument,
+} from "../model/autofillCoverLetter.model.js";
 
 const logger = createLogger("cover-letter");
 
@@ -111,28 +116,38 @@ export async function generateCoverLetterController(
 		instructions,
 	});
 
-	const coverLetterRecord = await AutofillCoverLetterModel.create({
-		userId: user.id,
-		autofillId,
-		hash: fieldHash,
-		value: result.coverLetter,
-		instructions: instructions ?? "",
-		length: coverLetterSettings.length,
-		format: coverLetterSettings.format,
+	const usageTracker = new UsageTracker(user.id, {
+		referenceTable: AUTOFILL_COVER_LETTER_MODEL_NAME,
 	});
 
-	await UsageModel.createUsage({
-		referenceTable: "autofill_cover_letters",
-		reference: coverLetterRecord._id,
-		userId: user.id,
-		type: "cover_letter",
-		promptTokens: result.usage.promptTokens,
-		completionTokens: result.usage.completionTokens,
-		totalTokens: result.usage.totalTokens,
-		inputCost: result.usage.inputCost ?? 0,
-		outputCost: result.usage.outputCost ?? 0,
-		totalCost: result.usage.totalCost ?? 0,
-	});
+	const session = await mongoose.startSession();
+	let coverLetterRecord: AutofillCoverLetterDocument;
+
+	try {
+		await session.withTransaction(async () => {
+			const [created] = await AutofillCoverLetterModel.create(
+				[
+					{
+						userId: user.id,
+						autofillId,
+						hash: fieldHash,
+						value: result.coverLetter,
+						instructions: instructions ?? "",
+						length: coverLetterSettings.length,
+						format: coverLetterSettings.format,
+					},
+				],
+				{ session },
+			);
+			coverLetterRecord = created;
+
+			usageTracker.setReference(coverLetterRecord._id);
+			usageTracker.setUsage("cover_letter", result.usage);
+			await usageTracker.persistAllUsage(session);
+		});
+	} finally {
+		await session.endSession();
+	}
 
 	logger.info(
 		{

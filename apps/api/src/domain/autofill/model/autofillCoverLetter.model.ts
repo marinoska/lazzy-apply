@@ -76,6 +76,7 @@ autofillCoverLetterSchema.statics.findByAutofillId = async function (
 applyOwnershipEnforcement(autofillCoverLetterSchema);
 
 export type { AutofillCoverLetterDocument } from "./autofillCoverLetter.types.js";
+export { AUTOFILL_COVER_LETTER_MODEL_NAME } from "./autofillCoverLetter.types.js";
 
 export const AutofillCoverLetterModel = model<
 	TAutofillCoverLetter,

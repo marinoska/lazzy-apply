@@ -81,9 +81,14 @@ const usageSchema = new Schema<TUsage, UsageModel, UsageMethods>(
 );
 
 // Compound unique index - each reference can only have one usage record per type
-usageSchema.index({ reference: 1, type: 1 }, { unique: true });
+usageSchema.index({ userId: 1, reference: 1, type: 1 }, { unique: true });
 
 // Static methods
+/**
+ * @deprecated Use UsageTracker instead to ensure user balance is updated.
+ * Direct usage creation does not update user balances.
+ * This method should only be used internally by UsageTracker.
+ */
 usageSchema.statics.createUsage = async function (
 	this: UsageModelWithStatics,
 	params,

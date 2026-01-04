@@ -123,6 +123,12 @@ fileUploadSchema.index(
 	},
 );
 
+// Index for finding stale pending uploads sorted by creation time
+fileUploadSchema.index({ status: 1, createdAt: 1 });
+
+// Index for user uploads filtered by status (getUploadsWithParseStatus)
+fileUploadSchema.index({ userId: 1, status: 1 });
+
 // Store original values when document is loaded
 fileUploadSchema.post("init", (doc) => {
 	doc.$locals.immutable = doc.status !== MUTABLE_STATUS;

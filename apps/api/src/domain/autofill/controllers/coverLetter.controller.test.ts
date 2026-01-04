@@ -19,10 +19,25 @@ vi.mock("../model/autofill.model.js", () => ({
 	},
 }));
 
+vi.mock("mongoose", async () => {
+	const actual = await vi.importActual<typeof import("mongoose")>("mongoose");
+	return {
+		...actual,
+		default: {
+			...actual.default,
+			startSession: vi.fn(() => ({
+				withTransaction: vi.fn(async (fn) => await fn()),
+				endSession: vi.fn(),
+			})),
+		},
+	};
+});
+
 vi.mock("../model/autofillCoverLetter.model.js", () => ({
 	AutofillCoverLetterModel: {
 		create: vi.fn(),
 	},
+	AUTOFILL_COVER_LETTER_MODEL_NAME: "autofill_cover_letters",
 }));
 
 vi.mock("@/domain/uploads/model/cvData.model.js", () => ({
@@ -36,13 +51,15 @@ vi.mock("@/domain/uploads/model/cvData.model.js", () => ({
 }));
 
 vi.mock("@/domain/usage/index.js", () => ({
-	UsageModel: {
-		createUsage: vi.fn(),
-	},
+	UsageTracker: vi.fn().mockImplementation(() => ({
+		setReference: vi.fn(),
+		setUsage: vi.fn(),
+		persistAllUsage: vi.fn(),
+	})),
 }));
 
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
-import { UsageModel } from "@/domain/usage/index.js";
+import { UsageTracker } from "@/domain/usage/index.js";
 import { generateCoverLetter } from "../llm/coverLetter.llm.js";
 import { AutofillModel } from "../model/autofill.model.js";
 import { AutofillCoverLetterModel } from "../model/autofillCoverLetter.model.js";
@@ -51,7 +68,7 @@ const mockedGenerateCoverLetter = vi.mocked(generateCoverLetter);
 const mockedAutofillModel = vi.mocked(AutofillModel);
 const mockedCVDataModel = vi.mocked(CVDataModel);
 const mockedAutofillCoverLetterModel = vi.mocked(AutofillCoverLetterModel);
-const mockedUsageModel = vi.mocked(UsageModel);
+const _mockedUsageTracker = vi.mocked(UsageTracker);
 
 describe("coverLetter.controller", () => {
 	let mockReq: {
@@ -132,19 +149,19 @@ describe("coverLetter.controller", () => {
 			},
 		});
 
-		mockedAutofillCoverLetterModel.create.mockResolvedValue({
-			_id: "test-cover-letter-id",
-			autofillId: "test-autofill-id",
-			hash: "test-field-hash",
-			value: "Dear Hiring Manager,\n\nI am writing to express my interest...",
-			instructions: "Highlight leadership experience",
-			length: "medium",
-			format: "paragraph",
-			createdAt: new Date(),
-			updatedAt: new Date(),
-		} as never);
-
-		mockedUsageModel.createUsage.mockResolvedValue({} as never);
+		mockedAutofillCoverLetterModel.create.mockResolvedValue([
+			{
+				_id: "test-cover-letter-id",
+				autofillId: "test-autofill-id",
+				hash: "test-field-hash",
+				value: "Dear Hiring Manager,\n\nI am writing to express my interest...",
+				instructions: "Highlight leadership experience",
+				length: "medium",
+				format: "paragraph",
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			},
+		] as never);
 	});
 
 	describe("generateCoverLetterController", () => {

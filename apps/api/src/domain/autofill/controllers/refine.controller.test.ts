@@ -22,10 +22,25 @@ vi.mock("../model/autofill.model.js", () => ({
 	},
 }));
 
+vi.mock("mongoose", async () => {
+	const actual = await vi.importActual<typeof import("mongoose")>("mongoose");
+	return {
+		...actual,
+		default: {
+			...actual.default,
+			startSession: vi.fn(() => ({
+				withTransaction: vi.fn(async (fn) => await fn()),
+				endSession: vi.fn(),
+			})),
+		},
+	};
+});
+
 vi.mock("../model/autofillRefine.model.js", () => ({
 	AutofillRefineModel: {
 		create: vi.fn(),
 	},
+	AUTOFILL_REFINE_MODEL_NAME: "autofill_refines",
 }));
 
 vi.mock("@/domain/uploads/model/cvData.model.js", () => ({
@@ -37,19 +52,21 @@ vi.mock("@/domain/uploads/model/cvData.model.js", () => ({
 }));
 
 vi.mock("@/domain/usage/index.js", () => ({
-	UsageModel: {
-		createUsage: vi.fn(),
-	},
+	UsageTracker: vi.fn().mockImplementation(() => ({
+		setReference: vi.fn(),
+		setUsage: vi.fn(),
+		persistAllUsage: vi.fn(),
+	})),
 }));
 
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
-import { UsageModel } from "@/domain/usage/index.js";
+import { UsageTracker } from "@/domain/usage/index.js";
 
 const mockedRefineFieldValue = vi.mocked(refineFieldValue);
 const mockedAutofillModel = vi.mocked(AutofillModel);
 const mockedCVDataModel = vi.mocked(CVDataModel);
 const mockedAutofillRefineModel = vi.mocked(AutofillRefineModel);
-const mockedUsageModel = vi.mocked(UsageModel);
+const mockedUsageTracker = vi.mocked(UsageTracker);
 
 describe("refine.controller", () => {
 	let mockReq: {
@@ -121,18 +138,20 @@ describe("refine.controller", () => {
 			},
 		});
 
-		mockedAutofillRefineModel.create.mockResolvedValue({
-			_id: "test-refine-id",
-			autofillId: "test-autofill-id",
-			hash: "test-field-hash",
-			value: "John Michael Doe",
-			fieldLabel: "Full Name",
-			fieldDescription: "Please enter your full name",
-			prevFieldText: "John Doe",
-			userInstructions: "Make it more formal",
-			createdAt: new Date(),
-			updatedAt: new Date(),
-		} as never);
+		mockedAutofillRefineModel.create.mockResolvedValue([
+			{
+				_id: "test-refine-id",
+				autofillId: "test-autofill-id",
+				hash: "test-field-hash",
+				value: "John Michael Doe",
+				fieldLabel: "Full Name",
+				fieldDescription: "Please enter your full name",
+				prevFieldText: "John Doe",
+				userInstructions: "Make it more formal",
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			},
+		] as never);
 	});
 
 	describe("refineController", () => {
@@ -151,29 +170,28 @@ describe("refine.controller", () => {
 				userInstructions: "Make it more formal",
 			});
 
-			expect(mockedAutofillRefineModel.create).toHaveBeenCalledWith({
-				userId: "test-user-id",
-				autofillId: "test-autofill-id",
-				hash: "test-field-hash",
-				value: "John Michael Doe",
-				fieldLabel: "Full Name",
-				fieldDescription: "Please enter your full name",
-				prevFieldText: "John Doe",
-				userInstructions: "Make it more formal",
-			});
+			expect(mockedAutofillRefineModel.create).toHaveBeenCalledWith(
+				[
+					{
+						userId: "test-user-id",
+						autofillId: "test-autofill-id",
+						hash: "test-field-hash",
+						value: "John Michael Doe",
+						fieldLabel: "Full Name",
+						fieldDescription: "Please enter your full name",
+						prevFieldText: "John Doe",
+						userInstructions: "Make it more formal",
+					},
+				],
+				expect.objectContaining({ session: expect.anything() }),
+			);
 
-			expect(mockedUsageModel.createUsage).toHaveBeenCalledWith({
-				referenceTable: "autofill_refines",
-				reference: "test-refine-id",
-				userId: "test-user-id",
-				type: "autofill_refine",
-				promptTokens: 500,
-				completionTokens: 100,
-				totalTokens: 600,
-				inputCost: 0.005,
-				outputCost: 0.003,
-				totalCost: 0.008,
-			});
+			expect(mockedUsageTracker).toHaveBeenCalledWith(
+				"test-user-id",
+				expect.objectContaining({
+					referenceTable: "autofill_refines",
+				}),
+			);
 
 			expect(mockRes.status).toHaveBeenCalledWith(200);
 			expect(mockRes.json).toHaveBeenCalledWith({

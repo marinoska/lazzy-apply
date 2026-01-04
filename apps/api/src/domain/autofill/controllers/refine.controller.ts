@@ -1,12 +1,17 @@
 import type { Request, Response } from "express";
+import mongoose from "mongoose";
 import { z } from "zod";
 import { Unauthorized } from "@/app/errors.js";
 import { createLogger } from "@/app/logger.js";
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
-import { UsageModel } from "@/domain/usage/index.js";
+import { UsageTracker } from "@/domain/usage/index.js";
 import { refineFieldValue } from "../llm/index.js";
 import { AutofillModel } from "../model/autofill.model.js";
-import { AutofillRefineModel } from "../model/autofillRefine.model.js";
+import {
+	AUTOFILL_REFINE_MODEL_NAME,
+	type AutofillRefineDocument,
+	AutofillRefineModel,
+} from "../model/autofillRefine.model.js";
 
 const logger = createLogger("autofill-refine");
 
@@ -87,29 +92,39 @@ export async function refineController(
 		userInstructions,
 	});
 
-	const refineRecord = await AutofillRefineModel.create({
-		userId: user.id,
-		autofillId,
-		hash: fieldHash,
-		value: result.refinedAnswer,
-		fieldLabel,
-		fieldDescription,
-		prevFieldText: fieldText,
-		userInstructions,
+	const usageTracker = new UsageTracker(user.id, {
+		referenceTable: AUTOFILL_REFINE_MODEL_NAME,
 	});
 
-	await UsageModel.createUsage({
-		referenceTable: "autofill_refines",
-		reference: refineRecord._id,
-		userId: user.id,
-		type: "autofill_refine",
-		promptTokens: result.usage.promptTokens,
-		completionTokens: result.usage.completionTokens,
-		totalTokens: result.usage.totalTokens,
-		inputCost: result.usage.inputCost ?? 0,
-		outputCost: result.usage.outputCost ?? 0,
-		totalCost: result.usage.totalCost ?? 0,
-	});
+	const session = await mongoose.startSession();
+	let refineRecord: AutofillRefineDocument;
+
+	try {
+		await session.withTransaction(async () => {
+			const [created] = await AutofillRefineModel.create(
+				[
+					{
+						userId: user.id,
+						autofillId,
+						hash: fieldHash,
+						value: result.refinedAnswer,
+						fieldLabel,
+						fieldDescription,
+						prevFieldText: fieldText,
+						userInstructions,
+					},
+				],
+				{ session },
+			);
+			refineRecord = created;
+
+			usageTracker.setReference(refineRecord._id);
+			usageTracker.setUsage("autofill_refine", result.usage);
+			await usageTracker.persistAllUsage(session);
+		});
+	} finally {
+		await session.endSession();
+	}
 
 	logger.debug(
 		{
