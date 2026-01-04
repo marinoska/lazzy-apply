@@ -309,6 +309,7 @@ export class AutofillManager {
 							),
 							jdRawText: params.jdRawText ?? "",
 							jdUrl: params.jdUrl ?? "",
+							jdMatchesForm: jdMatchResult.isMatch,
 							formContext: params.formContext ?? "",
 							data,
 						},
@@ -439,6 +440,13 @@ export class AutofillManager {
 			jdUrl,
 			formUrl,
 		});
+
+		if (!result.isMatch) {
+			logger.warn(
+				{ jdUrl, formUrl },
+				"JD does not match form - inference will use form context instead",
+			);
+		}
 
 		return {
 			isMatch: result.isMatch,
