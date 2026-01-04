@@ -27,7 +27,12 @@ const userBalanceSchema = new Schema<
 			index: true,
 			immutable: true,
 		},
-		balance: {
+		inputTokens: {
+			type: Number,
+			required: true,
+			default: 0,
+		},
+		outputTokens: {
 			type: Number,
 			required: true,
 			default: 0,
@@ -39,12 +44,18 @@ const userBalanceSchema = new Schema<
 userBalanceSchema.statics.updateBalance = async function (
 	this: UserBalanceModelWithStatics,
 	userId: string,
-	delta: number,
+	promptTokensDelta: number,
+	completionTokensDelta: number,
 	session?: import("mongoose").ClientSession,
 ) {
 	const result = await this.findOneAndUpdate(
 		{ userId },
-		{ $inc: { balance: delta } },
+		{
+			$inc: {
+				inputTokens: promptTokensDelta,
+				outputTokens: completionTokensDelta,
+			},
+		},
 		{
 			upsert: true,
 			new: true,
@@ -58,7 +69,13 @@ userBalanceSchema.statics.updateBalance = async function (
 	}
 
 	logger.debug(
-		{ userId, delta, newBalance: result.balance },
+		{
+			userId,
+			promptTokensDelta,
+			completionTokensDelta,
+			newInputTokens: result.inputTokens,
+			newOutputTokens: result.outputTokens,
+		},
 		"User balance updated",
 	);
 
@@ -70,7 +87,14 @@ userBalanceSchema.statics.getBalance = async function (
 	userId: string,
 ) {
 	const doc = await this.findOne({ userId }).setOptions({ userId }).lean();
-	return doc?.balance ?? 0;
+	if (!doc) {
+		return { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+	}
+	return {
+		inputTokens: doc.inputTokens,
+		outputTokens: doc.outputTokens,
+		totalTokens: doc.inputTokens + doc.outputTokens,
+	};
 };
 
 applyOwnershipEnforcement(userBalanceSchema);

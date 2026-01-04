@@ -98,8 +98,12 @@ export class UsageTracker {
 			session ? { session } : {},
 		);
 
-		const delta = -usage.totalTokens;
-		await UserBalanceModel.updateBalance(this.userId, delta, session);
+		await UserBalanceModel.updateBalance(
+			this.userId,
+			usage.promptTokens,
+			usage.completionTokens,
+			session,
+		);
 
 		logger.debug(
 			{

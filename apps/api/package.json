@@ -14,10 +14,12 @@
 		"start": "node ./dist/index.js",
 		"lint": "biome check .",
 		"clean": "rm -rf dist",
-		"test": "vitest",
+		"test": "vitest --run",
 		"test:watch": "vitest --watch",
-		"test:coverage": "vitest --coverage",
-		"setup:cors": "tsx src/util/setupR2Cors.ts"
+		"test:coverage": "vitest --run --coverage",
+		"setup:cors": "tsx src/util/setupR2Cors.ts",
+		"recalculate:balances": "tsx src/util/recalculateBalances.ts",
+		"recalculate:balances:dry-run": "tsx src/util/recalculateBalances.ts --dry-run"
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^2.0.72",

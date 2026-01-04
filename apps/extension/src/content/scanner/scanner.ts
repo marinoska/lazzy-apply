@@ -15,11 +15,9 @@ export function scanPage(): ApplicationForm | null {
 		// Extract text for JD analysis, preserving order
 		const paragraphs = blocks.map((block) => block.text);
 		const jobDescriptionAnalysis = classifyDocument(paragraphs);
-		console.log({ jobDescriptionAnalysis });
 
 		// Detect application form
 		const applicationForm = detectApplicationForm();
-		console.log({ applicationForm });
 
 		// If we're in an iframe and found a form, cache it and broadcast to parent
 		if (formStore.isIframe && applicationForm) {

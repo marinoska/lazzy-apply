@@ -269,9 +269,16 @@ export class AutofillManager {
 			this.checkJdFormMatch(params),
 		]);
 
+		logger.debug({ jdMatch: jdMatchResult.isMatch }, "Starting inference");
+		const inferenceFields = this.collectInferenceFields();
 		const inferenceResult = await this.processInference(
+			inferenceFields,
 			jdMatchResult.isMatch,
 			params,
+		);
+		logger.debug(
+			{ answersCount: Object.keys(inferenceResult.answers).length },
+			"Inference complete",
 		);
 
 		this.autofillUsageTracker.setClassificationUsage(
@@ -445,14 +452,12 @@ export class AutofillManager {
 
 	/**
 	 * Processes field inference for fields that require JD/CV context.
-	 * Collects fields with inference hints and delegates to inference logic.
 	 */
 	private async processInference(
+		inferenceFields: InferenceField[],
 		useJDText: boolean,
 		params: ProcessParams,
 	): Promise<InferenceResult> {
-		const inferenceFields = this.collectInferenceFields();
-
 		if (inferenceFields.length === 0) {
 			return { answers: {}, usage: createEmptyUsage() };
 		}
@@ -521,14 +526,28 @@ export class AutofillManager {
 		if (!Array.isArray(this.mForm.form.fields)) {
 			throw new Error("Form fields must be an array");
 		}
+
+		logger.debug(
+			{
+				totalFields: this.mForm.form.fields.length,
+				fieldsWithInferenceHint: this.mForm.form.fields.filter(
+					(f) => f.inferenceHint,
+				).length,
+			},
+			"Collecting inference fields",
+		);
+
 		for (const field of this.mForm.form.fields) {
 			if (
 				field.classification === "unknown" &&
-				"inferenceHint" in field &&
 				field.inferenceHint === "text_from_jd_cv"
 			) {
+				logger.debug(
+					{ hash: field.hash, label: field.fieldRef.field.label },
+					"Found field requiring inference",
+				);
 				result.push({
-					hash: field.fieldRef.hash,
+					hash: field.hash,
 					fieldName: field.fieldRef.field.name,
 					label: field.fieldRef.field.label ?? null,
 					description: field.fieldRef.field.description ?? null,
@@ -539,6 +558,7 @@ export class AutofillManager {
 			}
 		}
 
+		logger.debug({ count: result.length }, "Collected inference fields");
 		return result;
 	}
 }

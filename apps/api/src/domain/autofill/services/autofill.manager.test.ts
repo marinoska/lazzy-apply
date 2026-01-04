@@ -428,4 +428,265 @@ describe("classification.manager", () => {
 			expect(result.data.length).toBeGreaterThan(0);
 		});
 	});
+
+	describe("Inference with inferenceHint", () => {
+		it("should collect fields with inferenceHint for inference", async () => {
+			// Create fields with inferenceHint
+			const fieldWithHint = await FormFieldModel.create({
+				hash: "hash-unknown-1",
+				field: {
+					tag: "textarea",
+					type: "textarea",
+					name: "motivation",
+					label: "Why do you want this role?",
+					placeholder: null,
+					description: null,
+					isFileUpload: false,
+					accept: null,
+				},
+				classification: "unknown",
+				inferenceHint: "text_from_jd_cv",
+			});
+
+			const regularField = await FormFieldModel.create({
+				hash: "hash-email",
+				field: {
+					tag: "input",
+					type: "email",
+					name: "email",
+					label: "Email",
+					placeholder: null,
+					description: null,
+					isFileUpload: false,
+					accept: null,
+				},
+				classification: "personal.email",
+			});
+
+			// Create form with both fields
+			await FormModel.create({
+				formHash: "test-form-hash",
+				fields: [
+					{
+						hash: "hash-unknown-1",
+						classification: "unknown",
+						inferenceHint: "text_from_jd_cv",
+						fieldRef: fieldWithHint._id,
+					},
+					{
+						hash: "hash-email",
+						classification: "personal.email",
+						fieldRef: regularField._id,
+					},
+				],
+				pageUrl: "https://example.com/apply",
+				action: "https://example.com/submit",
+			});
+
+			const formInput: FormInput = {
+				formHash: "test-form-hash",
+				fields: [{ hash: "hash-unknown-1" }, { hash: "hash-email" }],
+				pageUrl: "https://example.com/apply",
+				action: "https://example.com/submit",
+			};
+
+			const fields = [
+				{
+					hash: "hash-unknown-1",
+					field: {
+						tag: "textarea",
+						type: "textarea",
+						name: "motivation",
+						label: "Why do you want this role?",
+						placeholder: null,
+						description: null,
+						isFileUpload: false,
+						accept: null,
+					},
+				},
+				{
+					hash: "hash-email",
+					field: {
+						tag: "input",
+						type: "email",
+						name: "email",
+						label: "Email",
+						placeholder: null,
+						description: null,
+						isFileUpload: false,
+						accept: null,
+					},
+				},
+			];
+
+			const manager = await AutofillManager.create({
+				formInput,
+				fieldsInput: fields,
+				userId: "test-user-id",
+				selectedUploadId: TEST_UPLOAD_ID,
+			});
+
+			const result = await manager.process({
+				jdRawText: "We are looking for a motivated developer",
+				jdUrl: "https://example.com/job",
+				formUrl: "https://example.com/apply",
+				formContext: "",
+			});
+
+			// Should have autofill data for both fields
+			expect(result.data).toHaveLength(2);
+			expect(result.data.some((d) => d.hash === "hash-unknown-1")).toBe(true);
+			expect(result.data.some((d) => d.hash === "hash-email")).toBe(true);
+		});
+
+		it("should not collect fields without inferenceHint even if classification is unknown", async () => {
+			// Create field with unknown classification but NO inferenceHint
+			const fieldWithoutHint = await FormFieldModel.create({
+				hash: "hash-unknown-no-hint",
+				field: {
+					tag: "input",
+					type: "text",
+					name: "consent",
+					label: "I agree to terms",
+					placeholder: null,
+					description: null,
+					isFileUpload: false,
+					accept: null,
+				},
+				classification: "unknown",
+				// No inferenceHint
+			});
+
+			await FormModel.create({
+				formHash: "test-form-hash",
+				fields: [
+					{
+						hash: "hash-unknown-no-hint",
+						classification: "unknown",
+						fieldRef: fieldWithoutHint._id,
+					},
+				],
+				pageUrl: "https://example.com/apply",
+				action: null,
+			});
+
+			const formInput: FormInput = {
+				formHash: "test-form-hash",
+				fields: [{ hash: "hash-unknown-no-hint" }],
+				pageUrl: "https://example.com/apply",
+				action: null,
+			};
+
+			const fields = [
+				{
+					hash: "hash-unknown-no-hint",
+					field: {
+						tag: "input",
+						type: "text",
+						name: "consent",
+						label: "I agree to terms",
+						placeholder: null,
+						description: null,
+						isFileUpload: false,
+						accept: null,
+					},
+				},
+			];
+
+			const manager = await AutofillManager.create({
+				formInput,
+				fieldsInput: fields,
+				userId: "test-user-id",
+				selectedUploadId: TEST_UPLOAD_ID,
+			});
+
+			const result = await manager.process({
+				jdRawText: "Some job description",
+				jdUrl: "https://example.com/job",
+				formUrl: "https://example.com/apply",
+				formContext: "",
+			});
+
+			// Should have autofill data but field should have null value (not inferred)
+			expect(result.data).toHaveLength(1);
+			expect(result.data[0].value).toBeNull();
+		});
+
+		it("should persist inferenceHint when creating new form", async () => {
+			// Mock classifier to return field with inferenceHint
+			const { classifyFieldsWithAI } = await import("../llm/classifier.llm.js");
+			vi.mocked(classifyFieldsWithAI).mockResolvedValueOnce({
+				classifiedFields: [
+					{
+						hash: "hash-motivation",
+						field: {
+							tag: "textarea",
+							type: "textarea",
+							name: "motivation",
+							label: "Why do you want this role?",
+							placeholder: null,
+							description: null,
+							isFileUpload: false,
+							accept: null,
+						},
+						classification: "unknown" as const,
+						inferenceHint: "text_from_jd_cv" as const,
+					},
+				],
+				usage: {
+					promptTokens: 100,
+					completionTokens: 50,
+					totalTokens: 150,
+					inputCost: 0.0001,
+					outputCost: 0.00005,
+					totalCost: 0.00015,
+				},
+			});
+
+			const formInput: FormInput = {
+				formHash: "new-form-hash",
+				fields: [{ hash: "hash-motivation" }],
+				pageUrl: "https://example.com/apply",
+				action: null,
+			};
+
+			const fields = [
+				{
+					hash: "hash-motivation",
+					field: {
+						tag: "textarea",
+						type: "textarea",
+						name: "motivation",
+						label: "Why do you want this role?",
+						placeholder: null,
+						description: null,
+						isFileUpload: false,
+						accept: null,
+					},
+				},
+			];
+
+			const manager = await AutofillManager.create({
+				formInput,
+				fieldsInput: fields,
+				userId: "test-user-id",
+				selectedUploadId: TEST_UPLOAD_ID,
+			});
+
+			await manager.process({
+				jdRawText: "We need motivated developers",
+				jdUrl: "https://example.com/job",
+				formUrl: "https://example.com/apply",
+				formContext: "",
+			});
+
+			// Verify form was persisted with inferenceHint
+			const savedForm = await FormModel.findOne({
+				formHash: "new-form-hash",
+			}).populate("fields.fieldRef");
+			expect(savedForm).not.toBeNull();
+			expect(savedForm?.fields).toHaveLength(1);
+			expect(savedForm?.fields[0].inferenceHint).toBe("text_from_jd_cv");
+		});
+	});
 });

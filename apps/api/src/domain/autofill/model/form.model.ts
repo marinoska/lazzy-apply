@@ -26,6 +26,7 @@ const formSchema = new Schema<TForm, FormModel, FormMethods>(
 					hash: { type: String, required: true },
 					classification: { type: String, required: true },
 					linkType: { type: String, default: undefined },
+					inferenceHint: { type: String, default: undefined },
 					fieldRef: {
 						type: Schema.Types.ObjectId,
 						ref: FORM_FIELD_MODEL_NAME,

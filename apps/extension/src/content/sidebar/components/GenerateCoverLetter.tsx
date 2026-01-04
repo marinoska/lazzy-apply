@@ -7,7 +7,6 @@ import { CoverLetterModal } from "./CoverLetterModal.js";
 export function GenerateCoverLetter() {
 	const { hasCoverLetterField } = useAutofill();
 	const [modalOpen, setModalOpen] = useState(false);
-	console.log({ hasCoverLetterField });
 	if (!hasCoverLetterField) {
 		return null;
 	}

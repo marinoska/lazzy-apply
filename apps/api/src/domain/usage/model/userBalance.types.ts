@@ -4,7 +4,8 @@ export const USER_BALANCE_MODEL_NAME = "user_balances" as const;
 
 export type TUserBalance = {
 	userId: string;
-	balance: number;
+	inputTokens: number;
+	outputTokens: number;
 	createdAt: Date;
 	updatedAt: Date;
 };
@@ -15,13 +16,18 @@ export type UserBalanceStatics = {
 	updateBalance(
 		this: UserBalanceModelWithStatics,
 		userId: string,
-		delta: number,
+		promptTokensDelta: number,
+		completionTokensDelta: number,
 		session?: import("mongoose").ClientSession,
 	): Promise<UserBalanceDocument>;
 	getBalance(
 		this: UserBalanceModelWithStatics,
 		userId: string,
-	): Promise<number>;
+	): Promise<{
+		inputTokens: number;
+		outputTokens: number;
+		totalTokens: number;
+	}>;
 };
 
 export type UserBalanceDocument = Document & TUserBalance & UserBalanceMethods;
