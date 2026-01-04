@@ -110,8 +110,6 @@ export function RefineFieldValueModal({
 			>
 				{/* Header */}
 				<Stack
-					direction="row"
-					alignItems="center"
 					gap={1}
 					sx={{
 						p: 2,
@@ -119,18 +117,27 @@ export function RefineFieldValueModal({
 						borderColor: "divider",
 					}}
 				>
-					<IconButton
-						variant="plain"
+					<Stack direction="row" alignItems="center" gap={1}>
+						<IconButton
+							variant="plain"
+							color="neutral"
+							size="sm"
+							onClick={onClose}
+							aria-label="Back"
+						>
+							<ArrowBackIcon />
+						</IconButton>
+						<AutoFixHighIcon color="primary" />
+						<Typography level="title-md" sx={{ flex: 1 }}>
+							Refine Answer with AI
+						</Typography>
+					</Stack>
+					<Typography
+						level="body-xs"
 						color="neutral"
-						size="sm"
-						onClick={onClose}
-						aria-label="Back"
+						sx={{ fontStyle: "italic" }}
 					>
-						<ArrowBackIcon />
-					</IconButton>
-					<AutoFixHighIcon color="primary" />
-					<Typography level="title-md" sx={{ flex: 1 }}>
-						Refine Answer with AI
+						This action uses a small amount of credits
 					</Typography>
 				</Stack>
 

@@ -308,6 +308,7 @@ export class AutofillManager {
 								this.cvContext.cvDataId.toString(),
 							),
 							jdRawText: params.jdRawText ?? "",
+							jdUrl: params.jdUrl ?? "",
 							formContext: params.formContext ?? "",
 							data,
 						},

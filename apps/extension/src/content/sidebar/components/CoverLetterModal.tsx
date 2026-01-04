@@ -163,8 +163,6 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 			>
 				{/* Header */}
 				<Stack
-					direction="row"
-					alignItems="center"
 					gap={1}
 					sx={{
 						p: 2,
@@ -172,18 +170,27 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 						borderColor: "divider",
 					}}
 				>
-					<IconButton
-						variant="plain"
+					<Stack direction="row" alignItems="center" gap={1}>
+						<IconButton
+							variant="plain"
+							color="neutral"
+							size="sm"
+							onClick={onClose}
+							aria-label="Back"
+						>
+							<ArrowBackIcon />
+						</IconButton>
+						<MailOutlineIcon color="primary" />
+						<Typography level="title-md" sx={{ flex: 1 }}>
+							Cover Letter with AI
+						</Typography>
+					</Stack>
+					<Typography
+						level="body-xs"
 						color="neutral"
-						size="sm"
-						onClick={onClose}
-						aria-label="Back"
+						sx={{ fontStyle: "italic" }}
 					>
-						<ArrowBackIcon />
-					</IconButton>
-					<MailOutlineIcon color="primary" />
-					<Typography level="title-md" sx={{ flex: 1 }}>
-						Cover Letter with AI
+						This action uses a small amount of credits
 					</Typography>
 				</Stack>
 

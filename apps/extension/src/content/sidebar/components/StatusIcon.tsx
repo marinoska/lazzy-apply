@@ -44,12 +44,12 @@ function DownloadButton({ fileId }: DownloadButtonProps) {
 	return (
 		<IconButton
 			size="sm"
-			variant="soft"
+			variant="outlined"
 			color="success"
 			onClick={handleDownload}
 			disabled={isLoading}
 			aria-label="Download CV"
-			sx={{ minWidth: 24, minHeight: 24 }}
+			sx={{ minWidth: 32, minHeight: 24 }}
 		>
 			{isLoading ? (
 				<CircularProgress
@@ -60,7 +60,7 @@ function DownloadButton({ fileId }: DownloadButtonProps) {
 				<Stack direction="row" alignItems="center" gap={0.5}>
 					<DownloadIcon sx={{ fontSize: 16 }} />
 					<Typography level="body-xs" sx={{ fontSize: 10 }}>
-						Open
+						View
 					</Typography>
 				</Stack>
 			)}

@@ -80,6 +80,8 @@ export type TAutofill = {
 	data: AutofillDataItem[];
 	/** Job description raw text */
 	jdRawText: string;
+	/** Job description URL */
+	jdUrl: string;
 	/** Form context information */
 	formContext: string;
 	createdAt: Date;

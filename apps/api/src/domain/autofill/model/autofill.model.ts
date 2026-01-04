@@ -52,6 +52,11 @@ const autofillSchema = new Schema<TAutofill, AutofillModel, AutofillMethods>(
 			default: "",
 			immutable: true,
 		},
+		jdUrl: {
+			type: String,
+			default: "",
+			immutable: true,
+		},
 		formContext: {
 			type: String,
 			default: "",
