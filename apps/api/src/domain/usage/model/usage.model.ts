@@ -39,6 +39,12 @@ const usageSchema = new Schema<TUsage, UsageModel, UsageMethods>(
 			index: true,
 			immutable: true,
 		},
+		autofillId: {
+			type: Schema.Types.ObjectId,
+			ref: "autofill",
+			required: false,
+			immutable: true,
+		},
 		type: {
 			type: String,
 			required: true,
@@ -82,6 +88,9 @@ const usageSchema = new Schema<TUsage, UsageModel, UsageMethods>(
 
 // Compound unique index - each reference can only have one usage record per type
 usageSchema.index({ userId: 1, reference: 1, type: 1 }, { unique: true });
+
+// Compound index for querying by userId and autofillId
+usageSchema.index({ userId: 1, autofillId: 1 });
 
 // Static methods
 /**

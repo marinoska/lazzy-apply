@@ -54,6 +54,7 @@ vi.mock("@/domain/uploads/model/cvData.model.js", () => ({
 vi.mock("@/domain/usage/index.js", () => ({
 	UsageTracker: vi.fn().mockImplementation(() => ({
 		setReference: vi.fn(),
+		setAutofillId: vi.fn(),
 		setUsage: vi.fn(),
 		persistAllUsage: vi.fn(),
 	})),

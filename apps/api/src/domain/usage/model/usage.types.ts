@@ -40,6 +40,8 @@ export type TUsage = {
 	reference: Types.ObjectId;
 	/** User who triggered this usage */
 	userId: string;
+	/** Optional autofill ID for autofill-related usage */
+	autofillId?: Types.ObjectId;
 	/** Type of usage - determines what operation generated the usage */
 	type: UsageType;
 	/** Token usage from AI processing */

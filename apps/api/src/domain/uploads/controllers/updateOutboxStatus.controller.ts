@@ -15,7 +15,7 @@ async function persistCvExtractionUsage(
 	userId: string,
 	uploadId: mongoose.Types.ObjectId,
 	usage: TokenUsage,
-	session?: mongoose.ClientSession,
+	session: mongoose.ClientSession,
 ): Promise<void> {
 	const tracker = new UsageTracker(userId, {
 		referenceTable: FILE_UPLOAD_MODEL_NAME,

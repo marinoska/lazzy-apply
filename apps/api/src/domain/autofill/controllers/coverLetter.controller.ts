@@ -14,8 +14,8 @@ import { generateCoverLetter } from "../llm/coverLetter.llm.js";
 import { AutofillModel } from "../model/autofill.model.js";
 import {
 	AUTOFILL_COVER_LETTER_MODEL_NAME,
-	AutofillCoverLetterModel,
 	type AutofillCoverLetterDocument,
+	AutofillCoverLetterModel,
 } from "../model/autofillCoverLetter.model.js";
 
 const logger = createLogger("cover-letter");
@@ -119,6 +119,7 @@ export async function generateCoverLetterController(
 	const usageTracker = new UsageTracker(user.id, {
 		referenceTable: AUTOFILL_COVER_LETTER_MODEL_NAME,
 	});
+	usageTracker.setAutofillId(autofill._id);
 
 	const session = await mongoose.startSession();
 	let coverLetterRecord: AutofillCoverLetterDocument;

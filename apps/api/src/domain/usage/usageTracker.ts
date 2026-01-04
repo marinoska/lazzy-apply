@@ -33,6 +33,7 @@ export interface UsageTrackerConfig {
  */
 export class UsageTracker {
 	private referenceId?: Types.ObjectId;
+	private autofillId?: Types.ObjectId;
 	private readonly usageEntries: Map<UsageType, TokenUsage | null | undefined> =
 		new Map();
 
@@ -43,6 +44,10 @@ export class UsageTracker {
 
 	setReference(referenceId: Types.ObjectId): void {
 		this.referenceId = referenceId;
+	}
+
+	setAutofillId(autofillId: Types.ObjectId): void {
+		this.autofillId = autofillId;
 	}
 
 	setUsage(type: UsageType, usage: TokenUsage | null | undefined): void {
@@ -86,6 +91,7 @@ export class UsageTracker {
 					referenceTable: this.config.referenceTable,
 					reference: this.referenceId,
 					userId: this.userId,
+					...(this.autofillId && { autofillId: this.autofillId }),
 					type,
 					promptTokens: usage.promptTokens,
 					completionTokens: usage.completionTokens,

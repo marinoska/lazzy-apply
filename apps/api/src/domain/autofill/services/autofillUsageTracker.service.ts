@@ -1,7 +1,7 @@
 import type { TokenUsage } from "@lazyapply/types";
+import type { ClientSession } from "mongoose";
 import type { AutofillDocument } from "@/domain/autofill/index.js";
 import { UsageTracker } from "@/domain/usage/index.js";
-import type { ClientSession } from "mongoose";
 
 export interface UsageTracking {
 	classification: TokenUsage;
@@ -22,6 +22,7 @@ export class AutofillUsageTracker {
 
 	setAutofill(autofill: AutofillDocument): void {
 		this.tracker.setReference(autofill._id);
+		this.tracker.setAutofillId(autofill._id);
 	}
 
 	setClassificationUsage(usage: TokenUsage): void {

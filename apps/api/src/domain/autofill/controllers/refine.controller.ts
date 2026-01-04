@@ -95,6 +95,7 @@ export async function refineController(
 	const usageTracker = new UsageTracker(user.id, {
 		referenceTable: AUTOFILL_REFINE_MODEL_NAME,
 	});
+	usageTracker.setAutofillId(autofill._id);
 
 	const session = await mongoose.startSession();
 	let refineRecord: AutofillRefineDocument;

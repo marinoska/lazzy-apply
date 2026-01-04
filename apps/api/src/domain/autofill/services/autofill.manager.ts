@@ -269,16 +269,11 @@ export class AutofillManager {
 			this.checkJdFormMatch(params),
 		]);
 
-		logger.debug({ jdMatch: jdMatchResult.isMatch }, "Starting inference");
 		const inferenceFields = this.collectInferenceFields();
 		const inferenceResult = await this.processInference(
 			inferenceFields,
 			jdMatchResult.isMatch,
 			params,
-		);
-		logger.debug(
-			{ answersCount: Object.keys(inferenceResult.answers).length },
-			"Inference complete",
 		);
 
 		this.autofillUsageTracker.setClassificationUsage(

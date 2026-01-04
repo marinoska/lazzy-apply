@@ -4,12 +4,14 @@ import { UsageTracker } from "@/domain/usage/index.js";
 import { AutofillUsageTracker } from "./autofillUsageTracker.service.js";
 
 const mockSetReference = vi.fn();
+const mockSetAutofillId = vi.fn();
 const mockSetUsage = vi.fn();
 const mockPersistAllUsage = vi.fn();
 
 vi.mock("@/domain/usage/index.js", () => ({
 	UsageTracker: vi.fn().mockImplementation(() => ({
 		setReference: mockSetReference,
+		setAutofillId: mockSetAutofillId,
 		setUsage: mockSetUsage,
 		persistAllUsage: mockPersistAllUsage,
 	})),
@@ -35,13 +37,14 @@ describe("AutofillUsageTracker", () => {
 	});
 
 	describe("setAutofill", () => {
-		it("should set reference on the underlying tracker", () => {
+		it("should set reference and autofillId on the underlying tracker", () => {
 			const tracker = new AutofillUsageTracker(userId);
 			const mockAutofillDoc = { _id: mockAutofillId };
 
 			tracker.setAutofill(mockAutofillDoc as never);
 
 			expect(mockSetReference).toHaveBeenCalledWith(mockAutofillId);
+			expect(mockSetAutofillId).toHaveBeenCalledWith(mockAutofillId);
 		});
 	});
 
