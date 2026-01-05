@@ -272,8 +272,7 @@ export class AutofillManager {
 		const inferenceFields = this.collectInferenceFields();
 		const inferenceResult = await this.processInference(
 			inferenceFields,
-			jdFormFactsResult.isMatch,
-			params,
+			jdFormFactsResult.jdFacts,
 		);
 
 		this.autofillUsageTracker.setClassificationUsage(
@@ -457,56 +456,45 @@ export class AutofillManager {
 	 */
 	private async processInference(
 		inferenceFields: InferenceField[],
-		useJDText: boolean,
-		params: ProcessParams,
+		jdFacts: Array<{ key: string; value: string; source: string }>,
 	): Promise<InferenceResult> {
 		if (inferenceFields.length === 0) {
 			return { answers: {}, usage: createEmptyUsage() };
 		}
 
-		return this.inferFields(
-			inferenceFields,
-			useJDText,
-			params.jdRawText,
-			params.formContext,
-		);
+		return this.inferFields(inferenceFields, jdFacts);
 	}
 
 	/**
-	 * Infer field values using CV and JD/form context text
+	 * Infer field values using structured CV facts and JD facts
 	 */
 	private async inferFields(
 		fields: InferenceField[],
-		useJDText: boolean,
-		jdRawText: string,
-		formContext: string,
+		jdFacts: Array<{ key: string; value: string; source: string }>,
 	): Promise<InferenceResult> {
-		if (!this.cvContext.rawText) {
-			logger.error("No CV raw text available for inference");
-			return { answers: {}, usage: createEmptyUsage() };
-		}
-
 		if (!fields.length) {
 			logger.info("No fields to infer, skipping inference");
 			return { answers: {}, usage: createEmptyUsage() };
 		}
 
-		// Use JD text if it matches, otherwise fall back to form context
-		let contextText = "";
-		if (useJDText && jdRawText.length) {
-			contextText = jdRawText;
-		} else if (formContext) {
-			contextText = formContext;
-			logger.debug("Using form context as fallback for inference");
-		}
+		const { summaryFacts, experienceFacts, profileSignals } = this.cvContext;
 
 		logger.debug(
-			{ cvRawText: this.cvContext.rawText, contextText, fields },
+			{
+				summaryFactsCount: summaryFacts.length,
+				experienceFactsCount: experienceFacts.length,
+				profileSignalsCount: Object.keys(profileSignals).length,
+				jdFactsCount: jdFacts.length,
+				fieldsCount: fields.length,
+			},
 			"Inference input",
 		);
+
 		const result = await this.llmServices.inferencer.infer({
-			cvRawText: this.cvContext.rawText,
-			jdRawText: contextText,
+			summaryFacts,
+			experienceFacts,
+			profileSignals,
+			jdFacts,
 			fields,
 		});
 

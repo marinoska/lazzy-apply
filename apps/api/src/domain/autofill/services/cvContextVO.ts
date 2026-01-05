@@ -48,6 +48,28 @@ export class CVContextVO {
 		return this.mCvData.rawText;
 	}
 
+	get summaryFacts(): string[] {
+		return this.mCvData.summaryFacts || [];
+	}
+
+	get experienceFacts(): Array<{
+		role: string | null;
+		company: string | null;
+		facts: string[];
+	}> {
+		return (
+			this.mCvData.experience?.map((exp) => ({
+				role: exp.role,
+				company: exp.company,
+				facts: exp.experienceFacts || [],
+			})) || []
+		);
+	}
+
+	get profileSignals(): Record<string, string> {
+		return this.mCvData.profileSignals || {};
+	}
+
 	get fileUploadId(): string {
 		return this.mFileUpload._id;
 	}

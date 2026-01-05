@@ -35,8 +35,10 @@ describe("inference.llm", () => {
 	describe("inferFieldValues", () => {
 		it("should return empty answers for empty fields array", async () => {
 			const result = await inferFieldValues({
-				cvRawText: "Some CV text",
-				jdRawText: "Some JD text",
+				summaryFacts: ["Software Engineer with 5 years experience"],
+				experienceFacts: [],
+				profileSignals: {},
+				jdFacts: [],
 				fields: [],
 			});
 
@@ -62,8 +64,16 @@ describe("inference.llm", () => {
 				: never);
 
 			const result = await inferFieldValues({
-				cvRawText: "John Doe, Software Engineer with 5 years experience",
-				jdRawText: "Looking for a senior developer",
+				summaryFacts: ["Software Engineer with 5 years experience"],
+				experienceFacts: [
+					{
+						role: "Software Engineer",
+						company: "Tech Corp",
+						facts: ["Built scalable APIs", "Led team of 3 developers"],
+					},
+				],
+				profileSignals: { seniority: "senior" },
+				jdFacts: [{ key: "role", value: "Senior Developer", source: "jd" }],
 				fields: [
 					{
 						hash: "hash-1",
@@ -102,8 +112,10 @@ describe("inference.llm", () => {
 				: never);
 
 			const result = await inferFieldValues({
-				cvRawText: "CV text",
-				jdRawText: "",
+				summaryFacts: ["Experienced professional"],
+				experienceFacts: [],
+				profileSignals: {},
+				jdFacts: [],
 				fields: [
 					{
 						hash: "hash-1",
@@ -122,7 +134,7 @@ describe("inference.llm", () => {
 			});
 		});
 
-		it("should handle empty JD text", async () => {
+		it("should handle empty jdFacts", async () => {
 			mockedGenerateText.mockResolvedValueOnce({
 				text: JSON.stringify({
 					answers: {
@@ -139,8 +151,10 @@ describe("inference.llm", () => {
 				: never);
 
 			const result = await inferFieldValues({
-				cvRawText: "CV text",
-				jdRawText: "",
+				summaryFacts: ["Experienced developer"],
+				experienceFacts: [],
+				profileSignals: {},
+				jdFacts: [],
 				fields: [
 					{
 						hash: "hash-1",
@@ -157,7 +171,7 @@ describe("inference.llm", () => {
 			expect(result.answers["hash-1"]).toBe("Answer based on CV only");
 			expect(mockedGenerateText).toHaveBeenCalledWith(
 				expect.objectContaining({
-					prompt: expect.stringContaining("(empty)"),
+					prompt: expect.stringContaining("summaryFacts"),
 				}),
 			);
 		});
@@ -176,8 +190,10 @@ describe("inference.llm", () => {
 
 			await expect(
 				inferFieldValues({
-					cvRawText: "CV text",
-					jdRawText: "JD text",
+					summaryFacts: [],
+					experienceFacts: [],
+					profileSignals: {},
+					jdFacts: [],
 					fields: [
 						{
 							hash: "hash-1",
@@ -206,8 +222,10 @@ describe("inference.llm", () => {
 				: never);
 
 			await inferFieldValues({
-				cvRawText: "CV text",
-				jdRawText: "JD text",
+				summaryFacts: ["Experienced professional"],
+				experienceFacts: [],
+				profileSignals: {},
+				jdFacts: [],
 				fields: [
 					{
 						hash: "hash-1",
