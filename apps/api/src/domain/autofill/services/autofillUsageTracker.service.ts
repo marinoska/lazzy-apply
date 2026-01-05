@@ -29,7 +29,7 @@ export class AutofillUsageTracker {
 		this.tracker.setUsage("form_fields_classification", usage);
 	}
 
-	setJdFormMatchUsage(usage: TokenUsage | null): void {
+	setJdFormFactsExtractUsage(usage: TokenUsage | null): void {
 		this.tracker.setUsage("jd_form_match", usage);
 	}
 

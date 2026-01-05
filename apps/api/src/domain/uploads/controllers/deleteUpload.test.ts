@@ -1,4 +1,5 @@
 import type { FileUploadContentType } from "@lazyapply/types";
+import type { Types } from "mongoose";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PreferencesModel } from "@/domain/preferences/index.js";
 import { FileUploadModel } from "@/domain/uploads/model/fileUpload.model.js";
@@ -28,7 +29,6 @@ describe("Delete Upload", () => {
 				bucket: "test-bucket",
 				userId: "test-user-1",
 				status: "uploaded",
-				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
 			});
 
 			mockReq = {
@@ -75,7 +75,6 @@ describe("Delete Upload", () => {
 				userId: "test-user-2",
 				status: "deduplicated",
 				deduplicatedFrom: canonicalUpload._id,
-				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
 			});
 
 			mockReq = {
@@ -103,7 +102,6 @@ describe("Delete Upload", () => {
 				bucket: "test-bucket",
 				userId: "test-user-3",
 				status: "failed",
-				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
 			});
 
 			mockReq = {
@@ -131,7 +129,6 @@ describe("Delete Upload", () => {
 				userId: "test-user-rejected",
 				status: "rejected",
 				rejectionReason: "Invalid file",
-				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
 			});
 
 			mockReq = {
@@ -161,11 +158,13 @@ describe("Delete Upload", () => {
 				bucket: "test-bucket",
 				userId,
 				status: "uploaded",
-				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
 			});
 
 			// Set this upload as selected in preferences
-			await PreferencesModel.upsertSelectedUpload(userId, upload._id);
+			await PreferencesModel.upsertSelectedUpload(
+				userId,
+				upload._id as unknown as Types.ObjectId,
+			);
 
 			// Verify it's set
 			const prefsBefore = await PreferencesModel.findByUserId(userId);
@@ -198,7 +197,6 @@ describe("Delete Upload", () => {
 				bucket: "test-bucket",
 				userId,
 				status: "uploaded",
-				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
 			});
 
 			await FileUploadModel.create({
@@ -210,11 +208,13 @@ describe("Delete Upload", () => {
 				bucket: "test-bucket",
 				userId,
 				status: "uploaded",
-				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
 			});
 
 			// Set the first upload as selected
-			await PreferencesModel.upsertSelectedUpload(userId, selectedUpload._id);
+			await PreferencesModel.upsertSelectedUpload(
+				userId,
+				selectedUpload._id as unknown as Types.ObjectId,
+			);
 
 			mockReq = {
 				params: { fileId: "test-file-to-delete" },
@@ -255,7 +255,6 @@ describe("Delete Upload", () => {
 				bucket: "test-bucket",
 				userId: "test-user-5",
 				status: "uploaded",
-				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
 			});
 
 			// Try to delete as different user
@@ -291,7 +290,6 @@ describe("Delete Upload", () => {
 				bucket: "test-bucket",
 				userId: "test-user-7",
 				status: "pending",
-				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
 			});
 
 			mockReq = {
@@ -319,7 +317,6 @@ describe("Delete Upload", () => {
 				bucket: "test-bucket",
 				userId: "test-user-8",
 				status: "deleted-by-user",
-				uploadUrlExpiresAt: new Date(Date.now() + 3600000),
 			});
 
 			mockReq = {

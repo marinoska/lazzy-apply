@@ -1,11 +1,12 @@
 import type { ParsedCVData } from "@lazyapply/types";
+import mongoose from "mongoose";
 import { describe, expect, it } from "vitest";
 import { CVDataModel } from "./cvData.model.js";
 
 describe("CVData Model", () => {
 	describe("Create CV Data", () => {
 		it("should create CV data from ParsedCVData structure", async () => {
-			const mockParsedData: Omit<ParsedCVData, "fileId"> = {
+			const mockParsedData: Omit<ParsedCVData, "fileId" | "_id"> = {
 				personal: {
 					fullName: "John Doe",
 					firstName: "John",
@@ -63,13 +64,14 @@ describe("CVData Model", () => {
 				rawText: "Full CV text here...",
 			};
 
+			const testUploadId = new mongoose.Types.ObjectId();
 			const cvData = await CVDataModel.createCVData({
-				uploadId: "test-upload-1",
+				uploadId: testUploadId.toString(),
 				userId: "test-user-1",
 				...mockParsedData,
 			});
 
-			expect(cvData.uploadId).toBe("test-upload-1");
+			expect(cvData.uploadId.toString()).toBe(testUploadId.toString());
 			expect(cvData.userId).toBe("test-user-1");
 			expect(cvData.personal.fullName).toBe("John Doe");
 			expect(cvData.personal.firstName).toBe("John");
@@ -84,7 +86,7 @@ describe("CVData Model", () => {
 		});
 
 		it("should handle minimal CV data", async () => {
-			const minimalData: Omit<ParsedCVData, "fileId"> = {
+			const minimalData: Omit<ParsedCVData, "fileId" | "_id"> = {
 				personal: {
 					fullName: "Jane Smith",
 					firstName: "Jane",
@@ -104,8 +106,9 @@ describe("CVData Model", () => {
 				rawText: "Minimal CV text",
 			};
 
+			const testUploadId = new mongoose.Types.ObjectId();
 			const cvData = await CVDataModel.createCVData({
-				uploadId: "test-upload-2",
+				uploadId: testUploadId.toString(),
 				userId: "test-user-2",
 				...minimalData,
 			});
@@ -118,9 +121,10 @@ describe("CVData Model", () => {
 	});
 
 	describe("Query CV Data", () => {
-		it("should find by uploadId", async () => {
+		it("should find by uploadId using findOne", async () => {
+			const testUploadId = new mongoose.Types.ObjectId();
 			await CVDataModel.createCVData({
-				uploadId: "test-upload-3",
+				uploadId: testUploadId.toString(),
 				userId: "test-user-3",
 				personal: {
 					fullName: "Test User",
@@ -142,18 +146,57 @@ describe("CVData Model", () => {
 			});
 
 			const found = await CVDataModel.findOne(
-				{ uploadId: "test-upload-3" },
+				{ uploadId: testUploadId },
 				null,
 				{ skipOwnershipEnforcement: true },
 			);
 			expect(found).toBeDefined();
-			expect(found?.uploadId).toBe("test-upload-3");
+			expect(found?.uploadId.toString()).toBe(testUploadId.toString());
+		});
+
+		it("should find by uploadId using findByUploadId static method with string", async () => {
+			const testUploadId = new mongoose.Types.ObjectId();
+			const userId = "test-user-findby-1";
+			const cvData = await CVDataModel.createCVData({
+				uploadId: testUploadId.toString(),
+				userId,
+				personal: {
+					fullName: "FindBy Test User",
+					firstName: "FindBy",
+					lastName: "Test",
+					email: null,
+					phone: null,
+					location: null,
+				},
+				links: [],
+				headline: null,
+				summary: null,
+				experience: [],
+				education: [],
+				certifications: [],
+				languages: [],
+				extras: {},
+				rawText: "Test findByUploadId",
+			});
+
+			expect(cvData.uploadId).toBeInstanceOf(mongoose.Types.ObjectId);
+			expect(cvData.uploadId.toString()).toBe(testUploadId.toString());
+
+			const found = await CVDataModel.findByUploadId(
+				testUploadId.toString(),
+				userId,
+			);
+			expect(found).toBeDefined();
+			expect(found?.uploadId).toBeInstanceOf(mongoose.Types.ObjectId);
+			expect(found?.uploadId.toString()).toBe(testUploadId.toString());
+			expect(found?.personal.fullName).toBe("FindBy Test User");
 		});
 
 		it("should find by userId", async () => {
 			const userId = "test-user-4";
+			const testUploadId1 = new mongoose.Types.ObjectId();
 			await CVDataModel.createCVData({
-				uploadId: "test-upload-4a",
+				uploadId: testUploadId1.toString(),
 				userId,
 				personal: {
 					fullName: "User 4A",
@@ -174,8 +217,9 @@ describe("CVData Model", () => {
 				rawText: "Test A",
 			});
 
+			const testUploadId2 = new mongoose.Types.ObjectId();
 			await CVDataModel.createCVData({
-				uploadId: "test-upload-4b",
+				uploadId: testUploadId2.toString(),
 				userId,
 				personal: {
 					fullName: "User 4B",

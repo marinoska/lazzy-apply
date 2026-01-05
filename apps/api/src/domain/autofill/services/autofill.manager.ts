@@ -264,22 +264,24 @@ export class AutofillManager {
 	 * persists data, and builds the final autofill response.
 	 */
 	public async process(params: ProcessParams) {
-		const [classificationResult, jdMatchResult] = await Promise.all([
+		const [classificationResult, jdFormFactsResult] = await Promise.all([
 			this.ensureFormPersisted(),
-			this.checkJdFormMatch(params),
+			this.extactJdFormFacts(params),
 		]);
 
 		const inferenceFields = this.collectInferenceFields();
 		const inferenceResult = await this.processInference(
 			inferenceFields,
-			jdMatchResult.isMatch,
+			jdFormFactsResult.isMatch,
 			params,
 		);
 
 		this.autofillUsageTracker.setClassificationUsage(
 			classificationResult.usage,
 		);
-		this.autofillUsageTracker.setJdFormMatchUsage(jdMatchResult.usage);
+		this.autofillUsageTracker.setJdFormFactsExtractUsage(
+			jdFormFactsResult.usage,
+		);
 		this.autofillUsageTracker.setInferenceUsage(inferenceResult.usage);
 
 		const fileInfo = await this.cvContext.getFileInfo();
@@ -309,7 +311,8 @@ export class AutofillManager {
 							),
 							jdRawText: params.jdRawText ?? "",
 							jdUrl: params.jdUrl ?? "",
-							jdMatchesForm: jdMatchResult.isMatch,
+							jdMatchesForm: jdFormFactsResult.isMatch,
+							jdFacts: jdFormFactsResult.jdFacts,
 							formContext: params.formContext ?? "",
 							data,
 						},
@@ -417,28 +420,22 @@ export class AutofillManager {
 	}
 
 	/**
-	 * Validates whether the job description matches the form.
-	 * Skips validation if JD and form URLs are the same or if no JD text is provided.
+	 * Matches whether the job description is a match for the application form
+	 * and extracts JD facts.
 	 * Returns usage to be persisted later after form is ensured to exist.
 	 */
-	private async checkJdFormMatch(params: ProcessParams) {
-		const { jdRawText, jdUrl, formUrl } = params;
-		const sameUrl = jdUrl === formUrl;
-		const shouldValidate = jdRawText.length > 0 && !sameUrl;
-
-		if (!shouldValidate) {
-			return { isMatch: sameUrl, usage: null };
-		}
-
-		logger.info({ jdUrl, formUrl }, "Validating JD match");
+	private async extactJdFormFacts(params: ProcessParams) {
+		const { jdUrl, formUrl } = params;
+		logger.debug(
+			{ jdUrl, formUrl },
+			"Validating JD match and extracting JD facts",
+		);
 
 		const formFields = this.mForm.getInputFields();
 
-		const result = await this.llmServices.jdMatcher.match({
-			jdText: jdRawText,
+		const result = await this.llmServices.jdExtractor.extract({
+			...params,
 			formFields,
-			jdUrl,
-			formUrl,
 		});
 
 		if (!result.isMatch) {
@@ -451,6 +448,7 @@ export class AutofillManager {
 		return {
 			isMatch: result.isMatch,
 			usage: result.usage.totalTokens > 0 ? result.usage : null,
+			jdFacts: result.jdFacts,
 		};
 	}
 

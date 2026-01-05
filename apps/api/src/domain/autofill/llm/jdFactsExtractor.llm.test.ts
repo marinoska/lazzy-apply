@@ -27,15 +27,16 @@ vi.mock("@/app/logger.js", () => ({
 
 // Import after mocks are set up
 import { generateText } from "ai";
-import { validateJdFormMatchWithAI } from "./jdMatcher.llm.js";
+import { extractJdFormFactsWithAI } from "./JdFactsExtractor.llm.js";
 
 const mockedGenerateText = vi.mocked(generateText);
 
 describe("jdMatcher.llm", () => {
 	describe("validateJdFormMatchWithAI", () => {
 		it("should return isMatch: false for empty JD text", async () => {
-			const result = await validateJdFormMatchWithAI({
-				jdText: "",
+			const result = await extractJdFormFactsWithAI({
+				jdRawText: "",
+				formContext: "",
 				formFields: [
 					{
 						hash: "field-1",
@@ -56,26 +57,38 @@ describe("jdMatcher.llm", () => {
 			});
 
 			expect(result.isMatch).toBe(false);
+			expect(result.jdFacts).toEqual([]);
 			expect(result.usage.totalTokens).toBe(0);
 			expect(mockedGenerateText).not.toHaveBeenCalled();
 		});
 
 		it("should return isMatch: false for whitespace-only JD text", async () => {
-			const result = await validateJdFormMatchWithAI({
-				jdText: "   \n\t  ",
+			const result = await extractJdFormFactsWithAI({
+				jdRawText: "   \n\t  ",
+				formContext: "",
 				formFields: [],
 				jdUrl: null,
 				formUrl: "https://example.com/apply",
 			});
 
 			expect(result.isMatch).toBe(false);
+			expect(result.jdFacts).toEqual([]);
 			expect(result.usage.totalTokens).toBe(0);
 			expect(mockedGenerateText).not.toHaveBeenCalled();
 		});
 
 		it("should call LLM and return true when JD matches form", async () => {
 			mockedGenerateText.mockResolvedValueOnce({
-				text: JSON.stringify({ isMatch: true }),
+				text: JSON.stringify({
+					isMatch: true,
+					jdFacts: {
+						facts: [
+							{ key: "role", value: "Senior Software Engineer", source: "jd" },
+							{ key: "company", value: "Acme Corp", source: "jd" },
+							{ key: "experience", value: "5+ years", source: "jd" },
+						],
+					},
+				}),
 				usage: {
 					inputTokens: 500,
 					outputTokens: 10,
@@ -85,9 +98,10 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			const result = await validateJdFormMatchWithAI({
-				jdText:
+			const result = await extractJdFormFactsWithAI({
+				jdRawText:
 					"Senior Software Engineer at Acme Corp. Requirements: 5+ years experience...",
+				formContext: "",
 				formFields: [
 					{
 						hash: "field-1",
@@ -108,13 +122,25 @@ describe("jdMatcher.llm", () => {
 			});
 
 			expect(result.isMatch).toBe(true);
+			expect(result.jdFacts).toEqual([
+				{ key: "role", value: "Senior Software Engineer", source: "jd" },
+				{ key: "company", value: "Acme Corp", source: "jd" },
+				{ key: "experience", value: "5+ years", source: "jd" },
+			]);
 			expect(result.usage.totalTokens).toBe(510);
 			expect(mockedGenerateText).toHaveBeenCalledTimes(1);
 		});
 
 		it("should call LLM and return false when JD does not match form", async () => {
 			mockedGenerateText.mockResolvedValueOnce({
-				text: JSON.stringify({ isMatch: false }),
+				text: JSON.stringify({
+					isMatch: false,
+					jdFacts: {
+						facts: [
+							{ key: "role", value: "Marketing Manager", source: "form" },
+						],
+					},
+				}),
 				usage: {
 					inputTokens: 400,
 					outputTokens: 10,
@@ -124,8 +150,9 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			const result = await validateJdFormMatchWithAI({
-				jdText: "Marketing Manager position at XYZ Inc.",
+			const result = await extractJdFormFactsWithAI({
+				jdRawText: "Marketing Manager position at XYZ Inc.",
+				formContext: "",
 				formFields: [
 					{
 						hash: "field-1",
@@ -146,6 +173,9 @@ describe("jdMatcher.llm", () => {
 			});
 
 			expect(result.isMatch).toBe(false);
+			expect(result.jdFacts).toEqual([
+				{ key: "role", value: "Marketing Manager", source: "form" },
+			]);
 			expect(result.usage.totalTokens).toBe(410);
 		});
 
@@ -153,7 +183,12 @@ describe("jdMatcher.llm", () => {
 			mockedGenerateText.mockResolvedValueOnce({
 				text: `\`\`\`json
 {
-  "isMatch": true
+  "isMatch": true,
+  "jdFacts": {
+    "facts": [
+      { "key": "role", "value": "Software Developer", "source": "jd" }
+    ]
+  }
 }
 \`\`\``,
 				usage: {
@@ -165,14 +200,18 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			const result = await validateJdFormMatchWithAI({
-				jdText: "Some job description",
+			const result = await extractJdFormFactsWithAI({
+				jdRawText: "Some job description",
+				formContext: "",
 				formFields: [],
 				jdUrl: "https://example.com/job",
 				formUrl: "https://example.com/apply",
 			});
 
 			expect(result.isMatch).toBe(true);
+			expect(result.jdFacts).toEqual([
+				{ key: "role", value: "Software Developer", source: "jd" },
+			]);
 		});
 
 		it("should return false for invalid response format", async () => {
@@ -187,19 +226,24 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			const result = await validateJdFormMatchWithAI({
-				jdText: "Some job description",
+			const result = await extractJdFormFactsWithAI({
+				jdRawText: "Some job description",
+				formContext: "",
 				formFields: [],
 				jdUrl: null,
 				formUrl: "https://example.com/apply",
 			});
 
 			expect(result.isMatch).toBe(false);
+			expect(result.jdFacts).toEqual([]);
 		});
 
 		it("should include form field metadata in the prompt", async () => {
 			mockedGenerateText.mockResolvedValueOnce({
-				text: JSON.stringify({ isMatch: true }),
+				text: JSON.stringify({
+					isMatch: true,
+					jdFacts: { facts: [] },
+				}),
 				usage: {
 					inputTokens: 500,
 					outputTokens: 10,
@@ -209,8 +253,9 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			await validateJdFormMatchWithAI({
-				jdText: "Job description text",
+			await extractJdFormFactsWithAI({
+				jdRawText: "Job description text",
+				formContext: "",
 				formFields: [
 					{
 						hash: "field-1",
@@ -244,7 +289,10 @@ describe("jdMatcher.llm", () => {
 
 		it("should include URLs in the prompt", async () => {
 			mockedGenerateText.mockResolvedValueOnce({
-				text: JSON.stringify({ isMatch: false }),
+				text: JSON.stringify({
+					isMatch: false,
+					jdFacts: { facts: [] },
+				}),
 				usage: {
 					inputTokens: 300,
 					outputTokens: 10,
@@ -254,8 +302,9 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			await validateJdFormMatchWithAI({
-				jdText: "Job description",
+			await extractJdFormFactsWithAI({
+				jdRawText: "Job description",
+				formContext: "",
 				formFields: [],
 				jdUrl: "https://company.com/careers/job-123",
 				formUrl: "https://ats.com/apply/456",
@@ -277,7 +326,10 @@ describe("jdMatcher.llm", () => {
 
 		it("should handle null jdUrl", async () => {
 			mockedGenerateText.mockResolvedValueOnce({
-				text: JSON.stringify({ isMatch: false }),
+				text: JSON.stringify({
+					isMatch: false,
+					jdFacts: { facts: [] },
+				}),
 				usage: {
 					inputTokens: 300,
 					outputTokens: 10,
@@ -287,8 +339,9 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			const result = await validateJdFormMatchWithAI({
-				jdText: "Job description",
+			const result = await extractJdFormFactsWithAI({
+				jdRawText: "Job description",
+				formContext: "",
 				formFields: [],
 				jdUrl: null,
 				formUrl: "https://example.com/apply",
@@ -304,7 +357,10 @@ describe("jdMatcher.llm", () => {
 
 		it("should calculate token costs correctly", async () => {
 			mockedGenerateText.mockResolvedValueOnce({
-				text: JSON.stringify({ isMatch: true }),
+				text: JSON.stringify({
+					isMatch: true,
+					jdFacts: { facts: [] },
+				}),
 				usage: {
 					inputTokens: 1000,
 					outputTokens: 100,
@@ -314,8 +370,9 @@ describe("jdMatcher.llm", () => {
 				? T
 				: never);
 
-			const result = await validateJdFormMatchWithAI({
-				jdText: "Job description",
+			const result = await extractJdFormFactsWithAI({
+				jdRawText: "Job description",
+				formContext: "",
 				formFields: [],
 				jdUrl: "https://example.com/job",
 				formUrl: "https://example.com/apply",

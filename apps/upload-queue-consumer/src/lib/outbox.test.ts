@@ -33,7 +33,7 @@ describe("outbox", () => {
 	});
 
 	describe("updateOutboxStatus", () => {
-		const mockParsedData: ParsedCVData = {
+		const mockParsedData: Omit<ParsedCVData, "_id"> = {
 			personal: {
 				fullName: "John Doe",
 				email: "john@example.com",

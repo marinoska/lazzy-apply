@@ -9,7 +9,7 @@ export async function updateOutboxStatus(
 	env: Env,
 	processId: string,
 	status: "completed" | "failed" | "not-a-cv",
-	data: ParsedCVData | null,
+	data: Omit<ParsedCVData, "_id"> | null,
 	error?: string,
 	usage?: TokenUsage,
 ): Promise<void> {

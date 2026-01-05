@@ -1,7 +1,10 @@
 import type { Field, TokenUsage } from "@lazyapply/types";
 import type { EnrichedClassifiedField } from "../llm/classifier.llm.js";
 import type { InferenceInput, InferenceResult } from "../llm/inference.llm.js";
-import type { JdMatchInput, JdMatchResult } from "../llm/jdMatcher.llm.js";
+import type {
+	JdFactsResult,
+	JdFormFactsInput,
+} from "../llm/JdFactsExtractor.llm.js";
 
 /**
  * Interface for field classification service.
@@ -26,8 +29,8 @@ export interface FieldInferencer {
  * Interface for JD-form matching service.
  * Validates whether a job description matches a form.
  */
-export interface JdFormMatcher {
-	match(input: JdMatchInput): Promise<JdMatchResult>;
+export interface JdFormFactsExtractor {
+	extract(input: JdFormFactsInput): Promise<JdFactsResult>;
 }
 
 /**
@@ -37,5 +40,5 @@ export interface JdFormMatcher {
 export interface AutofillLlmServices {
 	classifier: FieldClassifier;
 	inferencer: FieldInferencer;
-	jdMatcher: JdFormMatcher;
+	jdExtractor: JdFormFactsExtractor;
 }

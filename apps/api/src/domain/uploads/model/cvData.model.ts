@@ -15,7 +15,7 @@ export type CVDataModel = CVDataModelWithStatics;
 const cvDataSchema = new Schema<TCVData, CVDataModel, CVDataMethods>(
 	{
 		uploadId: {
-			type: String,
+			type: Schema.Types.ObjectId,
 			ref: "file_uploads",
 			required: true,
 			unique: true,

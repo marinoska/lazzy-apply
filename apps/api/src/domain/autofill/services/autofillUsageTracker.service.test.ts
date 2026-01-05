@@ -81,7 +81,7 @@ describe("AutofillUsageTracker", () => {
 				totalCost: 0.06,
 			};
 
-			tracker.setJdFormMatchUsage(usage);
+			tracker.setJdFormFactsExtractUsage(usage);
 
 			expect(mockSetUsage).toHaveBeenCalledWith("jd_form_match", usage);
 		});
@@ -89,7 +89,7 @@ describe("AutofillUsageTracker", () => {
 		it("should handle null usage", () => {
 			const tracker = new AutofillUsageTracker(userId);
 
-			tracker.setJdFormMatchUsage(null);
+			tracker.setJdFormFactsExtractUsage(null);
 
 			expect(mockSetUsage).toHaveBeenCalledWith("jd_form_match", null);
 		});

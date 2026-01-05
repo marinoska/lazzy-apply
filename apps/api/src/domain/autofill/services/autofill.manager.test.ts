@@ -33,9 +33,10 @@ vi.mock("../llm/classifier.llm.js", () => ({
 }));
 
 // Mock the JD matcher service
-vi.mock("../llm/jdMatcher.llm.js", () => ({
-	validateJdFormMatchWithAI: vi.fn().mockResolvedValue({
+vi.mock("../llm/JdFactsExtractor.llm.js", () => ({
+	extractJdFormFactsWithAI: vi.fn().mockResolvedValue({
 		isMatch: true,
+		jdFacts: [],
 		usage: {
 			promptTokens: 50,
 			completionTokens: 25,
@@ -69,10 +70,9 @@ vi.mock("@/app/cloudflare.js", () => ({
 		.mockResolvedValue("https://example.com/presigned-url"),
 }));
 
-import { validateJdFormMatchWithAI } from "../llm/jdMatcher.llm.js";
+import { extractJdFormFactsWithAI } from "../llm/JdFactsExtractor.llm.js";
 
 const TEST_UPLOAD_ID = "507f1f77bcf86cd799439011";
-const CV_DATA_ID = "507f1f77bcf86cd799439033";
 
 describe("classification.manager", () => {
 	beforeEach(async () => {
@@ -104,7 +104,6 @@ describe("classification.manager", () => {
 
 		// Create test CV data
 		await CVDataModel.createCVData({
-			_id: CV_DATA_ID,
 			uploadId: TEST_UPLOAD_ID,
 			userId: "test-user-id",
 			personal: {
@@ -352,7 +351,7 @@ describe("classification.manager", () => {
 			});
 
 			// validateJdFormMatch should NOT be called when URLs match
-			expect(validateJdFormMatchWithAI).not.toHaveBeenCalled();
+			expect(extractJdFormFactsWithAI).not.toHaveBeenCalled();
 		});
 
 		it("should call JD validation when jdUrl differs from formUrl", async () => {
@@ -374,8 +373,9 @@ describe("classification.manager", () => {
 			});
 
 			// validateJdFormMatch should be called when URLs differ
-			expect(validateJdFormMatchWithAI).toHaveBeenCalledWith({
-				jdText: "Some JD text",
+			expect(extractJdFormFactsWithAI).toHaveBeenCalledWith({
+				jdRawText: "Some JD text",
+				formContext: "",
 				formFields: fields,
 				jdUrl: jdUrl,
 				formUrl: formInput.pageUrl,
@@ -401,7 +401,7 @@ describe("classification.manager", () => {
 			});
 
 			// validateJdFormMatch should NOT be called when JD text is empty
-			expect(validateJdFormMatchWithAI).not.toHaveBeenCalled();
+			expect(extractJdFormFactsWithAI).not.toHaveBeenCalled();
 		});
 
 		it("should return isMatch: true when jdUrl matches formUrl (sameUrl fallback)", async () => {

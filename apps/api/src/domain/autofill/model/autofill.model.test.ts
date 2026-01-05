@@ -34,6 +34,9 @@ describe("AutofillModel", () => {
 		uploadReference: TEST_UPLOAD_ID,
 		formReference: TEST_FORM_ID,
 		cvDataReference: TEST_CV_DATA_ID,
+		jdMatchesForm: false,
+		jdFacts: [],
+		formContext: "",
 		data: [
 			{
 				hash: "hash-1",

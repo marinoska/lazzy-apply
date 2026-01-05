@@ -11,10 +11,11 @@ export {
 	inferFieldValues,
 } from "./inference.llm.js";
 export {
-	type JdMatchInput,
-	type JdMatchResult,
-	validateJdFormMatchWithAI,
-} from "./jdMatcher.llm.js";
+	extractJdFormFactsWithAI,
+	type JdFactsResult,
+	type JdFormFact as JdFact,
+	type JdFormFactsInput as JdFactsInput,
+} from "./JdFactsExtractor.llm.js";
 export {
 	type RefineInput,
 	type RefineResult,

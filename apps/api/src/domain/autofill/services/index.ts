@@ -2,7 +2,7 @@ export type {
 	AutofillLlmServices,
 	FieldClassifier,
 	FieldInferencer,
-	JdFormMatcher,
+	JdFormFactsExtractor,
 } from "./autofill.manager.types.js";
 export type { UsageTracking } from "./autofillUsageTracker.service.js";
 export { AutofillUsageTracker } from "./autofillUsageTracker.service.js";

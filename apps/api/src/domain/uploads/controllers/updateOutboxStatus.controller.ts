@@ -1,4 +1,4 @@
-import type { ParsedCVData, TokenUsage } from "@lazyapply/types";
+import type { TokenUsage } from "@lazyapply/types";
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { z } from "zod";
@@ -137,7 +137,7 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 				const cvDataPayload = {
 					uploadId: latestEntry.uploadId,
 					userId: latestEntry.userId,
-					...(data satisfies ParsedCVData),
+					...data,
 				};
 
 				log.debug({ processId, ...usageLog }, "Saving CV data to database");

@@ -62,6 +62,22 @@ const autofillSchema = new Schema<TAutofill, AutofillModel, AutofillMethods>(
 			required: true,
 			immutable: true,
 		},
+		jdFacts: {
+			type: [
+				{
+					key: { type: String, required: true, immutable: true },
+					value: { type: String, required: true, immutable: true },
+					source: {
+						type: String,
+						required: true,
+						enum: ["jd", "form"],
+						immutable: true,
+					},
+				},
+			],
+			default: [],
+			immutable: true,
+		},
 		formContext: {
 			type: String,
 			default: "",

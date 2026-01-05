@@ -246,7 +246,7 @@ type FinishReason =
 
 export type ExtractCVDataSuccessResult = {
 	parseStatus: "completed";
-	parsedData: ParsedCVData;
+	parsedData: Omit<ParsedCVData, "_id">;
 	usage: TokenUsage;
 	finishReason: FinishReason;
 };
@@ -329,7 +329,7 @@ export async function extractCVData(
 		const certifications = cvData.certifications ?? [];
 		const languages = cvData.languages ?? [];
 
-		const parsedData: ParsedCVData = {
+		const parsedData: Omit<ParsedCVData, "_id"> = {
 			personal: {
 				fullName: personal.fullName ?? null,
 				firstName: personal.firstName ?? null,

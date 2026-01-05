@@ -176,7 +176,8 @@ describe("UsageTracker", () => {
 			expect(UserBalanceModel.updateBalance).toHaveBeenCalledTimes(1);
 			expect(UserBalanceModel.updateBalance).toHaveBeenCalledWith(
 				userId,
-				-150,
+				100,
+				50,
 				mockSession,
 			);
 		});
@@ -208,12 +209,14 @@ describe("UsageTracker", () => {
 			expect(UserBalanceModel.updateBalance).toHaveBeenCalledTimes(2);
 			expect(UserBalanceModel.updateBalance).toHaveBeenCalledWith(
 				userId,
-				-150,
+				100,
+				50,
 				mockSession,
 			);
 			expect(UserBalanceModel.updateBalance).toHaveBeenCalledWith(
 				userId,
-				-300,
+				200,
+				100,
 				mockSession,
 			);
 		});

@@ -6,15 +6,15 @@ import {
 	inferFieldValues,
 } from "../llm/inference.llm.js";
 import {
-	type JdMatchInput,
-	type JdMatchResult,
-	validateJdFormMatchWithAI,
-} from "../llm/jdMatcher.llm.js";
+	extractJdFormFactsWithAI,
+	type JdFactsResult,
+	type JdFormFactsInput,
+} from "../llm/JdFactsExtractor.llm.js";
 import type {
 	AutofillLlmServices,
 	FieldClassifier,
 	FieldInferencer,
-	JdFormMatcher,
+	JdFormFactsExtractor,
 } from "./autofill.manager.types.js";
 
 /**
@@ -36,11 +36,11 @@ class RealFieldInferencer implements FieldInferencer {
 }
 
 /**
- * Real implementation of JdFormMatcher using OpenAI.
+ * Real implementation of JdFormFactsExtractor using OpenAI.
  */
-class RealJdFormMatcher implements JdFormMatcher {
-	async match(input: JdMatchInput): Promise<JdMatchResult> {
-		return validateJdFormMatchWithAI(input);
+class RealJdFormFactsExtractor implements JdFormFactsExtractor {
+	async extract(input: JdFormFactsInput): Promise<JdFactsResult> {
+		return extractJdFormFactsWithAI(input);
 	}
 }
 
@@ -51,6 +51,6 @@ export function createDefaultLlmServices(): AutofillLlmServices {
 	return {
 		classifier: new RealFieldClassifier(),
 		inferencer: new RealFieldInferencer(),
-		jdMatcher: new RealJdFormMatcher(),
+		jdExtractor: new RealJdFormFactsExtractor(),
 	};
 }

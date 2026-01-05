@@ -1,5 +1,6 @@
 import type { FormFieldPath, InferenceHint } from "@lazyapply/types";
 import type { HydratedDocument, Model, Types } from "mongoose";
+import type { JdFormFact } from "../llm/JdFactsExtractor.llm.js";
 
 export const AUTOFILL_MODEL_NAME = "autofill" as const;
 
@@ -84,6 +85,8 @@ export type TAutofill = {
 	jdUrl: string;
 	/** Whether the job description matches the application form */
 	jdMatchesForm: boolean;
+	/** Extracted facts from job description and/or form */
+	jdFacts: JdFormFact[];
 	/** Form context information */
 	formContext: string;
 	createdAt: Date;

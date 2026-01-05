@@ -1,5 +1,4 @@
 import type { FileUploadContentType, ParsedCVData } from "@lazyapply/types";
-import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
@@ -24,8 +23,8 @@ vi.mock("@/domain/usage/index.js", async (importOriginal) => {
 });
 
 describe("Update Outbox Status", () => {
-	let mockReq: Partial<Request>;
-	let mockRes: Partial<Response>;
+	let mockReq: any;
+	let mockRes: any;
 	let jsonMock: ReturnType<typeof vi.fn>;
 	let statusMock: ReturnType<typeof vi.fn>;
 
@@ -51,7 +50,7 @@ describe("Update Outbox Status", () => {
 				fileType: "PDF" as FileUploadContentType,
 			});
 
-			const parsedData: ParsedCVData = {
+			const parsedData: Omit<ParsedCVData, "_id"> = {
 				personal: {
 					fullName: "Transaction Test",
 					email: "txn@test.com",
@@ -89,11 +88,9 @@ describe("Update Outbox Status", () => {
 			expect(latestEntry.error).toBeUndefined();
 
 			// Verify CV data was saved (skip ownership enforcement for test)
-			const cvData = await CVDataModel.findOne(
-				{ uploadId: latestEntry.uploadId },
-				null,
-				{ skipOwnershipEnforcement: true },
-			);
+			const cvData = await CVDataModel.findOne({
+				uploadId: latestEntry.uploadId,
+			}).setOptions({ skipOwnershipEnforcement: true });
 			expect(cvData).toBeDefined();
 			expect(cvData?.userId).toBe("test-user-txn-1");
 			expect(cvData?.personal.fullName).toBe("Transaction Test");
@@ -154,7 +151,7 @@ describe("Update Outbox Status", () => {
 				fileType: "PDF" as FileUploadContentType,
 			});
 
-			const fullParsedData: ParsedCVData = {
+			const fullParsedData: Omit<ParsedCVData, "_id"> = {
 				personal: {
 					fullName: "Full Name Test",
 					email: "full@test.com",
@@ -220,9 +217,9 @@ describe("Update Outbox Status", () => {
 
 			await updateOutboxStatus(mockReq, mockRes);
 
-			const cvData = await CVDataModel.findOne({ uploadId }, null, {
-				skipOwnershipEnforcement: true,
-			});
+			const cvData = await CVDataModel.findOne({
+				uploadId: uploadId,
+			}).setOptions({ skipOwnershipEnforcement: true });
 			expect(cvData).toBeDefined();
 			expect(cvData?.personal.fullName).toBe("Full Name Test");
 			expect(cvData?.personal.nationality).toBe("US");
@@ -269,9 +266,9 @@ describe("Update Outbox Status", () => {
 			expect(latestEntry.error).toBe("Processing failed due to invalid format");
 
 			// Verify no CV data was created
-			const cvData = await CVDataModel.findOne({ uploadId }, null, {
-				skipOwnershipEnforcement: true,
-			});
+			const cvData = await CVDataModel.findOne({
+				uploadId: latestEntry.uploadId,
+			}).setOptions({ skipOwnershipEnforcement: true });
 			expect(cvData).toBeNull();
 		});
 	});
@@ -312,9 +309,9 @@ describe("Update Outbox Status", () => {
 			expect(latestEntry.status).toBe("not-a-cv");
 
 			// Verify no CV data was created
-			const cvData = await CVDataModel.findOne({ uploadId }, null, {
-				skipOwnershipEnforcement: true,
-			});
+			const cvData = await CVDataModel.findOne({
+				uploadId: uploadId,
+			}).setOptions({ skipOwnershipEnforcement: true });
 			expect(cvData).toBeNull();
 
 			// Verify response
@@ -357,7 +354,7 @@ describe("Update Outbox Status", () => {
 				fileType: "PDF" as FileUploadContentType,
 			});
 
-			const parsedData: ParsedCVData = {
+			const parsedData: Omit<ParsedCVData, "_id"> = {
 				personal: {
 					fullName: "Session Test",
 					email: "session@test.com",
@@ -483,7 +480,7 @@ describe("Update Outbox Status", () => {
 				fileType: "PDF" as FileUploadContentType,
 			});
 
-			const parsedData: ParsedCVData = {
+			const parsedData: Omit<ParsedCVData, "_id"> = {
 				personal: {
 					fullName: "Rollback Test",
 					email: "rollback@test.com",
@@ -519,9 +516,9 @@ describe("Update Outbox Status", () => {
 			expect(allEntries).toHaveLength(1);
 			expect(allEntries[0].status).toBe("processing");
 
-			const cvData = await CVDataModel.findOne({ uploadId }, null, {
-				skipOwnershipEnforcement: true,
-			});
+			const cvData = await CVDataModel.findOne({
+				uploadId: uploadId,
+			}).setOptions({ skipOwnershipEnforcement: true });
 			expect(cvData).toBeNull();
 
 			createCVDataSpy.mockRestore();

@@ -1,4 +1,5 @@
-import type { Schema } from "mongoose";
+import { Types, type Schema } from "mongoose";
+import { createLogger } from "@/app/logger.js";
 import type { CVDataModel } from "./cvData.model.js";
 import type {
 	CreateCVDataParams,
@@ -7,6 +8,8 @@ import type {
 	TCVData,
 } from "./cvData.types.js";
 
+const _logger = createLogger("cvData.statics");
+
 export function registerCVDataStatics(
 	schema: Schema<TCVData, CVDataModel, CVDataMethods>,
 ): void {
@@ -14,7 +17,15 @@ export function registerCVDataStatics(
 		payload: CreateCVDataParams,
 		session,
 	) {
-		const docs = await this.create([payload], session ? { session } : {});
+		const uploadId =
+			typeof payload.uploadId === "string"
+				? new Types.ObjectId(payload.uploadId)
+				: payload.uploadId;
+
+		const docs = await this.create(
+			[{ ...payload, uploadId }],
+			session ? { session } : {},
+		);
 		return docs[0];
 	};
 
@@ -22,7 +33,11 @@ export function registerCVDataStatics(
 		uploadId: string,
 		userId: string,
 	) {
-		return this.findOne({ uploadId })
+		const uploadObjectId = Types.ObjectId.isValid(uploadId)
+			? new Types.ObjectId(uploadId)
+			: uploadId;
+
+		return this.findOne({ uploadId: uploadObjectId })
 			.populate({
 				path: "uploadId",
 				options: { userId },

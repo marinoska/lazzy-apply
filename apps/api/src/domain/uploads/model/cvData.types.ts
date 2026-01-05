@@ -1,14 +1,14 @@
 import type { ParsedCVData } from "@lazyapply/types";
-import type { ClientSession, Document, Model } from "mongoose";
+import type { ClientSession, Document, Model, Types } from "mongoose";
 import type { TFileUpload } from "./fileUpload.types.js";
 
 export const CV_DATA_MODEL_NAME = "cv_data" as const;
 
-// Extract the CV data structure from ParsedCVData (without fileId)
-export type ExtractedCVData = Omit<ParsedCVData, "fileId">;
+// Extract the CV data structure from ParsedCVData (without fileId and _id)
+export type ExtractedCVData = Omit<ParsedCVData, "fileId" | "_id">;
 
 export type TCVData = ExtractedCVData & {
-	uploadId: string;
+	uploadId: Types.ObjectId | string;
 	userId: string;
 	createdAt: Date;
 	updatedAt: Date;

@@ -199,16 +199,23 @@ describe("autofill.controller", () => {
 			});
 
 			// Create existing autofill record (required for cached response)
-			const cvData = await CVDataModel.findByUploadId(
-				TEST_UPLOAD_ID,
-				"test-user-id",
+			const cvData = await CVDataModel.findOne(
+				{ uploadId: TEST_UPLOAD_ID },
+				null,
+				{ skipOwnershipEnforcement: true },
 			);
+			if (!cvData) {
+				throw new Error("CV data not found - test setup failed");
+			}
 			await AutofillModel.create({
 				autofillId: "cached-autofill-id",
 				formReference: savedForm._id,
 				uploadReference: TEST_UPLOAD_ID,
-				cvDataReference: cvData?._id,
+				cvDataReference: cvData._id,
 				userId: "test-user-id",
+				jdMatchesForm: false,
+				jdFacts: [],
+				formContext: "",
 				data: [
 					{
 						hash: "hash-1",
@@ -328,6 +335,9 @@ describe("autofill.controller", () => {
 				uploadReference: fileUpload._id,
 				cvDataReference: cvData._id,
 				userId: "test-user-id",
+				jdMatchesForm: false,
+				jdFacts: [],
+				formContext: "",
 				data: [
 					{
 						hash: "hash-file",
