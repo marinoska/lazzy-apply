@@ -43,11 +43,9 @@ vi.mock("../model/autofillRefine.model.js", () => ({
 	AUTOFILL_REFINE_MODEL_NAME: "autofill_refines",
 }));
 
-vi.mock("@/domain/uploads/model/cvData.model.js", () => ({
-	CVDataModel: {
-		findById: vi.fn(() => ({
-			lean: vi.fn(),
-		})),
+vi.mock("../services/cvContextVO.js", () => ({
+	CVContextVO: {
+		load: vi.fn(),
 	},
 }));
 
@@ -60,12 +58,12 @@ vi.mock("@/domain/usage/index.js", () => ({
 	})),
 }));
 
-import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { UsageTracker } from "@/domain/usage/index.js";
+import { CVContextVO } from "../services/cvContextVO.js";
 
 const mockedRefineFieldValue = vi.mocked(refineFieldValue);
 const mockedAutofillModel = vi.mocked(AutofillModel);
-const mockedCVDataModel = vi.mocked(CVDataModel);
+const mockedCVContextVO = vi.mocked(CVContextVO);
 const mockedAutofillRefineModel = vi.mocked(AutofillRefineModel);
 const mockedUsageTracker = vi.mocked(UsageTracker);
 
@@ -111,20 +109,21 @@ describe("refine.controller", () => {
 			autofillId: "test-autofill-id",
 			formReference: "test-form-id",
 			data: [],
+			jdFacts: [{ key: "role", value: "Software Engineer", source: "jd" }],
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		} as never);
 
-		const mockLean = vi.fn().mockResolvedValue({
-			rawText: "John Doe, Software Engineer",
-		});
-
-		const mockSetOptions = vi.fn().mockReturnValue({
-			lean: mockLean,
-		});
-
-		mockedCVDataModel.findById.mockReturnValue({
-			setOptions: mockSetOptions,
+		mockedCVContextVO.load.mockResolvedValue({
+			profileSignals: { seniority: "mid", techFocus: "backend" },
+			summaryFacts: ["Software Engineer with 5 years experience"],
+			experienceFacts: [
+				{
+					role: "Software Engineer",
+					company: "Tech Co",
+					facts: ["Built APIs", "Worked with databases"],
+				},
+			],
 		} as never);
 
 		mockedRefineFieldValue.mockResolvedValue({
@@ -136,6 +135,13 @@ describe("refine.controller", () => {
 				inputCost: 0.005,
 				outputCost: 0.003,
 				totalCost: 0.008,
+			},
+			routingDecision: {
+				useProfileSignals: false,
+				useSummaryFacts: true,
+				useExperienceFacts: false,
+				useJdFacts: false,
+				reason: "Need summary facts for name refinement",
 			},
 		});
 
@@ -164,11 +170,20 @@ describe("refine.controller", () => {
 				"test-user-id",
 			);
 			expect(mockedRefineFieldValue).toHaveBeenCalledWith({
-				cvRawText: "John Doe, Software Engineer",
 				fieldLabel: "Full Name",
 				fieldDescription: "Please enter your full name",
 				existingAnswer: "John Doe",
 				userInstructions: "Make it more formal",
+				profileSignals: { seniority: "mid", techFocus: "backend" },
+				summaryFacts: ["Software Engineer with 5 years experience"],
+				experienceFacts: [
+					{
+						role: "Software Engineer",
+						company: "Tech Co",
+						facts: ["Built APIs", "Worked with databases"],
+					},
+				],
+				jdFacts: [{ key: "role", value: "Software Engineer", source: "jd" }],
 			});
 
 			expect(mockedAutofillRefineModel.create).toHaveBeenCalledWith(
@@ -182,6 +197,13 @@ describe("refine.controller", () => {
 						fieldDescription: "Please enter your full name",
 						prevFieldText: "John Doe",
 						userInstructions: "Make it more formal",
+						routingDecision: {
+							useProfileSignals: false,
+							useSummaryFacts: true,
+							useExperienceFacts: false,
+							useJdFacts: false,
+							reason: "Need summary facts for name refinement",
+						},
 					},
 				],
 				expect.objectContaining({ session: expect.anything() }),
@@ -226,7 +248,7 @@ describe("refine.controller", () => {
 			expect(mockRes.status).toHaveBeenCalledWith(200);
 		});
 
-		it("should fetch CV raw text from populated autofill session", async () => {
+		it("should load CV context and pass structured data to refineFieldValue", async () => {
 			mockReq.body.fieldLabel = "Custom Label";
 			mockReq.body.fieldDescription = "Custom Description";
 			mockReq.body.fieldText = "Custom Answer";
@@ -238,12 +260,25 @@ describe("refine.controller", () => {
 				"test-autofill-id",
 				"test-user-id",
 			);
+			expect(mockedCVContextVO.load).toHaveBeenCalledWith(
+				"test-upload-id",
+				"test-user-id",
+			);
 			expect(mockedRefineFieldValue).toHaveBeenCalledWith({
-				cvRawText: "John Doe, Software Engineer",
 				fieldLabel: "Custom Label",
 				fieldDescription: "Custom Description",
 				existingAnswer: "Custom Answer",
 				userInstructions: "Custom Instructions",
+				profileSignals: { seniority: "mid", techFocus: "backend" },
+				summaryFacts: ["Software Engineer with 5 years experience"],
+				experienceFacts: [
+					{
+						role: "Software Engineer",
+						company: "Tech Co",
+						facts: ["Built APIs", "Worked with databases"],
+					},
+				],
+				jdFacts: [{ key: "role", value: "Software Engineer", source: "jd" }],
 			});
 		});
 
@@ -257,6 +292,13 @@ describe("refine.controller", () => {
 					inputCost: 0.003,
 					outputCost: 0.0015,
 					totalCost: 0.0045,
+				},
+				routingDecision: {
+					useProfileSignals: true,
+					useSummaryFacts: false,
+					useExperienceFacts: true,
+					useJdFacts: true,
+					reason: "Need experience and JD context",
 				},
 			});
 

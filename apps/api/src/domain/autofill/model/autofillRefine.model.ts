@@ -53,6 +53,16 @@ const autofillRefineSchema = new Schema<
 			type: String,
 			required: true,
 		},
+		routingDecision: {
+			type: {
+				useProfileSignals: { type: Boolean, required: true },
+				useSummaryFacts: { type: Boolean, required: true },
+				useExperienceFacts: { type: Boolean, required: true },
+				useJdFacts: { type: Boolean, required: true },
+				reason: { type: String, required: true },
+			},
+			required: false,
+		},
 	},
 	{ timestamps: true, collection: AUTOFILL_REFINE_MODEL_NAME },
 );
@@ -87,6 +97,7 @@ autofillRefineSchema.statics.findByAutofillId = async function (
 				fieldDescription: { $first: "$fieldDescription" },
 				prevFieldText: { $first: "$prevFieldText" },
 				userInstructions: { $first: "$userInstructions" },
+				routingDecision: { $first: "$routingDecision" },
 				createdAt: { $first: "$createdAt" },
 				updatedAt: { $first: "$updatedAt" },
 			},
@@ -103,6 +114,7 @@ autofillRefineSchema.statics.findByAutofillId = async function (
 			fieldDescription: r.fieldDescription,
 			prevFieldText: r.prevFieldText,
 			userInstructions: r.userInstructions,
+			routingDecision: r.routingDecision,
 			createdAt: r.createdAt,
 			updatedAt: r.updatedAt,
 		}),

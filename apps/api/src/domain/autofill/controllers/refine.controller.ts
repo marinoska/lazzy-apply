@@ -3,7 +3,6 @@ import mongoose from "mongoose";
 import { z } from "zod";
 import { Unauthorized } from "@/app/errors.js";
 import { createLogger } from "@/app/logger.js";
-import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
 import { UsageTracker } from "@/domain/usage/index.js";
 import { refineFieldValue } from "../llm/index.js";
 import { AutofillModel } from "../model/autofill.model.js";
@@ -12,6 +11,7 @@ import {
 	type AutofillRefineDocument,
 	AutofillRefineModel,
 } from "../model/autofillRefine.model.js";
+import { CVContextVO } from "../services/cvContextVO.js";
 
 const logger = createLogger("autofill-refine");
 
@@ -76,20 +76,20 @@ export async function refineController(
 		throw new Unauthorized("Unauthorized access to autofill session");
 	}
 
-	const cvData = await CVDataModel.findById(autofill.cvDataReference)
-		.setOptions({ userId: user.id })
-		.lean();
-	if (!cvData?.rawText) {
-		logger.error({ autofillId }, "CV raw text not found for autofill session");
-		return res.status(404).json({ error: "CV data not found" });
-	}
+	const cvContext = await CVContextVO.load(
+		autofill.uploadReference.toString(),
+		user.id,
+	);
 
 	const result = await refineFieldValue({
-		cvRawText: cvData.rawText,
 		fieldLabel,
 		fieldDescription,
 		existingAnswer: fieldText,
 		userInstructions,
+		profileSignals: cvContext.profileSignals,
+		summaryFacts: cvContext.summaryFacts,
+		experienceFacts: cvContext.experienceFacts,
+		jdFacts: autofill.jdFacts || [],
 	});
 
 	const usageTracker = new UsageTracker(user.id, {
@@ -113,6 +113,7 @@ export async function refineController(
 						fieldDescription,
 						prevFieldText: fieldText,
 						userInstructions,
+						routingDecision: result.routingDecision,
 					},
 				],
 				{ session },

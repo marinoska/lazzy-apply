@@ -1,11 +1,19 @@
 import type { TokenUsage } from "@lazyapply/types";
 import { createLogger } from "@/app/logger.js";
-import { BaseLlmService } from "./base/baseLlmService.js";
+import { routeRefineDataSources } from "./refineRouter.llm.js";
+import { type RefineContext, writeRefinedAnswer } from "./refineWriter.llm.js";
 import { GENERAL } from "./rules.js";
 
 const logger = createLogger("refine.llm");
 
-const REFINE_INFERENCE_PROMPT = `
+/**
+ * @deprecated
+ * This prompt was used in the monolithic refine service before the router/writer split.
+ * Kept for reference. The current implementation uses:
+ * - REFINE_ROUTER_PROMPT in refineRouter.llm.ts (decides which data to use)
+ * - REFINE_WRITER_PROMPT in refineWriter.llm.ts (performs the actual refinement)
+ */
+const _REFINE_INFERENCE_PROMPT = `
 You are a job applicant refining your own previous answer to a job application field.
 
 You are NOT writing a new answer.
@@ -40,72 +48,31 @@ ${GENERAL}
 `;
 
 export interface RefineInput {
-	cvRawText: string;
 	fieldLabel: string;
 	fieldDescription: string;
 	existingAnswer: string;
 	userInstructions: string;
+	profileSignals: Record<string, string>;
+	summaryFacts: string[];
+	experienceFacts: Array<{
+		role: string | null;
+		company: string | null;
+		facts: string[];
+	}>;
+	jdFacts: Array<{ key: string; value: string; source: string }>;
 }
 
 export interface RefineResult {
 	refinedAnswer: string;
 	usage: TokenUsage;
+	routingDecision: {
+		useProfileSignals: boolean;
+		useSummaryFacts: boolean;
+		useExperienceFacts: boolean;
+		useJdFacts: boolean;
+		reason: string;
+	};
 }
-
-interface RefineResponse {
-	refinedAnswer: string;
-}
-
-/**
- * LLM service for refining field values with user instructions.
- * Extends BaseLlmService to leverage shared model invocation and usage calculation.
- */
-class RefineService extends BaseLlmService<RefineInput, string> {
-	protected get temperature(): number {
-		return 0.3;
-	}
-
-	protected buildPrompt(input: RefineInput): string {
-		return `${REFINE_INFERENCE_PROMPT}
-
-Field Label:
-${input.fieldLabel}
-
-Field Description:
-${input.fieldDescription || "(none)"}
-
-Existing Answer:
-${input.existingAnswer}
-
-CV Context:
-${input.cvRawText}
-
-User Instruction:
-${input.userInstructions}`;
-	}
-
-	protected parseResponse(text: string): string {
-		const parsed = this.parseJsonFromMarkdown(text);
-
-		if (
-			typeof parsed !== "object" ||
-			parsed === null ||
-			!("refinedAnswer" in parsed)
-		) {
-			throw new Error("LLM response does not contain refinedAnswer field");
-		}
-
-		const response = parsed as RefineResponse;
-
-		if (typeof response.refinedAnswer !== "string") {
-			throw new Error("LLM response refinedAnswer is not a string");
-		}
-
-		return response.refinedAnswer;
-	}
-}
-
-const refineService = new RefineService();
 
 export async function refineFieldValue(
 	input: RefineInput,
@@ -115,9 +82,49 @@ export async function refineFieldValue(
 		"Refining field value with user instructions",
 	);
 
-	const { result: refinedAnswer, usage } = await refineService.execute(input);
+	const { decision: routing, usage: routingUsage } =
+		await routeRefineDataSources({
+			fieldLabel: input.fieldLabel,
+			fieldDescription: input.fieldDescription,
+			existingAnswer: input.existingAnswer,
+			userInstructions: input.userInstructions,
+		});
 
-	logger.info({ usage }, "Refine token usage");
+	logger.debug({ routing }, "Routing decision");
 
-	return { refinedAnswer, usage };
+	const context: RefineContext = {};
+	if (routing.useProfileSignals) {
+		context.profileSignals = input.profileSignals;
+	}
+	if (routing.useSummaryFacts) {
+		context.summaryFacts = input.summaryFacts;
+	}
+	if (routing.useExperienceFacts) {
+		context.experienceFacts = input.experienceFacts;
+	}
+	if (routing.useJdFacts) {
+		context.jdFacts = input.jdFacts;
+	}
+
+	const { refinedAnswer, usage: writerUsage } = await writeRefinedAnswer({
+		fieldLabel: input.fieldLabel,
+		fieldDescription: input.fieldDescription,
+		existingAnswer: input.existingAnswer,
+		userInstructions: input.userInstructions,
+		context,
+	});
+
+	const totalUsage: TokenUsage = {
+		promptTokens: routingUsage.promptTokens + writerUsage.promptTokens,
+		completionTokens:
+			routingUsage.completionTokens + writerUsage.completionTokens,
+		totalTokens: routingUsage.totalTokens + writerUsage.totalTokens,
+		inputCost: (routingUsage.inputCost ?? 0) + (writerUsage.inputCost ?? 0),
+		outputCost: (routingUsage.outputCost ?? 0) + (writerUsage.outputCost ?? 0),
+		totalCost: (routingUsage.totalCost ?? 0) + (writerUsage.totalCost ?? 0),
+	};
+
+	logger.info({ usage: totalUsage }, "Refine total token usage");
+
+	return { refinedAnswer, usage: totalUsage, routingDecision: routing };
 }

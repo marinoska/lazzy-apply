@@ -12,6 +12,13 @@ export type TAutofillRefine = {
 	fieldDescription?: string;
 	prevFieldText: string;
 	userInstructions: string;
+	routingDecision?: {
+		useProfileSignals: boolean;
+		useSummaryFacts: boolean;
+		useExperienceFacts: boolean;
+		useJdFacts: boolean;
+		reason: string;
+	};
 	createdAt: Date;
 	updatedAt: Date;
 };
