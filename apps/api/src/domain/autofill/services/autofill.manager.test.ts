@@ -115,6 +115,8 @@ describe("classification.manager", () => {
 			links: [],
 			headline: null,
 			summary: null,
+			summaryFacts: [],
+			profileSignals: {},
 			experience: [],
 			education: [],
 			certifications: [],

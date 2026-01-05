@@ -8,9 +8,9 @@
 curl -X POST http://localhost:8787/test-process \
   -H "Content-Type: application/json" \
   -d '{
-  "uploadId": "6948339b56474aa9ecfad01f",
-  "fileId": "42f37267-296c-4ba2-b1cc-2af209fc6b7c",
-  "processId": "f20d4f28-26aa-47ab-b87a-55aa8037fdc0",
+  "uploadId": "695c0e5d6016004bbc78b9d2",
+  "fileId": "7275f76d-96fb-41f4-a93d-41c0bd484ca4",
+  "processId": "d1210d54-ed70-459b-83bf-6e0c6b190b07",
   "userId": "96f4e7a2-491c-4162-b1e4-fd3a66318b51",
   "fileType": "PDF"
 }'

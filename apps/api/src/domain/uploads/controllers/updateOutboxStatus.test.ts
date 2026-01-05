@@ -60,6 +60,8 @@ describe("Update Outbox Status", () => {
 				links: [],
 				headline: null,
 				summary: "Test summary",
+				summaryFacts: [],
+				profileSignals: {},
 				experience: [],
 				education: [],
 				certifications: [],
@@ -166,6 +168,8 @@ describe("Update Outbox Status", () => {
 				],
 				headline: "Senior Software Engineer",
 				summary: "Comprehensive test summary",
+				summaryFacts: [],
+				profileSignals: {},
 				experience: [
 					{
 						role: "Test Role",
@@ -173,6 +177,7 @@ describe("Update Outbox Status", () => {
 						startDate: "2020-01",
 						endDate: "2023-12",
 						description: "Test description",
+						experienceFacts: [],
 					},
 				],
 				education: [
@@ -364,6 +369,8 @@ describe("Update Outbox Status", () => {
 				links: [],
 				headline: null,
 				summary: "Test",
+				summaryFacts: [],
+				profileSignals: {},
 				experience: [],
 				education: [],
 				certifications: [],
@@ -490,6 +497,8 @@ describe("Update Outbox Status", () => {
 				links: [],
 				headline: null,
 				summary: "Test",
+				summaryFacts: [],
+				profileSignals: {},
 				experience: [],
 				education: [],
 				certifications: [],

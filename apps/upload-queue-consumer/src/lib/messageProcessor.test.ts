@@ -93,6 +93,8 @@ describe("messageProcessor", () => {
 			links: [],
 			headline: null,
 			summary: "Test summary",
+			summaryFacts: [],
+			profileSignals: {},
 			experience: [],
 			education: [],
 			certifications: [],

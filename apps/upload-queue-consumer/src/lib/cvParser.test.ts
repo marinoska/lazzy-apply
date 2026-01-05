@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../types";
 import { parseCV } from "./cvParser";
 
@@ -56,6 +56,8 @@ describe("cvParser", () => {
 					headline: "Software Engineer",
 					summary:
 						"Experienced software engineer with 5+ years in web development.",
+					summaryFacts: [],
+					profileSignals: {},
 					experience: [],
 					education: [],
 					certifications: [],
@@ -109,6 +111,8 @@ describe("cvParser", () => {
 					links: [],
 					headline: null,
 					summary: null,
+					summaryFacts: [],
+					profileSignals: {},
 					experience: [],
 					education: [],
 					certifications: [],
@@ -188,6 +192,8 @@ describe("cvParser", () => {
 					links: [],
 					headline: null,
 					summary: null,
+					summaryFacts: [],
+					profileSignals: {},
 					experience: [],
 					education: [],
 					certifications: [],

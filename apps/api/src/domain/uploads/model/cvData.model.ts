@@ -50,6 +50,8 @@ const cvDataSchema = new Schema<TCVData, CVDataModel, CVDataMethods>(
 		],
 		headline: { type: String, default: null },
 		summary: { type: String, default: null },
+		summaryFacts: { type: [String], default: [] },
+		profileSignals: { type: Map, of: String, default: {} },
 		experience: [
 			{
 				role: { type: String, default: null },
@@ -57,6 +59,7 @@ const cvDataSchema = new Schema<TCVData, CVDataModel, CVDataMethods>(
 				startDate: { type: String, default: null },
 				endDate: { type: String, default: null },
 				description: { type: String, default: null },
+				experienceFacts: { type: [String], default: [] },
 			},
 		],
 		education: [

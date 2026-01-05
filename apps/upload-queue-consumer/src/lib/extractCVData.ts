@@ -66,6 +66,8 @@ const extractedCVDataSchema = z.object({
 		.default([]),
 	headline: z.string().nullable().optional(),
 	summary: z.string().nullable().optional(),
+	summaryFacts: z.array(z.string()).optional().default([]),
+	profileSignals: z.record(z.string(), z.string()).optional().default({}),
 	experience: z
 		.array(
 			z.object({
@@ -74,6 +76,7 @@ const extractedCVDataSchema = z.object({
 				startDate: z.string().nullable().optional(),
 				endDate: z.string().nullable().optional(),
 				description: z.string().nullable().optional(),
+				experienceFacts: z.array(z.string()).optional().default([]),
 			}),
 		)
 		.optional()
@@ -185,13 +188,18 @@ OUTPUT SCHEMA:
 
   "summary": string | null,
 
+  "summaryFacts": string[],  // Array of short, atomic factual statements derived from BOTH headline and summary. Normalize headline information into factual statements (do NOT copy verbatim). Extract explicit signals like: role level (senior, lead), role scope (full-stack, backend), named technologies, work mode (remote, hybrid). Each fact must be directly stated in the source. Do NOT infer, interpret, or add information. Do NOT duplicate facts. Keep each fact atomic and concise. If no clear facts exist, return empty array.
+
+  "profileSignals": Record<string, string>,  // Derived categorical signals for routing/decision-making. Derive ONLY from headline, summaryFacts, and experienceFacts. Each signal must be explainable by existing facts. Signals may generalize or categorize patterns (e.g., {"seniority": "senior", "role_scope": "full-stack", "tech_focus": "backend", "work_mode": "remote", "leadership": "present"}). Use short lowercase keys. Do NOT restate facts verbatim. Do NOT invent information. If uncertain, omit the signal. Return empty object if no clear signals exist.
+
   "experience": [
     {
       "role": string | null,
       "company": string | null,
       "startDate": string | null,
       "endDate": string | null,
-      "description": string | null
+      "description": string | null,
+      "experienceFacts": string[]  // Array of short, atomic factual statements derived ONLY from this experience's description. Each fact must be directly supported by the description text. Do NOT infer impact, metrics, or seniority unless explicitly stated. Keep each fact concise. If no clear facts exist, return empty array.
     }
   ],
 
@@ -348,12 +356,15 @@ export async function extractCVData(
 				})),
 			headline: cvData.headline ?? null,
 			summary: cvData.summary ?? null,
+			summaryFacts: cvData.summaryFacts ?? [],
+			profileSignals: cvData.profileSignals ?? {},
 			experience: experience.map((exp) => ({
 				role: exp.role ?? null,
 				company: exp.company ?? null,
 				startDate: exp.startDate ?? null,
 				endDate: exp.endDate ?? null,
 				description: exp.description ?? null,
+				experienceFacts: exp.experienceFacts ?? [],
 			})),
 			education: education.map((edu) => ({
 				degree: edu.degree ?? null,

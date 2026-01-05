@@ -1,11 +1,9 @@
 import type { ParsedCVData } from "@lazyapply/types";
 import { describe, expect, it } from "vitest";
-import {
-	extractValueByPath,
-	isPathInCVData,
-} from "./cvDataExtractor.llm.js";
+import { extractValueByPath, isPathInCVData } from "./cvDataExtractor.llm.js";
 
 const mockCVData: ParsedCVData = {
+	_id: "mock-cv-id",
 	personal: {
 		fullName: "John Doe",
 		firstName: "John",
@@ -23,6 +21,8 @@ const mockCVData: ParsedCVData = {
 	],
 	headline: "Senior Software Engineer",
 	summary: "Experienced developer with 10+ years in web development.",
+	summaryFacts: [],
+	profileSignals: {},
 	experience: [
 		{
 			role: "Senior Engineer",
@@ -30,6 +30,7 @@ const mockCVData: ParsedCVData = {
 			startDate: "2020-01",
 			endDate: "Present",
 			description: "Led development of core platform.",
+			experienceFacts: [],
 		},
 		{
 			role: "Software Engineer",
@@ -37,6 +38,7 @@ const mockCVData: ParsedCVData = {
 			startDate: "2018-01",
 			endDate: "2019-12",
 			description: "Built microservices architecture.",
+			experienceFacts: [],
 		},
 	],
 	education: [
@@ -244,6 +246,7 @@ describe("cvDataExtractor.llm", () => {
 		describe("null values", () => {
 			it("should return null for missing personal fields", () => {
 				const emptyCVData: ParsedCVData = {
+					_id: "empty-cv-id",
 					personal: {
 						fullName: null,
 						email: null,
@@ -253,6 +256,8 @@ describe("cvDataExtractor.llm", () => {
 					links: [],
 					headline: null,
 					summary: null,
+					summaryFacts: [],
+					profileSignals: {},
 					experience: [],
 					education: [],
 					certifications: [],

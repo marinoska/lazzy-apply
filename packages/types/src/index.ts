@@ -111,12 +111,15 @@ export interface ParsedCVData<T extends Types.ObjectId | string = string> {
 	}>;
 	headline: string | null;
 	summary: string | null;
+	summaryFacts: string[];
+	profileSignals: Record<string, string>;
 	experience: Array<{
 		role: string | null;
 		company: string | null;
 		startDate: string | null;
 		endDate: string | null;
 		description: string | null;
+		experienceFacts: string[];
 	}>;
 	education: Array<{
 		degree: string | null;
