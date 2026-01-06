@@ -313,6 +313,7 @@ export class AutofillManager {
 							),
 							jdRawText: params.jdRawText ?? "",
 							jdUrl: params.jdUrl ?? "",
+							formUrl: params.formUrl ?? "",
 							jdMatchesForm: jdFormFactsResult.isMatch,
 							jdFacts: jdFormFactsResult.jdFacts,
 							formContext: params.formContext ?? "",

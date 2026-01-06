@@ -83,6 +83,8 @@ export type TAutofill = {
 	jdRawText: string;
 	/** Job description URL */
 	jdUrl: string;
+	/** Form URL */
+	formUrl: string;
 	/** Whether the job description matches the application form */
 	jdMatchesForm: boolean;
 	/** Extracted facts from job description and/or form */
