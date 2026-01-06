@@ -1,6 +1,5 @@
 import type { Field, TokenUsage } from "@lazyapply/types";
 import { createLogger } from "@/app/logger.js";
-import { createEmptyUsage } from "@/domain/usage/index.js";
 import { BaseLlmService } from "./base/baseLlmService.js";
 
 const logger = createLogger("jdMatcher.llm");
@@ -45,13 +44,21 @@ export interface JdFactsResult {
 	usage: TokenUsage;
 }
 
-const JD_FACTS_PROMPT = `
+const FACT_EXTRACTION_RULES = `FACT EXTRACTION RULES:
+- Extract ONLY facts explicitly stated in the allowed inputs
+- Each fact must be atomic (one fact per entry)
+- Do NOT infer or guess missing information
+- Do NOT normalize or group facts beyond assigning a short key
+- Use short, lowercase keys (e.g. "role", "location", "salary", "responsibility", "skill", "contract_type", "work_mode")
+- Repeat keys if multiple facts exist
+- Omit vague, implied, or speculative information`;
+
+const JD_FACTS_MATCHING_PROMPT = `
 You verify whether a job description matches a job application form AND extract grounded job facts.
 
 INPUT:
 - jd: raw job description text (may be empty)
 - formContext: surrounding text near the application form (page content, headers, sections)
-- formFields: extracted form field labels, placeholders, and descriptions
 - jdURL: URL of the job description page
 - formURL: URL of the application form page
 
@@ -59,19 +66,15 @@ TASK PART 1: MATCHING
 
 Determine whether the JD and the form refer to the same job.
 
-MATCHING RULES:
-- If jdURL is exactly equal to formURL, the match is TRUE with full certainty.
-- Otherwise, determine the match using the criteria below.
-
-MATCHING CRITERIA (when URLs differ):
-- Job role or title consistency across jd, formContext, and formFields
+MATCHING CRITERIA:
+- Job role or title consistency across jd and formContext
 - Company or employer consistency
 - Domain, product, or platform consistency
 - URL relationship (same domain, known ATS flow, or clear navigation path)
-- Form questions align with responsibilities, seniority, or expectations implied by the JD
+- Form content aligns with responsibilities, seniority, or expectations implied by the JD
 
 STRICTNESS RULES:
-- URL similarity alone is NOT sufficient (unless URLs are exactly equal)
+- URL similarity alone is NOT sufficient
 - Content similarity alone is NOT sufficient
 - Use formContext as a strong supporting signal
 - If unsure, treat as NOT a match
@@ -79,23 +82,16 @@ STRICTNESS RULES:
 TASK PART 2: FACT EXTRACTION
 
 If isMatch = true:
-- Extract job-related facts using jd, formContext, and formFields
+- Extract job-related facts using jd and formContext
 - Prefer JD for role definition and responsibilities
-- Use formContext and formFields to confirm expectations and constraints
+- Use formContext to confirm expectations and constraints
 
 If isMatch = false OR jd is empty:
-- Extract job-related facts using ONLY formContext and formFields
+- Extract job-related facts using ONLY formContext
 - Do NOT use JD content in this case
 
-FACT EXTRACTION RULES:
-- Extract ONLY facts explicitly stated in the allowed inputs
-- Each fact must be atomic (one fact per entry)
-- Do NOT infer or guess missing information
-- Do NOT normalize or group facts beyond assigning a short key
-- Use short, lowercase keys (e.g. "role", "location", "salary", "responsibility", "skill", "contract_type", "work_mode")
-- Repeat keys if multiple facts exist
+${FACT_EXTRACTION_RULES}
 - Include the source of each fact: "jd", "form", or "formContext"
-- Omit vague, implied, or speculative information
 
 RETURN JSON ONLY.
 
@@ -107,7 +103,36 @@ OUTPUT FORMAT:
       {
         "key": string,
         "value": string,
-        "source": "jd" | "form" | "formContext"
+        "source": "jd" | "formContext"
+      }
+    ]
+  }
+}
+`;
+
+const JD_FACTS_EXTRACTION_ONLY_PROMPT = `
+You extract grounded job facts from a job description.
+
+INPUT:
+- jd: raw job description text
+
+TASK: FACT EXTRACTION
+
+Extract job-related facts from the job description.
+
+${FACT_EXTRACTION_RULES}
+- All facts should have source: "jd"
+
+RETURN JSON ONLY.
+
+OUTPUT FORMAT:
+{
+  "jdFacts": {
+    "facts": [
+      {
+        "key": string,
+        "value": string,
+        "source": "jd"
       }
     ]
   }
@@ -137,23 +162,24 @@ class JdFactsExtractor extends BaseLlmService<
 	}
 
 	protected buildPrompt(input: JdFormFactsInput): string {
-		const formFieldsData = input.formFields.map(({ field }) => ({
-			label: field.label,
-			placeholder: field.placeholder,
-			description: field.description,
-			name: field.name,
-			type: field.type,
-		}));
+		const urlsMatch = input.jdUrl === input.formUrl;
+
+		if (urlsMatch) {
+			const jdText = input.jdRawText?.trim() || input.formContext || "(empty)";
+			const inputData = {
+				jd: jdText,
+			};
+			return `${JD_FACTS_EXTRACTION_ONLY_PROMPT}\n\nINPUT DATA:\n${JSON.stringify(inputData, null, 2)}`;
+		}
 
 		const inputData = {
 			jd: input.jdRawText || "(empty)",
 			formContext: input.formContext,
-			formFields: formFieldsData,
 			jdURL: input.jdUrl,
 			formURL: input.formUrl,
 		};
 
-		return `${JD_FACTS_PROMPT}\n\nINPUT DATA:\n${JSON.stringify(inputData, null, 2)}`;
+		return `${JD_FACTS_MATCHING_PROMPT}\n\nINPUT DATA:\n${JSON.stringify(inputData, null, 2)}`;
 	}
 
 	protected parseResponse(text: string): JdFactsLlmResponse {
@@ -162,7 +188,6 @@ class JdFactsExtractor extends BaseLlmService<
 		if (
 			typeof parsed !== "object" ||
 			parsed === null ||
-			typeof (parsed as { isMatch?: unknown }).isMatch !== "boolean" ||
 			typeof (parsed as { jdFacts?: unknown }).jdFacts !== "object" ||
 			(parsed as { jdFacts?: { facts?: unknown } }).jdFacts?.facts ===
 				undefined ||
@@ -175,7 +200,15 @@ class JdFactsExtractor extends BaseLlmService<
 			return { isMatch: false, jdFacts: { facts: [] } };
 		}
 
-		return parsed as JdFactsLlmResponse;
+		const isMatch =
+			typeof (parsed as { isMatch?: unknown }).isMatch === "boolean"
+				? (parsed as { isMatch: boolean }).isMatch
+				: true;
+
+		return {
+			isMatch,
+			jdFacts: (parsed as { jdFacts: { facts: JdFormFact[] } }).jdFacts,
+		};
 	}
 }
 
@@ -192,26 +225,53 @@ const jdFactsExtractService = new JdFactsExtractor();
 export async function extractJdFormFactsWithAI(
 	input: JdFormFactsInput,
 ): Promise<JdFactsResult> {
-	if (!input.jdRawText || input.jdRawText.trim().length === 0) {
-		logger.info("JD text is empty, returning isMatch: false");
-		return { isMatch: false, jdFacts: [], usage: createEmptyUsage() };
+	const urlsMatch = input.jdUrl === input.formUrl;
+	const hasJdText = input.jdRawText && input.jdRawText.trim() !== "";
+	const hasFormContext = input.formContext && input.formContext.trim() !== "";
+
+	if (!hasJdText && !(urlsMatch && hasFormContext)) {
+		logger.info(
+			"JD text is empty and no formContext fallback available, skipping LLM call",
+		);
+		return {
+			isMatch: false,
+			jdFacts: [],
+			usage: {
+				promptTokens: 0,
+				completionTokens: 0,
+				totalTokens: 0,
+				inputCost: 0,
+				outputCost: 0,
+				totalCost: 0,
+			},
+		};
+	}
+
+	if (urlsMatch) {
+		logger.info(
+			{ jdUrl: input.jdUrl, formUrl: input.formUrl },
+			"URLs match - using extraction-only prompt",
+		);
 	}
 
 	const { result, usage } = await jdFactsExtractService.execute(input);
 	const { isMatch, jdFacts } = result;
 
+	const finalIsMatch = urlsMatch ? true : isMatch;
+
 	logger.info({ usage }, "JD match token usage");
 
 	logger.info(
 		{
-			isMatch,
+			isMatch: finalIsMatch,
 			jdUrl: input.jdUrl,
 			formUrl: input.formUrl,
 			jdRawTextLength: input.jdRawText.length,
 			formFieldsCount: input.formFields.length,
+			urlsMatch,
 		},
 		"JD-form match result",
 	);
 
-	return { isMatch, jdFacts: jdFacts.facts, usage };
+	return { isMatch: finalIsMatch, jdFacts: jdFacts.facts, usage };
 }

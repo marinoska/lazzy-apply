@@ -12,9 +12,10 @@ function buildSystemPrompt(settings: CoverLetterSettings): string {
 Write naturally, as a person would when applying for a job, not as a résumé summary or marketing pitch.
 
 INPUT:
-- CV: raw text of the candidate CV
-- JD: raw text of the job description (may be empty)
-- Form Context: text blocks extracted from the application form page (headers, descriptions, company info, etc.)
+- profileSignals: structured key-value pairs from CV (name, email, location, etc.)
+- summaryFacts: array of factual statements extracted from CV summary/about section
+- experienceFacts: array of work experience entries, each with role, company, and facts array (optional)
+- jdFacts: array of key-value pairs extracted from job description (optional, framing only)
 
 CONTROL PARAMETERS (ALWAYS PROVIDED):
 - length: ${settings.length}
@@ -23,9 +24,14 @@ CONTROL PARAMETERS (ALWAYS PROVIDED):
 TASK:
 Generate exactly ONE complete cover letter that:
 - Sounds human and written from memory
-- Uses only facts supported by the CV
-- Uses the JD only for role context (never to invent experience)
+- Uses only facts from profileSignals, summaryFacts, and experienceFacts
+- Uses jdFacts ONLY to emphasize CV-supported facts (never to introduce new skills or experience)
 - Respects all control parameters
+
+JD SAFETY RULE (STRICT):
+JD facts may ONLY be used to frame or emphasize facts already present in the CV.
+Never allow JD-only skills, tools, responsibilities, or experience to appear in the output.
+If a JD fact has no corresponding CV support, ignore it completely.
 
 PARAMETER RULES:
 length:
@@ -130,9 +136,14 @@ RETURN PLAIN TEXT ONLY.
 }
 
 export interface CoverLetterInput {
-	cvRawText: string;
-	jdRawText: string;
-	formContext: string;
+	profileSignals: Record<string, string>;
+	summaryFacts: string[];
+	experienceFacts?: Array<{
+		role: string | null;
+		company: string | null;
+		facts: string[];
+	}>;
+	jdFacts?: Array<{ key: string; value: string; source: string }>;
 	settings: CoverLetterSettings;
 	instructions?: string;
 }
@@ -147,22 +158,19 @@ function buildCoverLetterPrompt(input: CoverLetterInput): string {
 
 	const settingsText = `
 Length: ${input.settings.length}
-Tone: ${input.settings.tone}
-Format: ${input.settings.format}
-Language: ${input.settings.language}
-CTA: ${input.settings.cta}
-Style: ${input.settings.style}`;
+Format: ${input.settings.format}`;
+
+	const contextData = {
+		profileSignals: input.profileSignals,
+		summaryFacts: input.summaryFacts,
+		...(input.experienceFacts && { experienceFacts: input.experienceFacts }),
+		...(input.jdFacts && { jdFacts: input.jdFacts }),
+	};
 
 	let prompt = `${systemPrompt}
 
-CV:
-${input.cvRawText}
-
-JD:
-${input.jdRawText || "(empty)"}
-
-Form Context:
-${input.formContext || "(empty)"}
+CONTEXT (JSON):
+${JSON.stringify(contextData, null, 2)}
 
 Settings:
 ${settingsText}`;

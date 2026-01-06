@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the AI SDK and env before importing the module
 vi.mock("@ai-sdk/openai", () => ({
@@ -33,6 +33,10 @@ const mockedGenerateText = vi.mocked(generateText);
 
 describe("jdMatcher.llm", () => {
 	describe("validateJdFormMatchWithAI", () => {
+		beforeEach(() => {
+			vi.clearAllMocks();
+		});
+
 		it("should return isMatch: false for empty JD text", async () => {
 			const result = await extractJdFormFactsWithAI({
 				jdRawText: "",
@@ -238,55 +242,6 @@ describe("jdMatcher.llm", () => {
 			expect(result.jdFacts).toEqual([]);
 		});
 
-		it("should include form field metadata in the prompt", async () => {
-			mockedGenerateText.mockResolvedValueOnce({
-				text: JSON.stringify({
-					isMatch: true,
-					jdFacts: { facts: [] },
-				}),
-				usage: {
-					inputTokens: 500,
-					outputTokens: 10,
-					totalTokens: 510,
-				},
-			} as ReturnType<typeof generateText> extends Promise<infer T>
-				? T
-				: never);
-
-			await extractJdFormFactsWithAI({
-				jdRawText: "Job description text",
-				formContext: "",
-				formFields: [
-					{
-						hash: "field-1",
-						field: {
-							tag: "input",
-							type: "text",
-							name: "years_experience",
-							label: "Years of Experience",
-							placeholder: "Enter years",
-							description: "How many years have you worked?",
-							isFileUpload: false,
-							accept: null,
-						},
-					},
-				],
-				jdUrl: "https://example.com/job",
-				formUrl: "https://example.com/apply",
-			});
-
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.stringContaining("Years of Experience"),
-				}),
-			);
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.stringContaining("Enter years"),
-				}),
-			);
-		});
-
 		it("should include URLs in the prompt", async () => {
 			mockedGenerateText.mockResolvedValueOnce({
 				text: JSON.stringify({
@@ -383,6 +338,236 @@ describe("jdMatcher.llm", () => {
 			expect(result.usage.inputCost).toBeCloseTo(0.01);
 			expect(result.usage.outputCost).toBeCloseTo(0.003);
 			expect(result.usage.totalCost).toBeCloseTo(0.013);
+		});
+
+		it("should use extraction-only prompt when URLs match (optimization)", async () => {
+			mockedGenerateText.mockResolvedValueOnce({
+				text: JSON.stringify({
+					jdFacts: {
+						facts: [
+							{ key: "role", value: "Backend Engineer", source: "jd" },
+							{ key: "location", value: "Remote", source: "jd" },
+						],
+					},
+				}),
+				usage: {
+					inputTokens: 200,
+					outputTokens: 50,
+					totalTokens: 250,
+				},
+			} as ReturnType<typeof generateText> extends Promise<infer T>
+				? T
+				: never);
+
+			const result = await extractJdFormFactsWithAI({
+				jdRawText: "Backend Engineer position. Location: Remote.",
+				formContext: "Some form context that should be ignored",
+				formFields: [
+					{
+						hash: "field-1",
+						field: {
+							tag: "input",
+							type: "text",
+							name: "experience",
+							label: "Years of experience",
+							placeholder: null,
+							description: null,
+							isFileUpload: false,
+							accept: null,
+						},
+					},
+				],
+				jdUrl: "https://example.com/apply",
+				formUrl: "https://example.com/apply",
+			});
+
+			expect(result.isMatch).toBe(true);
+			expect(result.jdFacts).toEqual([
+				{ key: "role", value: "Backend Engineer", source: "jd" },
+				{ key: "location", value: "Remote", source: "jd" },
+			]);
+			expect(result.usage.totalTokens).toBe(250);
+
+			expect(mockedGenerateText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					prompt: expect.not.stringContaining("formContext"),
+				}),
+			);
+			expect(mockedGenerateText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					prompt: expect.not.stringContaining("formFields"),
+				}),
+			);
+			expect(mockedGenerateText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					prompt: expect.not.stringContaining("jdURL"),
+				}),
+			);
+			expect(mockedGenerateText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					prompt: expect.not.stringContaining("formURL"),
+				}),
+			);
+			expect(mockedGenerateText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					prompt: expect.stringContaining("Backend Engineer position"),
+				}),
+			);
+		});
+
+		it("should include formContext in prompt when URLs match and jdRawText is provided", async () => {
+			mockedGenerateText.mockResolvedValueOnce({
+				text: JSON.stringify({
+					jdFacts: {
+						facts: [{ key: "role", value: "Software Developer", source: "jd" }],
+					},
+				}),
+				usage: {
+					inputTokens: 150,
+					outputTokens: 40,
+					totalTokens: 190,
+				},
+			} as ReturnType<typeof generateText> extends Promise<infer T>
+				? T
+				: never);
+
+			const result = await extractJdFormFactsWithAI({
+				jdRawText: "Software Developer position",
+				formContext: "Additional context from form page",
+				formFields: [],
+				jdUrl: "https://example.com/apply",
+				formUrl: "https://example.com/apply",
+			});
+
+			expect(result.isMatch).toBe(true);
+			expect(result.jdFacts).toEqual([
+				{ key: "role", value: "Software Developer", source: "jd" },
+			]);
+			expect(result.usage.totalTokens).toBe(190);
+
+			expect(mockedGenerateText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					prompt: expect.stringContaining("Software Developer position"),
+				}),
+			);
+			expect(mockedGenerateText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					prompt: expect.not.stringContaining(
+						"Additional context from form page",
+					),
+				}),
+			);
+		});
+
+		it("should use formContext as fallback when URLs match and jdRawText is empty", async () => {
+			mockedGenerateText.mockResolvedValueOnce({
+				text: JSON.stringify({
+					jdFacts: {
+						facts: [
+							{ key: "role", value: "Software Developer", source: "jd" },
+							{ key: "company", value: "Tech Corp", source: "jd" },
+						],
+					},
+				}),
+				usage: {
+					inputTokens: 150,
+					outputTokens: 40,
+					totalTokens: 190,
+				},
+			} as ReturnType<typeof generateText> extends Promise<infer T>
+				? T
+				: never);
+
+			const result = await extractJdFormFactsWithAI({
+				jdRawText: "",
+				formContext: "Software Developer at Tech Corp. Apply now!",
+				formFields: [
+					{
+						hash: "field-1",
+						field: {
+							tag: "input",
+							type: "text",
+							name: "name",
+							label: "Full Name",
+							placeholder: null,
+							description: null,
+							isFileUpload: false,
+							accept: null,
+						},
+					},
+				],
+				jdUrl: "https://example.com/apply",
+				formUrl: "https://example.com/apply",
+			});
+
+			expect(result.isMatch).toBe(true);
+			expect(result.jdFacts).toEqual([
+				{ key: "role", value: "Software Developer", source: "jd" },
+				{ key: "company", value: "Tech Corp", source: "jd" },
+			]);
+			expect(result.usage.totalTokens).toBe(190);
+
+			expect(mockedGenerateText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					prompt: expect.stringContaining(
+						"Software Developer at Tech Corp. Apply now!",
+					),
+				}),
+			);
+		});
+
+		it("should return early when both jdRawText and formContext are empty even if URLs match", async () => {
+			const result = await extractJdFormFactsWithAI({
+				jdRawText: "",
+				formContext: "",
+				formFields: [],
+				jdUrl: "https://example.com/apply",
+				formUrl: "https://example.com/apply",
+			});
+
+			expect(result.isMatch).toBe(false);
+			expect(result.jdFacts).toEqual([]);
+			expect(result.usage.totalTokens).toBe(0);
+			expect(mockedGenerateText).not.toHaveBeenCalled();
+		});
+
+		it("should use formContext when URLs match and jdRawText is whitespace-only", async () => {
+			mockedGenerateText.mockResolvedValueOnce({
+				text: JSON.stringify({
+					jdFacts: {
+						facts: [{ key: "role", value: "Frontend Developer", source: "jd" }],
+					},
+				}),
+				usage: {
+					inputTokens: 120,
+					outputTokens: 30,
+					totalTokens: 150,
+				},
+			} as ReturnType<typeof generateText> extends Promise<infer T>
+				? T
+				: never);
+
+			const result = await extractJdFormFactsWithAI({
+				jdRawText: "   ",
+				formContext: "Frontend Developer position available",
+				formFields: [],
+				jdUrl: "https://example.com/apply",
+				formUrl: "https://example.com/apply",
+			});
+
+			expect(result.isMatch).toBe(true);
+			expect(result.jdFacts).toEqual([
+				{ key: "role", value: "Frontend Developer", source: "jd" },
+			]);
+			expect(result.usage.totalTokens).toBe(150);
+
+			expect(mockedGenerateText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					prompt: expect.stringContaining(
+						"Frontend Developer position available",
+					),
+				}),
+			);
 		});
 	});
 });
