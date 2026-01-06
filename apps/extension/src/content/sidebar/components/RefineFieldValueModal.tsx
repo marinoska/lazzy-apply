@@ -1,5 +1,7 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import Button from "@mui/joy/Button";
 import IconButton from "@mui/joy/IconButton";
 import Sheet from "@mui/joy/Sheet";
@@ -30,8 +32,13 @@ export function RefineFieldValueModal({
 	const { classifications } = useAutofill();
 	const { selectedUpload } = useUploads();
 	const [userInput, setUserInput] = useState("");
+	const [refinedText, setRefinedText] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const refineMutation = useRefineFieldMutation();
+	const [isFilling, setIsFilling] = useState(false);
+	const [fillResult, setFillResult] = useState<{
+		success: boolean;
+	} | null>(null);
 
 	const fieldData = fieldHash ? classifications?.fields[fieldHash] : null;
 	const hasAutofillId = !!classifications?.autofillId;
@@ -39,6 +46,8 @@ export function RefineFieldValueModal({
 	useEffect(() => {
 		if (open && fieldHash) {
 			setUserInput("");
+			setRefinedText("");
+			setFillResult(null);
 
 			if (!hasAutofillId) {
 				setError("No autofill session found. Please run autofill first.");
@@ -58,13 +67,15 @@ export function RefineFieldValueModal({
 		return null;
 	}
 
-	const handleSave = async () => {
+	const handleGenerate = async () => {
 		if (!fieldHash || !userInput.trim() || !classifications?.autofillId) return;
 
 		if (!selectedUpload) {
 			setError("No CV selected. Please select a CV first.");
 			return;
 		}
+
+		setError(null);
 
 		try {
 			const result = await refineMutation.mutateAsync({
@@ -78,11 +89,32 @@ export function RefineFieldValueModal({
 				},
 			});
 
-			onSave(fieldHash, result.refinedText);
-			onClose();
+			setRefinedText(result.refinedText);
 		} catch (err) {
 			console.error("[RefineFieldValueModal] Error refining field:", err);
 			setError("Failed to refine answer. Please try again.");
+		}
+	};
+
+	const handleFill = async () => {
+		if (!fieldHash || !refinedText) return;
+
+		setIsFilling(true);
+		setFillResult(null);
+
+		try {
+			onSave(fieldHash, refinedText);
+			setFillResult({ success: true });
+
+			setTimeout(() => {
+				onClose();
+				setFillResult(null);
+			}, 1500);
+		} catch (error) {
+			console.error("[RefineFieldValueModal] Failed to fill:", error);
+			setFillResult({ success: false });
+		} finally {
+			setIsFilling(false);
 		}
 	};
 	const question = fieldData?.label ?? "Unknown question";
@@ -90,6 +122,13 @@ export function RefineFieldValueModal({
 
 	const hasValidInput = userInput.trim().length > 5;
 	const isOverLimit = userInput.length > MAX_INPUT_LENGTH;
+
+	const getButtonText = () => {
+		if (isFilling) return "Filling...";
+		if (fillResult?.success) return "Filled!";
+		if (fillResult && !fillResult.success) return "Fill Failed";
+		return "Add to form";
+	};
 
 	return (
 		<>
@@ -172,7 +211,7 @@ export function RefineFieldValueModal({
 					</Stack>
 
 					{/* User Input */}
-					<Stack gap={0.5} sx={{ flex: 1 }}>
+					<Stack gap={0.5}>
 						<Stack direction="row" justifyContent="space-between">
 							<Typography level="title-sm" color="neutral">
 								Short instructions to AI
@@ -188,8 +227,8 @@ export function RefineFieldValueModal({
 							value={userInput}
 							onChange={(e) => setUserInput(e.target.value)}
 							placeholder="E.g. highlight leadership experience or focus on my most recent experience."
-							minRows={6}
-							maxRows={8}
+							minRows={3}
+							maxRows={4}
 							error={isOverLimit}
 						/>
 						{isOverLimit && (
@@ -197,6 +236,27 @@ export function RefineFieldValueModal({
 								Maximum {MAX_INPUT_LENGTH} characters allowed
 							</Typography>
 						)}
+					</Stack>
+
+					{/* Refined Answer */}
+					<Stack gap={0.5} sx={{ flex: 1 }}>
+						<Typography level="title-sm" color="neutral">
+							Refined Answer
+						</Typography>
+						<Textarea
+							value={refinedText}
+							onChange={(e) => setRefinedText(e.target.value)}
+							placeholder="Your refined answer will appear here..."
+							minRows={8}
+							maxRows={12}
+							sx={{
+								flex: 1,
+								"& textarea": {
+									fontSize: "0.875rem",
+									lineHeight: 1.6,
+								},
+							}}
+						/>
 					</Stack>
 				</Stack>
 
@@ -223,7 +283,7 @@ export function RefineFieldValueModal({
 						variant="solid"
 						color="primary"
 						size="sm"
-						onClick={handleSave}
+						onClick={handleGenerate}
 						disabled={
 							!hasValidInput ||
 							isOverLimit ||
@@ -231,9 +291,28 @@ export function RefineFieldValueModal({
 							refineMutation.isPending
 						}
 						loading={refineMutation.isPending}
+						startDecorator={<AutoAwesomeIcon />}
 						sx={{ flex: 1 }}
 					>
-						Generate answer
+						{refinedText ? "Regenerate" : "Generate answer"}
+					</Button>
+					<Button
+						variant="solid"
+						color={
+							fillResult?.success
+								? "success"
+								: fillResult && !fillResult.success
+									? "danger"
+									: "primary"
+						}
+						size="sm"
+						onClick={handleFill}
+						loading={isFilling}
+						disabled={!refinedText}
+						startDecorator={<CheckCircleIcon />}
+						sx={{ flex: 1 }}
+					>
+						{getButtonText()}
 					</Button>
 				</Stack>
 			</Sheet>
