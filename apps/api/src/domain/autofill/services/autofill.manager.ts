@@ -278,8 +278,11 @@ export class AutofillManager {
 		this.autofillUsageTracker.setClassificationUsage(
 			classificationResult.usage,
 		);
-		this.autofillUsageTracker.setJdFormFactsExtractUsage(
-			jdFormFactsResult.usage,
+		this.autofillUsageTracker.setJdFormExtractorRouterUsage(
+			jdFormFactsResult.routerUsage,
+		);
+		this.autofillUsageTracker.setJdFormExtractorWriterUsage(
+			jdFormFactsResult.writerUsage,
 		);
 		this.autofillUsageTracker.setInferenceUsage(inferenceResult.usage);
 
@@ -446,7 +449,8 @@ export class AutofillManager {
 
 		return {
 			isMatch: result.isMatch,
-			usage: result.usage.totalTokens > 0 ? result.usage : null,
+			routerUsage: result.routerUsage,
+			writerUsage: result.writerUsage,
 			jdFacts: result.jdFacts,
 		};
 	}

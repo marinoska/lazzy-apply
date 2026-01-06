@@ -9,7 +9,8 @@ export const USAGE_MODEL_NAME = "usage" as const;
 export const USAGE_TYPES = [
 	"form_fields_classification",
 	"form_fields_inference",
-	"jd_form_match",
+	"jd_form_extractor:router",
+	"jd_form_extractor:writer",
 	"autofill_refine",
 	"cover_letter",
 	"cv_data_extraction",

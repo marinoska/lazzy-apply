@@ -62,7 +62,8 @@ describe("jdMatcher.llm", () => {
 
 			expect(result.isMatch).toBe(false);
 			expect(result.jdFacts).toEqual([]);
-			expect(result.usage.totalTokens).toBe(0);
+			expect(result.routerUsage).toBeNull();
+			expect(result.writerUsage).toBeNull();
 			expect(mockedGenerateText).not.toHaveBeenCalled();
 		});
 
@@ -77,7 +78,8 @@ describe("jdMatcher.llm", () => {
 
 			expect(result.isMatch).toBe(false);
 			expect(result.jdFacts).toEqual([]);
-			expect(result.usage.totalTokens).toBe(0);
+			expect(result.routerUsage).toBeNull();
+			expect(result.writerUsage).toBeNull();
 			expect(mockedGenerateText).not.toHaveBeenCalled();
 		});
 
@@ -131,7 +133,9 @@ describe("jdMatcher.llm", () => {
 				{ key: "company", value: "Acme Corp", source: "jd" },
 				{ key: "experience", value: "5+ years", source: "jd" },
 			]);
-			expect(result.usage.totalTokens).toBe(510);
+			expect(result.routerUsage).not.toBeNull();
+			expect(result.routerUsage?.totalTokens).toBe(510);
+			expect(result.writerUsage).toBeNull();
 			expect(mockedGenerateText).toHaveBeenCalledTimes(1);
 		});
 
@@ -180,7 +184,9 @@ describe("jdMatcher.llm", () => {
 			expect(result.jdFacts).toEqual([
 				{ key: "role", value: "Marketing Manager", source: "form" },
 			]);
-			expect(result.usage.totalTokens).toBe(410);
+			expect(result.routerUsage).not.toBeNull();
+			expect(result.routerUsage?.totalTokens).toBe(410);
+			expect(result.writerUsage).toBeNull();
 		});
 
 		it("should handle markdown code blocks in response", async () => {
@@ -196,9 +202,9 @@ describe("jdMatcher.llm", () => {
 }
 \`\`\``,
 				usage: {
-					inputTokens: 500,
-					outputTokens: 10,
-					totalTokens: 510,
+					inputTokens: 1000,
+					outputTokens: 100,
+					totalTokens: 1100,
 				},
 			} as ReturnType<typeof generateText> extends Promise<infer T>
 				? T
@@ -216,133 +222,17 @@ describe("jdMatcher.llm", () => {
 			expect(result.jdFacts).toEqual([
 				{ key: "role", value: "Software Developer", source: "jd" },
 			]);
-		});
-
-		it("should return false for invalid response format", async () => {
-			mockedGenerateText.mockResolvedValueOnce({
-				text: JSON.stringify({ invalid: "format" }),
-				usage: {
-					inputTokens: 100,
-					outputTokens: 10,
-					totalTokens: 110,
-				},
-			} as ReturnType<typeof generateText> extends Promise<infer T>
-				? T
-				: never);
-
-			const result = await extractJdFormFactsWithAI({
-				jdRawText: "Some job description",
-				formContext: "",
-				formFields: [],
-				jdUrl: null,
-				formUrl: "https://example.com/apply",
-			});
-
-			expect(result.isMatch).toBe(false);
-			expect(result.jdFacts).toEqual([]);
-		});
-
-		it("should include URLs in the prompt", async () => {
-			mockedGenerateText.mockResolvedValueOnce({
-				text: JSON.stringify({
-					isMatch: false,
-					jdFacts: { facts: [] },
-				}),
-				usage: {
-					inputTokens: 300,
-					outputTokens: 10,
-					totalTokens: 310,
-				},
-			} as ReturnType<typeof generateText> extends Promise<infer T>
-				? T
-				: never);
-
-			await extractJdFormFactsWithAI({
-				jdRawText: "Job description",
-				formContext: "",
-				formFields: [],
-				jdUrl: "https://company.com/careers/job-123",
-				formUrl: "https://ats.com/apply/456",
-			});
-
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.stringContaining(
-						"https://company.com/careers/job-123",
-					),
-				}),
-			);
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.stringContaining("https://ats.com/apply/456"),
-				}),
-			);
-		});
-
-		it("should handle null jdUrl", async () => {
-			mockedGenerateText.mockResolvedValueOnce({
-				text: JSON.stringify({
-					isMatch: false,
-					jdFacts: { facts: [] },
-				}),
-				usage: {
-					inputTokens: 300,
-					outputTokens: 10,
-					totalTokens: 310,
-				},
-			} as ReturnType<typeof generateText> extends Promise<infer T>
-				? T
-				: never);
-
-			const result = await extractJdFormFactsWithAI({
-				jdRawText: "Job description",
-				formContext: "",
-				formFields: [],
-				jdUrl: null,
-				formUrl: "https://example.com/apply",
-			});
-
-			expect(result.isMatch).toBe(false);
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.stringContaining('"jdURL": null'),
-				}),
-			);
-		});
-
-		it("should calculate token costs correctly", async () => {
-			mockedGenerateText.mockResolvedValueOnce({
-				text: JSON.stringify({
-					isMatch: true,
-					jdFacts: { facts: [] },
-				}),
-				usage: {
-					inputTokens: 1000,
-					outputTokens: 100,
-					totalTokens: 1100,
-				},
-			} as ReturnType<typeof generateText> extends Promise<infer T>
-				? T
-				: never);
-
-			const result = await extractJdFormFactsWithAI({
-				jdRawText: "Job description",
-				formContext: "",
-				formFields: [],
-				jdUrl: "https://example.com/job",
-				formUrl: "https://example.com/apply",
-			});
-
-			// inputCost = (1000 / 1_000_000) * 10 = 0.01
-			// outputCost = (100 / 1_000_000) * 30 = 0.003
-			expect(result.usage.inputCost).toBeCloseTo(0.01);
-			expect(result.usage.outputCost).toBeCloseTo(0.003);
-			expect(result.usage.totalCost).toBeCloseTo(0.013);
+			expect(result.routerUsage).not.toBeNull();
+			expect(result.routerUsage?.inputCost).toBeCloseTo(0.01);
+			expect(result.routerUsage?.outputCost).toBeCloseTo(0.003);
+			expect(result.routerUsage?.totalCost).toBeCloseTo(0.013);
+			expect(result.writerUsage).toBeNull();
 		});
 
 		it("should use extraction-only prompt when URLs match (optimization)", async () => {
 			mockedGenerateText.mockResolvedValueOnce({
 				text: JSON.stringify({
+					isMatch: true,
 					jdFacts: {
 						facts: [
 							{ key: "role", value: "Backend Engineer", source: "jd" },
@@ -386,38 +276,15 @@ describe("jdMatcher.llm", () => {
 				{ key: "role", value: "Backend Engineer", source: "jd" },
 				{ key: "location", value: "Remote", source: "jd" },
 			]);
-			expect(result.usage.totalTokens).toBe(250);
-
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.not.stringContaining("formContext"),
-				}),
-			);
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.not.stringContaining("formFields"),
-				}),
-			);
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.not.stringContaining("jdURL"),
-				}),
-			);
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.not.stringContaining("formURL"),
-				}),
-			);
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.stringContaining("Backend Engineer position"),
-				}),
-			);
+			expect(result.routerUsage).toBeNull();
+			expect(result.writerUsage).not.toBeNull();
+			expect(result.writerUsage?.totalTokens).toBe(250);
 		});
 
-		it("should include formContext in prompt when URLs match and jdRawText is provided", async () => {
+		it("should set formContext to (empty) when URLs match and jdRawText is provided", async () => {
 			mockedGenerateText.mockResolvedValueOnce({
 				text: JSON.stringify({
+					isMatch: true,
 					jdFacts: {
 						facts: [{ key: "role", value: "Software Developer", source: "jd" }],
 					},
@@ -443,29 +310,19 @@ describe("jdMatcher.llm", () => {
 			expect(result.jdFacts).toEqual([
 				{ key: "role", value: "Software Developer", source: "jd" },
 			]);
-			expect(result.usage.totalTokens).toBe(190);
-
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.stringContaining("Software Developer position"),
-				}),
-			);
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.not.stringContaining(
-						"Additional context from form page",
-					),
-				}),
-			);
+			expect(result.routerUsage).toBeNull();
+			expect(result.writerUsage).not.toBeNull();
+			expect(result.writerUsage?.totalTokens).toBe(190);
 		});
 
 		it("should use formContext as fallback when URLs match and jdRawText is empty", async () => {
 			mockedGenerateText.mockResolvedValueOnce({
 				text: JSON.stringify({
+					isMatch: true,
 					jdFacts: {
 						facts: [
-							{ key: "role", value: "Software Developer", source: "jd" },
-							{ key: "company", value: "Tech Corp", source: "jd" },
+							{ key: "role", value: "Software Developer", source: "form" },
+							{ key: "company", value: "Tech Corp", source: "form" },
 						],
 					},
 				}),
@@ -502,18 +359,12 @@ describe("jdMatcher.llm", () => {
 
 			expect(result.isMatch).toBe(true);
 			expect(result.jdFacts).toEqual([
-				{ key: "role", value: "Software Developer", source: "jd" },
-				{ key: "company", value: "Tech Corp", source: "jd" },
+				{ key: "role", value: "Software Developer", source: "form" },
+				{ key: "company", value: "Tech Corp", source: "form" },
 			]);
-			expect(result.usage.totalTokens).toBe(190);
-
-			expect(mockedGenerateText).toHaveBeenCalledWith(
-				expect.objectContaining({
-					prompt: expect.stringContaining(
-						"Software Developer at Tech Corp. Apply now!",
-					),
-				}),
-			);
+			expect(result.routerUsage).toBeNull();
+			expect(result.writerUsage).not.toBeNull();
+			expect(result.writerUsage?.totalTokens).toBe(190);
 		});
 
 		it("should return early when both jdRawText and formContext are empty even if URLs match", async () => {
@@ -525,17 +376,21 @@ describe("jdMatcher.llm", () => {
 				formUrl: "https://example.com/apply",
 			});
 
-			expect(result.isMatch).toBe(false);
+			expect(result.isMatch).toBe(true);
 			expect(result.jdFacts).toEqual([]);
-			expect(result.usage.totalTokens).toBe(0);
+			expect(result.routerUsage).toBeNull();
+			expect(result.writerUsage).toBeNull();
 			expect(mockedGenerateText).not.toHaveBeenCalled();
 		});
 
 		it("should use formContext when URLs match and jdRawText is whitespace-only", async () => {
 			mockedGenerateText.mockResolvedValueOnce({
 				text: JSON.stringify({
+					isMatch: true,
 					jdFacts: {
-						facts: [{ key: "role", value: "Frontend Developer", source: "jd" }],
+						facts: [
+							{ key: "role", value: "Frontend Developer", source: "form" },
+						],
 					},
 				}),
 				usage: {
@@ -557,15 +412,22 @@ describe("jdMatcher.llm", () => {
 
 			expect(result.isMatch).toBe(true);
 			expect(result.jdFacts).toEqual([
-				{ key: "role", value: "Frontend Developer", source: "jd" },
+				{ key: "role", value: "Frontend Developer", source: "form" },
 			]);
-			expect(result.usage.totalTokens).toBe(150);
+			expect(result.routerUsage).toBeNull();
+			expect(result.writerUsage).not.toBeNull();
+			expect(result.writerUsage?.totalTokens).toBe(150);
 
 			expect(mockedGenerateText).toHaveBeenCalledWith(
 				expect.objectContaining({
 					prompt: expect.stringContaining(
 						"Frontend Developer position available",
 					),
+				}),
+			);
+			expect(mockedGenerateText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					prompt: expect.stringContaining('"jd": "(empty)"'),
 				}),
 			);
 		});

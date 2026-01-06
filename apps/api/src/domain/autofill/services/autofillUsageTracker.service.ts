@@ -5,7 +5,8 @@ import { UsageTracker } from "@/domain/usage/index.js";
 
 export interface UsageTracking {
 	classification: TokenUsage;
-	jdFormMatch: TokenUsage | null;
+	jdFormExtractorRouter: TokenUsage | null;
+	jdFormExtractorWriter: TokenUsage | null;
 	inference: TokenUsage | undefined;
 }
 
@@ -29,8 +30,12 @@ export class AutofillUsageTracker {
 		this.tracker.setUsage("form_fields_classification", usage);
 	}
 
-	setJdFormFactsExtractUsage(usage: TokenUsage | null): void {
-		this.tracker.setUsage("jd_form_match", usage);
+	setJdFormExtractorRouterUsage(usage: TokenUsage | null): void {
+		this.tracker.setUsage("jd_form_extractor:router", usage);
+	}
+
+	setJdFormExtractorWriterUsage(usage: TokenUsage | null): void {
+		this.tracker.setUsage("jd_form_extractor:writer", usage);
 	}
 
 	setInferenceUsage(usage: TokenUsage | undefined): void {

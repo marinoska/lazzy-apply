@@ -69,8 +69,8 @@ describe("AutofillUsageTracker", () => {
 		});
 	});
 
-	describe("setJdFormMatchUsage", () => {
-		it("should set jd_form_match usage", () => {
+	describe("setJdFormExtractorRouterUsage", () => {
+		it("should set jd_form_extractor:router usage", () => {
 			const tracker = new AutofillUsageTracker(userId);
 			const usage = {
 				promptTokens: 200,
@@ -81,17 +81,55 @@ describe("AutofillUsageTracker", () => {
 				totalCost: 0.06,
 			};
 
-			tracker.setJdFormFactsExtractUsage(usage);
+			tracker.setJdFormExtractorRouterUsage(usage);
 
-			expect(mockSetUsage).toHaveBeenCalledWith("jd_form_match", usage);
+			expect(mockSetUsage).toHaveBeenCalledWith(
+				"jd_form_extractor:router",
+				usage,
+			);
 		});
 
 		it("should handle null usage", () => {
 			const tracker = new AutofillUsageTracker(userId);
 
-			tracker.setJdFormFactsExtractUsage(null);
+			tracker.setJdFormExtractorRouterUsage(null);
 
-			expect(mockSetUsage).toHaveBeenCalledWith("jd_form_match", null);
+			expect(mockSetUsage).toHaveBeenCalledWith(
+				"jd_form_extractor:router",
+				null,
+			);
+		});
+	});
+
+	describe("setJdFormExtractorWriterUsage", () => {
+		it("should set jd_form_extractor:writer usage", () => {
+			const tracker = new AutofillUsageTracker(userId);
+			const usage = {
+				promptTokens: 150,
+				completionTokens: 75,
+				totalTokens: 225,
+				inputCost: 0.015,
+				outputCost: 0.03,
+				totalCost: 0.045,
+			};
+
+			tracker.setJdFormExtractorWriterUsage(usage);
+
+			expect(mockSetUsage).toHaveBeenCalledWith(
+				"jd_form_extractor:writer",
+				usage,
+			);
+		});
+
+		it("should handle null usage", () => {
+			const tracker = new AutofillUsageTracker(userId);
+
+			tracker.setJdFormExtractorWriterUsage(null);
+
+			expect(mockSetUsage).toHaveBeenCalledWith(
+				"jd_form_extractor:writer",
+				null,
+			);
 		});
 	});
 
@@ -116,10 +154,11 @@ describe("AutofillUsageTracker", () => {
 	describe("persistAllUsage", () => {
 		it("should delegate to underlying tracker", async () => {
 			const tracker = new AutofillUsageTracker(userId);
+			const mockSession = {} as any;
 
-			await tracker.persistAllUsage();
+			await tracker.persistAllUsage(mockSession);
 
-			expect(mockPersistAllUsage).toHaveBeenCalled();
+			expect(mockPersistAllUsage).toHaveBeenCalledWith(mockSession);
 		});
 	});
 });

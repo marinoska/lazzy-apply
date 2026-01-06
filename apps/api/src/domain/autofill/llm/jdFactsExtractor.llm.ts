@@ -40,8 +40,10 @@ export interface JdFactsResult {
 	isMatch: boolean;
 	/** Extracted facts from JD and/or form */
 	jdFacts: JdFormFact[];
-	/** Token usage from the LLM call */
-	usage: TokenUsage;
+	/** Token usage from the router LLM call (matching prompt) */
+	routerUsage: TokenUsage | null;
+	/** Token usage from the writer LLM call (extraction prompt) */
+	writerUsage: TokenUsage | null;
 }
 
 const FACT_EXTRACTION_RULES = `FACT EXTRACTION RULES:
@@ -91,7 +93,8 @@ If isMatch = false OR jd is empty:
 - Do NOT use JD content in this case
 
 ${FACT_EXTRACTION_RULES}
-- Include the source of each fact: "jd", "form", or "formContext"
+- Facts from jd should have source: "jd"
+- Facts from formContext should have source: "form"
 
 RETURN JSON ONLY.
 
@@ -103,36 +106,39 @@ OUTPUT FORMAT:
       {
         "key": string,
         "value": string,
-        "source": "jd" | "formContext"
+        "source": "jd" | "form"
       }
     ]
   }
 }
 `;
 
-const JD_FACTS_EXTRACTION_ONLY_PROMPT = `
+const buildJdFactsExtractionOnlyPrompt = (isMatch: boolean) => `
 You extract grounded job facts from a job description.
 
 INPUT:
 - jd: raw job description text
+- formContext: surrounding text near the application form (page content, headers, sections)
 
 TASK: FACT EXTRACTION
 
-Extract job-related facts from the job description.
+Extract job-related facts from the job description and form context.
 
 ${FACT_EXTRACTION_RULES}
-- All facts should have source: "jd"
+- Facts from jd should have source: "jd"
+- Facts from formContext should have source: "form"
 
 RETURN JSON ONLY.
 
 OUTPUT FORMAT:
 {
+  "isMatch": ${isMatch},
   "jdFacts": {
     "facts": [
       {
         "key": string,
         "value": string,
-        "source": "jd"
+        "source": "jd" | "form"
       }
     ]
   }
@@ -165,11 +171,19 @@ class JdFactsExtractor extends BaseLlmService<
 		const urlsMatch = input.jdUrl === input.formUrl;
 
 		if (urlsMatch) {
-			const jdText = input.jdRawText?.trim() || input.formContext || "(empty)";
+			if (urlsMatch) {
+				logger.debug(
+					{ jdUrl: input.jdUrl, formUrl: input.formUrl },
+					"URLs match - using extraction-only prompt",
+				);
+			}
+
+			const jdText = input.jdRawText?.trim() || "";
 			const inputData = {
-				jd: jdText,
+				jd: jdText || "(empty)",
+				formContext: jdText ? "(empty)" : input.formContext,
 			};
-			return `${JD_FACTS_EXTRACTION_ONLY_PROMPT}\n\nINPUT DATA:\n${JSON.stringify(inputData, null, 2)}`;
+			return `${buildJdFactsExtractionOnlyPrompt(true)}\n\nINPUT DATA:\n${JSON.stringify(inputData, null, 2)}`;
 		}
 
 		const inputData = {
@@ -193,7 +207,7 @@ class JdFactsExtractor extends BaseLlmService<
 				undefined ||
 			!Array.isArray((parsed as { jdFacts: { facts: unknown } }).jdFacts.facts)
 		) {
-			logger.warn(
+			logger.error(
 				{ parsed },
 				"Invalid JD match response format, defaulting to false with empty facts",
 			);
@@ -229,41 +243,27 @@ export async function extractJdFormFactsWithAI(
 	const hasJdText = input.jdRawText && input.jdRawText.trim() !== "";
 	const hasFormContext = input.formContext && input.formContext.trim() !== "";
 
-	if (!hasJdText && !(urlsMatch && hasFormContext)) {
-		logger.info(
-			"JD text is empty and no formContext fallback available, skipping LLM call",
-		);
+	if (!hasJdText && !hasFormContext) {
+		logger.error("Both JD text and formContext are empty, skipping LLM call");
 		return {
-			isMatch: false,
+			isMatch: input.jdUrl === input.formUrl,
 			jdFacts: [],
-			usage: {
-				promptTokens: 0,
-				completionTokens: 0,
-				totalTokens: 0,
-				inputCost: 0,
-				outputCost: 0,
-				totalCost: 0,
-			},
+			routerUsage: null,
+			writerUsage: null,
 		};
-	}
-
-	if (urlsMatch) {
-		logger.info(
-			{ jdUrl: input.jdUrl, formUrl: input.formUrl },
-			"URLs match - using extraction-only prompt",
-		);
 	}
 
 	const { result, usage } = await jdFactsExtractService.execute(input);
 	const { isMatch, jdFacts } = result;
 
-	const finalIsMatch = urlsMatch ? true : isMatch;
+	const routerUsage = urlsMatch ? null : usage;
+	const writerUsage = urlsMatch ? usage : null;
 
-	logger.info({ usage }, "JD match token usage");
+	logger.debug({ routerUsage, writerUsage }, "JD extractor token usage");
 
-	logger.info(
+	logger.debug(
 		{
-			isMatch: finalIsMatch,
+			isMatch,
 			jdUrl: input.jdUrl,
 			formUrl: input.formUrl,
 			jdRawTextLength: input.jdRawText.length,
@@ -273,5 +273,5 @@ export async function extractJdFormFactsWithAI(
 		"JD-form match result",
 	);
 
-	return { isMatch: finalIsMatch, jdFacts: jdFacts.facts, usage };
+	return { isMatch, jdFacts: jdFacts.facts, routerUsage, writerUsage };
 }
