@@ -1,6 +1,6 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import Button from "@mui/joy/Button";
 import IconButton from "@mui/joy/IconButton";
@@ -10,6 +10,7 @@ import Textarea from "@mui/joy/Textarea";
 import Typography from "@mui/joy/Typography";
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Snackbar } from "@/content/components/Snackbar.js";
+import { BodyExtraSmallWarning } from "@/content/components/Typography.js";
 import { useGenerateCoverLetterMutation } from "@/lib/api/query/useGenerateCoverLetterMutation.js";
 import { useAutofill } from "../context/AutofillContext.js";
 import { fillCoverLetterFields } from "../services/coverLetterFiller.js";
@@ -180,18 +181,14 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 						>
 							<ArrowBackIcon />
 						</IconButton>
-						<MailOutlineIcon color="primary" />
+						<AutoFixHighIcon color="primary" />
 						<Typography level="title-md" sx={{ flex: 1 }}>
 							Cover Letter with AI
 						</Typography>
 					</Stack>
-					<Typography
-						level="body-xs"
-						color="neutral"
-						sx={{ fontStyle: "italic" }}
-					>
+					<BodyExtraSmallWarning>
 						This action uses a small amount of credits
-					</Typography>
+					</BodyExtraSmallWarning>
 				</Stack>
 
 				{/* Content */}

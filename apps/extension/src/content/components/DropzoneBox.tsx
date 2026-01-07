@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import {
 	BodyExtraSmall,
+	BodyExtraSmallWarning,
 	BodySmallDarker,
 	HeadingLarge,
 } from "@/content/components/Typography.js";
@@ -167,6 +168,9 @@ export const DropzoneBox = ({
 						</Stack>
 					) : (
 						<>
+							<BodyExtraSmallWarning sx={{ textAlign: "center" }}>
+								CV parsing uses a small amount of credits
+							</BodyExtraSmallWarning>
 							<BodySmallDarker>Drag & drop a CV or</BodySmallDarker>
 							<input {...getInputProps()} />
 							<Button size="md" sx={{ m: 1 }} color="primary" onClick={open}>

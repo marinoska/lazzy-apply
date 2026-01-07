@@ -1,3 +1,4 @@
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import Alert from "@mui/joy/Alert";
 import Button from "@mui/joy/Button";
 import { useAutofill } from "../context/AutofillContext.js";
@@ -22,6 +23,7 @@ export function AutofillButton() {
 				onClick={runAutofill}
 				loading={isLoading}
 				disabled={isDisabled}
+				startDecorator={<AutoAwesomeIcon />}
 			>
 				Autofill Application
 			</Button>

@@ -135,7 +135,7 @@ function createEditIconContainer(
 		width: "28px",
 		height: "28px",
 		borderRadius: "6px",
-		backgroundColor: "rgba(99, 102, 241, 0.9)",
+		backgroundColor: "rgba(99, 102, 241, 0.7)",
 		display: "flex",
 		alignItems: "center",
 		justifyContent: "center",
@@ -190,11 +190,11 @@ function positionIconContainer(
 	const scrollX = window.scrollX;
 	const scrollY = window.scrollY;
 
-	// Position in bottom-right corner with padding
+	// Position in bottom-left corner with padding
 	const padding = 8;
 	const iconSize = 28;
 
-	container.style.left = `${rect.right + scrollX - iconSize - padding}px`;
+	container.style.left = `${rect.left + scrollX + padding}px`;
 	container.style.top = `${rect.bottom + scrollY - iconSize - padding}px`;
 }
 

@@ -62,6 +62,18 @@ export function BodyExtraSmallDarker({ children, ...props }: BaseTextProps) {
 	);
 }
 
+export function BodyExtraSmallWarning({ children, ...props }: BaseTextProps) {
+	return (
+		<Typography
+			level="body-xs"
+			sx={{ color: "warning.500", fontStyle: "italic", ...props.sx }}
+			{...props}
+		>
+			{children}
+		</Typography>
+	);
+}
+
 export function HeadingSmall({ children, ...props }: BaseTextProps) {
 	return (
 		<Typography level="h4" {...props}>

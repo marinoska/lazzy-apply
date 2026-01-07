@@ -9,6 +9,7 @@ import Stack from "@mui/joy/Stack";
 import Textarea from "@mui/joy/Textarea";
 import Typography from "@mui/joy/Typography";
 import { useEffect, useState } from "react";
+import { BodyExtraSmallWarning } from "@/content/components/Typography.js";
 import { useUploads } from "@/lib/api/context/UploadsContext.js";
 import { useRefineFieldMutation } from "@/lib/api/query/useRefineFieldMutation.js";
 import { Snackbar } from "../../components/Snackbar.js";
@@ -171,13 +172,9 @@ export function RefineFieldValueModal({
 							Refine Answer with AI
 						</Typography>
 					</Stack>
-					<Typography
-						level="body-xs"
-						color="neutral"
-						sx={{ fontStyle: "italic" }}
-					>
+					<BodyExtraSmallWarning>
 						This action uses a small amount of credits
-					</Typography>
+					</BodyExtraSmallWarning>
 				</Stack>
 
 				{/* Content */}
