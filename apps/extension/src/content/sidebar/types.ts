@@ -2,6 +2,7 @@ import type { StoredSession } from "../../lib/supabase.js";
 
 export interface SidebarState {
 	visible: boolean;
+	completelyHidden: boolean;
 	loading: boolean;
 	status: string | null;
 	session: StoredSession | null;
@@ -24,6 +25,8 @@ export interface SidebarModule {
 export interface SidebarViewProps {
 	state: SidebarState;
 	onClose: () => void;
+	onOpen: () => void;
+	onCompleteClose: () => void;
 	onSignIn: () => void;
 	onSignOut: () => void;
 }

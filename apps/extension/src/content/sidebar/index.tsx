@@ -12,6 +12,7 @@ export type { SidebarModule } from "./types.js";
 export function createSidebar(deps: SidebarDeps): SidebarModule {
 	const state: SidebarState = {
 		visible: false,
+		completelyHidden: false,
 		loading: false,
 		status: null,
 		session: null,
@@ -49,6 +50,8 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
 						<SidebarView
 							state={state}
 							onClose={hide}
+							onOpen={show}
+							onCompleteClose={_completeClose}
 							onSignIn={handleSignIn}
 							onSignOut={handleSignOut}
 						/>
@@ -60,7 +63,12 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
 
 	// Public API
 	const show = async (): Promise<void> => {
-		update({ visible: true, loading: true, status: null });
+		update({
+			visible: true,
+			completelyHidden: false,
+			loading: true,
+			status: null,
+		});
 		try {
 			const session = await deps.fetchSession();
 			update({ session, loading: false, status: null });
@@ -75,6 +83,10 @@ export function createSidebar(deps: SidebarDeps): SidebarModule {
 
 	const hide = (): void => {
 		update({ visible: false });
+	};
+
+	const _completeClose = (): void => {
+		update({ visible: false, completelyHidden: true });
 	};
 
 	// Event handlers
