@@ -186,9 +186,6 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 							Cover Letter with AI
 						</Typography>
 					</Stack>
-					<BodyExtraSmallWarning>
-						This action uses a small amount of credits
-					</BodyExtraSmallWarning>
 				</Stack>
 
 				{/* Content */}
@@ -289,6 +286,9 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 							{getButtonText()}
 						</Button>
 					</Stack>
+					<BodyExtraSmallWarning alignItems={"center"}>
+						Generation uses a small amount of credits
+					</BodyExtraSmallWarning>
 				</Stack>
 			</Sheet>
 			<Snackbar

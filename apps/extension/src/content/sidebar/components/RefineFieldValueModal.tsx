@@ -3,6 +3,7 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import Button from "@mui/joy/Button";
+import Divider from "@mui/joy/Divider";
 import IconButton from "@mui/joy/IconButton";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
@@ -172,9 +173,6 @@ export function RefineFieldValueModal({
 							Refine Answer with AI
 						</Typography>
 					</Stack>
-					<BodyExtraSmallWarning>
-						This action uses a small amount of credits
-					</BodyExtraSmallWarning>
 				</Stack>
 
 				{/* Content */}
@@ -256,61 +254,58 @@ export function RefineFieldValueModal({
 						/>
 					</Stack>
 				</Stack>
-
+				<Divider />
 				{/* Footer */}
-				<Stack
-					direction="row"
-					gap={1}
-					sx={{
-						p: 2,
-						borderTop: "1px solid",
-						borderColor: "divider",
-					}}
-				>
-					<Button
-						variant="outlined"
-						color="neutral"
-						size="sm"
-						onClick={onClose}
-						sx={{ flex: 1 }}
-					>
-						Cancel
-					</Button>
-					<Button
-						variant="solid"
-						color="primary"
-						size="sm"
-						onClick={handleGenerate}
-						disabled={
-							!hasValidInput ||
-							isOverLimit ||
-							!!error ||
-							refineMutation.isPending
-						}
-						loading={refineMutation.isPending}
-						startDecorator={<AutoAwesomeIcon />}
-						sx={{ flex: 1 }}
-					>
-						{refinedText ? "Regenerate" : "Generate answer"}
-					</Button>
-					<Button
-						variant="solid"
-						color={
-							fillResult?.success
-								? "success"
-								: fillResult && !fillResult.success
-									? "danger"
-									: "primary"
-						}
-						size="sm"
-						onClick={handleFill}
-						loading={isFilling}
-						disabled={!refinedText}
-						startDecorator={<CheckCircleIcon />}
-						sx={{ flex: 1 }}
-					>
-						{getButtonText()}
-					</Button>
+				<Stack direction="column" p={2} gap={1}>
+					<Stack direction="row" gap={1}>
+						<Button
+							variant="outlined"
+							color="neutral"
+							size="sm"
+							onClick={onClose}
+							sx={{ flex: 1 }}
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="solid"
+							color="primary"
+							size="sm"
+							onClick={handleGenerate}
+							disabled={
+								!hasValidInput ||
+								isOverLimit ||
+								!!error ||
+								refineMutation.isPending
+							}
+							loading={refineMutation.isPending}
+							startDecorator={<AutoAwesomeIcon />}
+							sx={{ flex: 1 }}
+						>
+							{refinedText ? "Regenerate" : "Generate answer"}
+						</Button>
+						<Button
+							variant="solid"
+							color={
+								fillResult?.success
+									? "success"
+									: fillResult && !fillResult.success
+										? "danger"
+										: "primary"
+							}
+							size="sm"
+							onClick={handleFill}
+							loading={isFilling}
+							disabled={!refinedText}
+							startDecorator={<CheckCircleIcon />}
+							sx={{ flex: 1 }}
+						>
+							{getButtonText()}
+						</Button>
+					</Stack>
+					<BodyExtraSmallWarning>
+						Generation uses a small amount of credits
+					</BodyExtraSmallWarning>
 				</Stack>
 			</Sheet>
 
