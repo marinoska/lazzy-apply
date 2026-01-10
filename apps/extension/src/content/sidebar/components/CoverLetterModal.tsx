@@ -19,6 +19,7 @@ import {
 	DEFAULT_COVER_LETTER_SETTINGS,
 	QuickSetupRow,
 } from "./QuickSetupRow.js";
+import { usePreventBodyScroll } from "../hooks/usePreventBodyScroll.js";
 
 interface CoverLetterModalProps {
 	open: boolean;
@@ -68,6 +69,8 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 			});
 		}
 	}, [open, existingCoverLetter, coverLetter, coverLetterFieldHash]);
+
+	usePreventBodyScroll(open);
 
 	if (!open) {
 		return null;
@@ -160,6 +163,7 @@ export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 					bgcolor: "background.surface",
 					zIndex: 10000,
 					boxShadow: "lg",
+					overflow: "hidden",
 				}}
 			>
 				{/* Header */}

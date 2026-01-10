@@ -15,6 +15,7 @@ import { useUploads } from "@/lib/api/context/UploadsContext.js";
 import { useRefineFieldMutation } from "@/lib/api/query/useRefineFieldMutation.js";
 import { Snackbar } from "../../components/Snackbar.js";
 import { useAutofill } from "../context/AutofillContext.js";
+import { usePreventBodyScroll } from "../hooks/usePreventBodyScroll.js";
 
 interface RefineFieldValueModalProps {
 	open: boolean;
@@ -64,6 +65,8 @@ export function RefineFieldValueModal({
 			setError(null);
 		}
 	}, [open, fieldHash, hasAutofillId, fieldData]);
+
+	usePreventBodyScroll(open);
 
 	if (!open || !fieldHash) {
 		return null;
