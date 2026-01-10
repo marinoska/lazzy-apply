@@ -80,10 +80,8 @@ describe("refine.llm", () => {
 			});
 
 			expect(result.refinedAnswer).toBe("John Michael Doe");
-			expect(result.usage.totalTokens).toBe(750);
-			expect(result.usage.inputCost).toBeDefined();
-			expect(result.usage.outputCost).toBeDefined();
-			expect(result.usage.totalCost).toBeDefined();
+			expect(result.usage.promptTokens).toBe(600);
+			expect(result.usage.completionTokens).toBe(150);
 			expect(result.routingDecision).toEqual({
 				useProfileSignals: false,
 				useSummaryFacts: true,
@@ -433,10 +431,8 @@ describe("refine.llm", () => {
 				jdFacts: [],
 			});
 
-			expect(result.usage.totalTokens).toBe(1500000);
-			expect(result.usage.inputCost).toBe(10);
-			expect(result.usage.outputCost).toBe(15);
-			expect(result.usage.totalCost).toBe(25);
+			expect(result.usage.promptTokens).toBe(1000000);
+			expect(result.usage.completionTokens).toBe(500000);
 		});
 	});
 });

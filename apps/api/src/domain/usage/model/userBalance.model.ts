@@ -27,12 +27,7 @@ const userBalanceSchema = new Schema<
 			index: true,
 			immutable: true,
 		},
-		inputTokens: {
-			type: Number,
-			required: true,
-			default: 0,
-		},
-		outputTokens: {
+		creditBalance: {
 			type: Number,
 			required: true,
 			default: 0,
@@ -44,16 +39,14 @@ const userBalanceSchema = new Schema<
 userBalanceSchema.statics.updateBalance = async function (
 	this: UserBalanceModelWithStatics,
 	userId: string,
-	promptTokensDelta: number,
-	completionTokensDelta: number,
+	creditsDelta: number,
 	session?: import("mongoose").ClientSession,
 ) {
 	const result = await this.findOneAndUpdate(
 		{ userId },
 		{
 			$inc: {
-				inputTokens: promptTokensDelta,
-				outputTokens: completionTokensDelta,
+				creditBalance: creditsDelta,
 			},
 		},
 		{
@@ -71,10 +64,8 @@ userBalanceSchema.statics.updateBalance = async function (
 	logger.debug(
 		{
 			userId,
-			promptTokensDelta,
-			completionTokensDelta,
-			newInputTokens: result.inputTokens,
-			newOutputTokens: result.outputTokens,
+			creditsDelta,
+			newCreditBalance: result.creditBalance,
 		},
 		"User balance updated",
 	);
@@ -88,12 +79,10 @@ userBalanceSchema.statics.getBalance = async function (
 ) {
 	const doc = await this.findOne({ userId }).setOptions({ userId }).lean();
 	if (!doc) {
-		return { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+		return { creditBalance: 0 };
 	}
 	return {
-		inputTokens: doc.inputTokens,
-		outputTokens: doc.outputTokens,
-		totalTokens: doc.inputTokens + doc.outputTokens,
+		creditBalance: doc.creditBalance,
 	};
 };
 

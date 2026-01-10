@@ -46,6 +46,11 @@ const usageSchema = new Schema<TUsage, UsageModel, UsageMethods>(
 			required: false,
 			immutable: true,
 		},
+		model: {
+			type: String,
+			required: false,
+			immutable: true,
+		},
 		type: {
 			type: String,
 			required: true,
@@ -65,12 +70,6 @@ const usageSchema = new Schema<TUsage, UsageModel, UsageMethods>(
 			immutable: true,
 		},
 		completionTokens: {
-			type: Number,
-			required: true,
-			default: 0,
-			immutable: true,
-		},
-		totalTokens: {
 			type: Number,
 			required: true,
 			default: 0,

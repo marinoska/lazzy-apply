@@ -298,7 +298,6 @@ describe("Update Outbox Status", () => {
 					usage: {
 						promptTokens: 100,
 						completionTokens: 50,
-						totalTokens: 150,
 					},
 				},
 			};
@@ -387,7 +386,11 @@ describe("Update Outbox Status", () => {
 					usage: {
 						promptTokens: 100,
 						completionTokens: 50,
-						totalTokens: 150,
+					},
+					modelConfig: {
+						modelName: "gpt-4o-mini",
+						inputPricePer1M: 0.15,
+						outputPricePer1M: 0.6,
 					},
 				},
 			};

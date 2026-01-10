@@ -9,20 +9,15 @@ const isDryRun = process.argv.includes("--dry-run");
 
 interface UserUsageSummary {
 	userId: string;
-	promptTokens: number;
-	completionTokens: number;
-	totalTokens: number;
+	totalCredits: number;
 	recordCount: number;
 }
 
 interface BalanceDiscrepancy {
 	userId: string;
-	currentInputTokens: number;
-	currentOutputTokens: number;
-	calculatedInputTokens: number;
-	calculatedOutputTokens: number;
-	inputDifference: number;
-	outputDifference: number;
+	currentCreditBalance: number;
+	calculatedCreditBalance: number;
+	creditDifference: number;
 	usageRecordCount: number;
 }
 
@@ -40,9 +35,7 @@ async function recalculateBalances() {
 			{
 				$group: {
 					_id: "$userId",
-					promptTokens: { $sum: "$promptTokens" },
-					completionTokens: { $sum: "$completionTokens" },
-					totalTokens: { $sum: "$totalTokens" },
+					totalCredits: { $sum: "$creditsDelta" },
 					recordCount: { $count: {} },
 				},
 			},
@@ -50,9 +43,7 @@ async function recalculateBalances() {
 				$project: {
 					_id: 0,
 					userId: "$_id",
-					promptTokens: 1,
-					completionTokens: 1,
-					totalTokens: 1,
+					totalCredits: 1,
 					recordCount: 1,
 				},
 			},
@@ -74,34 +65,25 @@ async function recalculateBalances() {
 				.setOptions({ skipOwnershipEnforcement: true })
 				.lean();
 
-			const currentInputTokens = currentBalanceDoc?.inputTokens ?? 0;
-			const currentOutputTokens = currentBalanceDoc?.outputTokens ?? 0;
-			const calculatedInputTokens = userUsage.promptTokens;
-			const calculatedOutputTokens = userUsage.completionTokens;
-			const inputDifference = currentInputTokens - calculatedInputTokens;
-			const outputDifference = currentOutputTokens - calculatedOutputTokens;
+			const currentCreditBalance = currentBalanceDoc?.creditBalance ?? 0;
+			const calculatedCreditBalance = userUsage.totalCredits;
+			const creditDifference = currentCreditBalance - calculatedCreditBalance;
 
-			if (inputDifference !== 0 || outputDifference !== 0) {
+			if (creditDifference !== 0) {
 				discrepancies.push({
 					userId: userUsage.userId,
-					currentInputTokens,
-					currentOutputTokens,
-					calculatedInputTokens,
-					calculatedOutputTokens,
-					inputDifference,
-					outputDifference,
+					currentCreditBalance,
+					calculatedCreditBalance,
+					creditDifference,
 					usageRecordCount: userUsage.recordCount,
 				});
 
 				logger.error(
 					{
 						userId: userUsage.userId,
-						currentInputTokens,
-						currentOutputTokens,
-						calculatedInputTokens,
-						calculatedOutputTokens,
-						inputDifference,
-						outputDifference,
+						currentCreditBalance,
+						calculatedCreditBalance,
+						creditDifference,
 						usageRecordCount: userUsage.recordCount,
 					},
 					"Balance inconsistency detected",
@@ -111,8 +93,7 @@ async function recalculateBalances() {
 					await UserBalanceModel.findOneAndUpdate(
 						{ userId: userUsage.userId },
 						{
-							inputTokens: calculatedInputTokens,
-							outputTokens: calculatedOutputTokens,
+							creditBalance: calculatedCreditBalance,
 						},
 						{ upsert: true, skipOwnershipEnforcement: true },
 					);
@@ -121,8 +102,7 @@ async function recalculateBalances() {
 					logger.info(
 						{
 							userId: userUsage.userId,
-							newInputTokens: calculatedInputTokens,
-							newOutputTokens: calculatedOutputTokens,
+							newCreditBalance: calculatedCreditBalance,
 						},
 						"Balance updated",
 					);
@@ -130,8 +110,7 @@ async function recalculateBalances() {
 					logger.info(
 						{
 							userId: userUsage.userId,
-							wouldUpdateInputTo: calculatedInputTokens,
-							wouldUpdateOutputTo: calculatedOutputTokens,
+							wouldUpdateCreditBalanceTo: calculatedCreditBalance,
 						},
 						"[DRY RUN] Would update balance",
 					);
@@ -143,7 +122,7 @@ async function recalculateBalances() {
 
 		const usersWithBalanceButNoUsage = await UserBalanceModel.find({
 			userId: { $nin: usageAggregation.map((u) => u.userId) },
-			$or: [{ inputTokens: { $ne: 0 } }, { outputTokens: { $ne: 0 } }],
+			creditBalance: { $ne: 0 },
 		})
 			.setOptions({ skipOwnershipEnforcement: true })
 			.lean();
@@ -151,22 +130,17 @@ async function recalculateBalances() {
 		for (const userBalance of usersWithBalanceButNoUsage) {
 			discrepancies.push({
 				userId: userBalance.userId,
-				currentInputTokens: userBalance.inputTokens,
-				currentOutputTokens: userBalance.outputTokens,
-				calculatedInputTokens: 0,
-				calculatedOutputTokens: 0,
-				inputDifference: userBalance.inputTokens,
-				outputDifference: userBalance.outputTokens,
+				currentCreditBalance: userBalance.creditBalance,
+				calculatedCreditBalance: 0,
+				creditDifference: userBalance.creditBalance,
 				usageRecordCount: 0,
 			});
 
 			logger.error(
 				{
 					userId: userBalance.userId,
-					currentInputTokens: userBalance.inputTokens,
-					currentOutputTokens: userBalance.outputTokens,
-					calculatedInputTokens: 0,
-					calculatedOutputTokens: 0,
+					currentCreditBalance: userBalance.creditBalance,
+					calculatedCreditBalance: 0,
 				},
 				"User has balance but no usage records",
 			);
@@ -174,21 +148,20 @@ async function recalculateBalances() {
 			if (!isDryRun) {
 				await UserBalanceModel.findOneAndUpdate(
 					{ userId: userBalance.userId },
-					{ inputTokens: 0, outputTokens: 0 },
+					{ creditBalance: 0 },
 					{ skipOwnershipEnforcement: true },
 				);
 
 				updatedCount++;
 				logger.info(
-					{ userId: userBalance.userId, newInputTokens: 0, newOutputTokens: 0 },
+					{ userId: userBalance.userId, newCreditBalance: 0 },
 					"Balance reset to 0",
 				);
 			} else {
 				logger.info(
 					{
 						userId: userBalance.userId,
-						wouldUpdateInputTo: 0,
-						wouldUpdateOutputTo: 0,
+						wouldUpdateCreditBalanceTo: 0,
 					},
 					"[DRY RUN] Would reset balance to 0",
 				);
@@ -213,10 +186,7 @@ async function recalculateBalances() {
 			for (const disc of discrepancies) {
 				logger.info(`  User ${disc.userId}:`);
 				logger.info(
-					`    Input: ${disc.currentInputTokens} -> ${disc.calculatedInputTokens} (diff: ${disc.inputDifference})`,
-				);
-				logger.info(
-					`    Output: ${disc.currentOutputTokens} -> ${disc.calculatedOutputTokens} (diff: ${disc.outputDifference})`,
+					`    Credit Balance: ${disc.currentCreditBalance} -> ${disc.calculatedCreditBalance} (diff: ${disc.creditDifference})`,
 				);
 				logger.info(`    Records: ${disc.usageRecordCount}`);
 			}

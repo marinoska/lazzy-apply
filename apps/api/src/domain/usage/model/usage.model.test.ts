@@ -12,9 +12,12 @@ describe("UsageModel", () => {
 		reference: new mongoose.Types.ObjectId(),
 		userId: "test-user-id",
 		type: "form_fields_classification",
+		model: "gpt-4o-mini",
 		promptTokens: 100,
 		completionTokens: 50,
-		totalTokens: 150,
+		inputCost: 0.000015,
+		outputCost: 0.00003,
+		totalCost: 0.000045,
 		creditsDelta: -150,
 		...overrides,
 	});
@@ -35,7 +38,9 @@ describe("UsageModel", () => {
 			expect(result).toBeDefined();
 			expect(result.reference.toString()).toBe(params.reference.toString());
 			expect(result.type).toBe(params.type);
-			expect(result.totalTokens).toBe(150);
+			expect(result.model).toBe("gpt-4o-mini");
+			expect(result.promptTokens).toBe(100);
+			expect(result.completionTokens).toBe(50);
 		});
 
 		it("should return existing record on duplicate (idempotent)", async () => {

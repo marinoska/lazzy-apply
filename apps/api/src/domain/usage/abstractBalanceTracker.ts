@@ -1,4 +1,3 @@
-import type { TokenUsage } from "@lazyapply/types";
 import type { ClientSession, Types } from "mongoose";
 import { createLogger } from "@/app/logger.js";
 import type { BalanceDelta } from "./balanceData.types.js";
@@ -30,8 +29,8 @@ export abstract class BaseBalanceTracker {
 		}
 	}
 
-	protected calculateCreditsFromUsage(usage: TokenUsage): number {
-		return usage.totalCost;
+	protected calculateCreditsFromUsage(totalCost: number): number {
+		return totalCost;
 	}
 
 	protected abstract getCreditsDelta(): BalanceDelta[];
@@ -55,11 +54,11 @@ export abstract class BaseBalanceTracker {
 						userId: this.userId,
 						...(isUsageData &&
 							delta.autofillId && { autofillId: delta.autofillId }),
+						model: isUsageData && delta.model ? delta.model : null,
 						type: delta.type,
 						creditsDelta: delta.creditsDelta,
 						promptTokens: isUsageData ? delta.promptTokens : 0,
 						completionTokens: isUsageData ? delta.completionTokens : 0,
-						totalTokens: isUsageData ? delta.totalTokens : 0,
 						inputCost: isUsageData ? delta.inputCost : 0,
 						outputCost: isUsageData ? delta.outputCost : 0,
 						totalCost: isUsageData ? delta.totalCost : 0,
@@ -70,8 +69,7 @@ export abstract class BaseBalanceTracker {
 
 			await UserBalanceModel.updateBalance(
 				this.userId,
-				isUsageData ? delta.promptTokens : 0,
-				isUsageData ? delta.completionTokens : 0,
+				delta.creditsDelta,
 				session,
 			);
 

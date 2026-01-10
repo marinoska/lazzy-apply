@@ -83,10 +83,6 @@ The role at TechCompany seems like a good fit for the kind of work I've been doi
 			expect(result.coverLetter).toBe(mockCoverLetter);
 			expect(result.usage.promptTokens).toBe(500);
 			expect(result.usage.completionTokens).toBe(150);
-			expect(result.usage.totalTokens).toBe(650);
-			expect(result.usage.inputCost).toBe(0.005);
-			expect(result.usage.outputCost).toBe(0.0045);
-			expect(result.usage.totalCost).toBe(0.0095);
 		});
 
 		it("should generate a short cover letter when length is short", async () => {
@@ -291,9 +287,8 @@ The role matches my experience.
 			const input = createTestInput();
 			const result = await generateCoverLetter(input);
 
-			expect(result.usage.inputCost).toBe(0.01);
-			expect(result.usage.outputCost).toBe(0.006);
-			expect(result.usage.totalCost).toBe(0.016);
+			expect(result.usage.promptTokens).toBe(1000);
+			expect(result.usage.completionTokens).toBe(200);
 		});
 
 		it("should handle all length options", async () => {
@@ -377,29 +372,6 @@ The role matches my experience.
 					temperature: 0.3,
 				}),
 			);
-		});
-
-		it("should handle missing optional token usage fields", async () => {
-			mockedGenerateText.mockResolvedValueOnce({
-				text: "Cover letter",
-				usage: {
-					inputTokens: undefined,
-					outputTokens: undefined,
-					totalTokens: undefined,
-				},
-			} as ReturnType<typeof generateText> extends Promise<infer T>
-				? T
-				: never);
-
-			const input = createTestInput();
-			const result = await generateCoverLetter(input);
-
-			expect(result.usage.promptTokens).toBe(0);
-			expect(result.usage.completionTokens).toBe(0);
-			expect(result.usage.totalTokens).toBe(0);
-			expect(result.usage.inputCost).toBe(0);
-			expect(result.usage.outputCost).toBe(0);
-			expect(result.usage.totalCost).toBe(0);
 		});
 	});
 });

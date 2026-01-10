@@ -17,6 +17,7 @@ import {
 	type AutofillCoverLetterDocument,
 	AutofillCoverLetterModel,
 } from "../model/autofillCoverLetter.model.js";
+import { getEnv } from "@/app/env.js";
 
 const logger = createLogger("cover-letter");
 
@@ -116,9 +117,17 @@ export async function generateCoverLetterController(
 		instructions,
 	});
 
-	const usageTracker = new UsageTracker(user.id, {
-		referenceTable: AUTOFILL_COVER_LETTER_MODEL_NAME,
-	});
+	const usageTracker = new UsageTracker(
+		user.id,
+		{
+			referenceTable: AUTOFILL_COVER_LETTER_MODEL_NAME,
+		},
+		{
+			model: getEnv("OPENAI_MODEL"),
+			inputPricePer1M: Number(getEnv("OPENAI_MODEL_INPUT_PRICE_PER_1M")),
+			outputPricePer1M: Number(getEnv("OPENAI_MODEL_OUTPUT_PRICE_PER_1M")),
+		},
+	);
 	usageTracker.setAutofillId(autofill._id);
 
 	const session = await mongoose.startSession();

@@ -185,20 +185,10 @@ export async function generateCoverLetter(
 
 	const promptTokens = result.usage.inputTokens ?? 0;
 	const completionTokens = result.usage.outputTokens ?? 0;
-	const totalTokens = result.usage.totalTokens ?? 0;
-	const inputCost =
-		(promptTokens / 1_000_000) * env.OPENAI_MODEL_INPUT_PRICE_PER_1M;
-	const outputCost =
-		(completionTokens / 1_000_000) * env.OPENAI_MODEL_OUTPUT_PRICE_PER_1M;
-	const totalCost = inputCost + outputCost;
 
 	const usage: TokenUsage = {
 		promptTokens,
 		completionTokens,
-		totalTokens,
-		inputCost,
-		outputCost,
-		totalCost,
 	};
 
 	logger.info({ usage }, "Cover letter generation token usage");

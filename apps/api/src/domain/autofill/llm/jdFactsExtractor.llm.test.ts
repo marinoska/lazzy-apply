@@ -135,7 +135,8 @@ describe("jdMatcher.llm", () => {
 				{ key: "experience", value: "5+ years", source: "jd" },
 			]);
 			expect(result.routerUsage).not.toBeNull();
-			expect(result.routerUsage?.totalTokens).toBe(510);
+			expect(result.routerUsage?.promptTokens).toBe(500);
+			expect(result.routerUsage?.completionTokens).toBe(10);
 			expect(result.writerUsage).toBeNull();
 			expect(mockedGenerateText).toHaveBeenCalledTimes(1);
 		});
@@ -186,7 +187,8 @@ describe("jdMatcher.llm", () => {
 				{ key: "role", value: "Marketing Manager", source: "form" },
 			]);
 			expect(result.routerUsage).not.toBeNull();
-			expect(result.routerUsage?.totalTokens).toBe(410);
+			expect(result.routerUsage?.promptTokens).toBe(400);
+			expect(result.routerUsage?.completionTokens).toBe(10);
 			expect(result.writerUsage).toBeNull();
 		});
 
@@ -224,9 +226,8 @@ describe("jdMatcher.llm", () => {
 				{ key: "role", value: "Software Developer", source: "jd" },
 			]);
 			expect(result.routerUsage).not.toBeNull();
-			expect(result.routerUsage?.inputCost).toBeCloseTo(0.01);
-			expect(result.routerUsage?.outputCost).toBeCloseTo(0.003);
-			expect(result.routerUsage?.totalCost).toBeCloseTo(0.013);
+			expect(result.routerUsage?.promptTokens).toBe(1000);
+			expect(result.routerUsage?.completionTokens).toBe(100);
 			expect(result.writerUsage).toBeNull();
 		});
 
@@ -279,7 +280,8 @@ describe("jdMatcher.llm", () => {
 			]);
 			expect(result.routerUsage).toBeNull();
 			expect(result.writerUsage).not.toBeNull();
-			expect(result.writerUsage?.totalTokens).toBe(250);
+			expect(result.writerUsage?.promptTokens).toBe(200);
+			expect(result.writerUsage?.completionTokens).toBe(50);
 		});
 
 		it("should set formContext to (empty) when URLs match and jdRawText is provided", async () => {
@@ -313,7 +315,13 @@ describe("jdMatcher.llm", () => {
 			]);
 			expect(result.routerUsage).toBeNull();
 			expect(result.writerUsage).not.toBeNull();
-			expect(result.writerUsage?.totalTokens).toBe(190);
+			expect(result.writerUsage?.promptTokens).toBe(150);
+			expect(result.writerUsage?.completionTokens).toBe(40);
+			expect(mockedGenerateText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					prompt: expect.stringContaining('"formContext": "(empty)"'),
+				}),
+			);
 		});
 
 		it("should use formContext as fallback when URLs match and jdRawText is empty", async () => {
@@ -365,7 +373,8 @@ describe("jdMatcher.llm", () => {
 			]);
 			expect(result.routerUsage).toBeNull();
 			expect(result.writerUsage).not.toBeNull();
-			expect(result.writerUsage?.totalTokens).toBe(190);
+			expect(result.writerUsage?.promptTokens).toBe(150);
+			expect(result.writerUsage?.completionTokens).toBe(40);
 		});
 
 		it("should return early when both jdRawText and formContext are empty even if URLs match", async () => {
@@ -417,7 +426,8 @@ describe("jdMatcher.llm", () => {
 			]);
 			expect(result.routerUsage).toBeNull();
 			expect(result.writerUsage).not.toBeNull();
-			expect(result.writerUsage?.totalTokens).toBe(150);
+			expect(result.writerUsage?.promptTokens).toBe(120);
+			expect(result.writerUsage?.completionTokens).toBe(30);
 
 			expect(mockedGenerateText).toHaveBeenCalledWith(
 				expect.objectContaining({

@@ -9,9 +9,9 @@ export type CreditData = {
 export type UsageData = {
 	type: UsageType;
 	creditsDelta: number;
+	model: string;
 	promptTokens: number;
 	completionTokens: number;
-	totalTokens: number;
 	inputCost: number;
 	outputCost: number;
 	totalCost: number;

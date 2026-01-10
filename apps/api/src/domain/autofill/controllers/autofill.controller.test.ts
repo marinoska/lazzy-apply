@@ -22,6 +22,9 @@ vi.mock("@/app/env.js", () => ({
 	},
 	getEnv: (key: string) => {
 		if (key === "CLOUDFLARE_BUCKET") return "test-bucket";
+		if (key === "OPENAI_MODEL") return "gpt-4";
+		if (key === "OPENAI_MODEL_INPUT_PRICE_PER_1M") return "0.01";
+		if (key === "OPENAI_MODEL_OUTPUT_PRICE_PER_1M") return "0.03";
 		return undefined;
 	},
 }));
@@ -42,10 +45,6 @@ vi.mock("../llm/classifier.llm.js", () => ({
 			usage: {
 				promptTokens: 100,
 				completionTokens: 50,
-				totalTokens: 150,
-				inputCost: 0.0001,
-				outputCost: 0.00005,
-				totalCost: 0.00015,
 			},
 		});
 	}),
@@ -323,6 +322,8 @@ describe("autofill.controller", () => {
 				links: [],
 				headline: null,
 				summary: null,
+				summaryFacts: [],
+				profileSignals: {},
 				experience: [],
 				education: [],
 				certifications: [],

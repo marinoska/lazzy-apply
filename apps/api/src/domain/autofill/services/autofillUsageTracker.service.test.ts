@@ -30,9 +30,15 @@ describe("AutofillUsageTracker", () => {
 		it("should create UsageTracker with autofill reference table", () => {
 			new AutofillUsageTracker(userId);
 
-			expect(UsageTracker).toHaveBeenCalledWith(userId, {
-				referenceTable: "autofill",
-			});
+			expect(UsageTracker).toHaveBeenCalledWith(
+				userId,
+				{ referenceTable: "autofill" },
+				expect.objectContaining({
+					model: expect.any(String),
+					inputPricePer1M: expect.any(Number),
+					outputPricePer1M: expect.any(Number),
+				}),
+			);
 		});
 	});
 
@@ -54,10 +60,6 @@ describe("AutofillUsageTracker", () => {
 			const usage = {
 				promptTokens: 100,
 				completionTokens: 50,
-				totalTokens: 150,
-				inputCost: 0.01,
-				outputCost: 0.02,
-				totalCost: 0.03,
 			};
 
 			tracker.setClassificationUsage(usage);
@@ -75,10 +77,6 @@ describe("AutofillUsageTracker", () => {
 			const usage = {
 				promptTokens: 200,
 				completionTokens: 100,
-				totalTokens: 300,
-				inputCost: 0.02,
-				outputCost: 0.04,
-				totalCost: 0.06,
 			};
 
 			tracker.setJdFormExtractorRouterUsage(usage);
@@ -104,10 +102,6 @@ describe("AutofillUsageTracker", () => {
 			const usage = {
 				promptTokens: 150,
 				completionTokens: 75,
-				totalTokens: 225,
-				inputCost: 0.015,
-				outputCost: 0.03,
-				totalCost: 0.045,
 			};
 
 			tracker.setJdFormExtractorWriterUsage(usage);
@@ -133,10 +127,6 @@ describe("AutofillUsageTracker", () => {
 			const usage = {
 				promptTokens: 300,
 				completionTokens: 150,
-				totalTokens: 450,
-				inputCost: 0.03,
-				outputCost: 0.06,
-				totalCost: 0.09,
 			};
 
 			tracker.setInferenceUsage(usage);

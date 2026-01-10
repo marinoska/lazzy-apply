@@ -65,7 +65,6 @@ export type TCreditsGrant = BaseUsage & {
 	type: CreditsType;
 	promptTokens: 0;
 	completionTokens: 0;
-	totalTokens: 0;
 	inputCost: 0;
 	outputCost: 0;
 	totalCost: 0;
@@ -79,10 +78,11 @@ export type TTokenUsage = BaseUsage & {
 	type: UsageType;
 	/** Optional autofill ID for autofill-related usage */
 	autofillId?: Types.ObjectId;
+	/** AI model used for processing */
+	model: string;
 	/** Token usage from AI processing */
 	promptTokens: number;
 	completionTokens: number;
-	totalTokens: number;
 	/** Estimated cost breakdown in EUR */
 	inputCost: number;
 	outputCost: number;

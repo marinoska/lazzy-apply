@@ -184,12 +184,13 @@ class FieldClassifierService extends BaseLlmService<
 				result.linkType = item.linkType;
 			}
 
-			if (
-				classification === "unknown" &&
-				typeof item.inferenceHint === "string" &&
-				VALID_INFERENCE_HINTS.has(item.inferenceHint)
-			) {
-				result.inferenceHint = item.inferenceHint as InferenceHint;
+			if (classification === "unknown") {
+				if (
+					typeof item.inferenceHint === "string" &&
+					VALID_INFERENCE_HINTS.has(item.inferenceHint)
+				) {
+					result.inferenceHint = item.inferenceHint as InferenceHint;
+				}
 			}
 
 			results.push(result);

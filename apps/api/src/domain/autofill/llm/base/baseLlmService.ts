@@ -59,7 +59,7 @@ export abstract class BaseLlmService<TInput, TOutput> {
 	}
 
 	/**
-	 * Calculate token usage and costs from raw usage data
+	 * Calculate token usage from raw usage data
 	 */
 	private calculateUsage(rawUsage: {
 		inputTokens?: number;
@@ -68,20 +68,10 @@ export abstract class BaseLlmService<TInput, TOutput> {
 	}): TokenUsage {
 		const promptTokens = rawUsage.inputTokens ?? 0;
 		const completionTokens = rawUsage.outputTokens ?? 0;
-		const totalTokens = rawUsage.totalTokens ?? 0;
-		const inputCost =
-			(promptTokens / 1_000_000) * env.OPENAI_MODEL_INPUT_PRICE_PER_1M;
-		const outputCost =
-			(completionTokens / 1_000_000) * env.OPENAI_MODEL_OUTPUT_PRICE_PER_1M;
-		const totalCost = inputCost + outputCost;
 
 		return {
 			promptTokens,
 			completionTokens,
-			totalTokens,
-			inputCost,
-			outputCost,
-			totalCost,
 		};
 	}
 

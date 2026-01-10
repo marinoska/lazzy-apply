@@ -252,10 +252,17 @@ type FinishReason =
 	| "other"
 	| "unknown";
 
+export type ModelConfig = {
+	modelName: string;
+	inputPricePer1M: number;
+	outputPricePer1M: number;
+};
+
 export type ExtractCVDataSuccessResult = {
 	parseStatus: "completed";
 	parsedData: Omit<ParsedCVData, "_id">;
 	usage: TokenUsage;
+	modelConfig: ModelConfig;
 	finishReason: FinishReason;
 };
 
@@ -263,6 +270,7 @@ export type ExtractCVDataNotACVResult = {
 	parseStatus: "not-a-cv";
 	rawText: string;
 	usage: TokenUsage;
+	modelConfig: ModelConfig;
 	finishReason: FinishReason;
 };
 
@@ -300,20 +308,16 @@ export async function extractCVData(
 
 		const promptTokens = result.usage.inputTokens ?? 0;
 		const completionTokens = result.usage.outputTokens ?? 0;
-		const totalTokens = result.usage.totalTokens ?? 0;
-
-		// Calculate cost breakdown using pricing from environment
-		const inputCost = (promptTokens / 1_000_000) * inputPricePer1M;
-		const outputCost = (completionTokens / 1_000_000) * outputPricePer1M;
-		const totalCost = inputCost + outputCost;
 
 		const usage: TokenUsage = {
 			promptTokens,
 			completionTokens,
-			totalTokens,
-			inputCost,
-			outputCost,
-			totalCost,
+		};
+
+		const modelConfig: ModelConfig = {
+			modelName,
+			inputPricePer1M,
+			outputPricePer1M,
 		};
 
 		// Handle not-a-cv response
@@ -322,6 +326,7 @@ export async function extractCVData(
 				parseStatus: "not-a-cv",
 				rawText: extractedData.rawText,
 				usage,
+				modelConfig,
 				finishReason: result.finishReason,
 			};
 		}
@@ -398,6 +403,7 @@ export async function extractCVData(
 			parseStatus: "completed",
 			parsedData,
 			usage,
+			modelConfig,
 			finishReason: result.finishReason,
 		};
 	} catch (error) {

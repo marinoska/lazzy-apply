@@ -15,11 +15,26 @@ async function persistCvExtractionUsage(
 	userId: string,
 	uploadId: mongoose.Types.ObjectId,
 	usage: TokenUsage,
+	modelConfig:
+		| { modelName: string; inputPricePer1M: number; outputPricePer1M: number }
+		| undefined,
 	session: mongoose.ClientSession,
 ): Promise<void> {
-	const tracker = new UsageTracker(userId, {
-		referenceTable: FILE_UPLOAD_MODEL_NAME,
-	});
+	if (!modelConfig) {
+		throw new Error("modelConfig is required when persisting usage");
+	}
+
+	const tracker = new UsageTracker(
+		userId,
+		{
+			referenceTable: FILE_UPLOAD_MODEL_NAME,
+		},
+		{
+			model: modelConfig.modelName,
+			inputPricePer1M: modelConfig.inputPricePer1M,
+			outputPricePer1M: modelConfig.outputPricePer1M,
+		},
+	);
 	tracker.setReference(uploadId);
 	tracker.setUsage("cv_data_extraction", usage);
 	await tracker.persist(session);
@@ -38,10 +53,13 @@ export const updateOutboxBodySchema = z
 			.object({
 				promptTokens: z.number(),
 				completionTokens: z.number(),
-				totalTokens: z.number(),
-				inputCost: z.number().optional(),
-				outputCost: z.number().optional(),
-				totalCost: z.number().optional(),
+			})
+			.optional(),
+		modelConfig: z
+			.object({
+				modelName: z.string(),
+				inputPricePer1M: z.number(),
+				outputPricePer1M: z.number(),
 			})
 			.optional(),
 	})
@@ -57,6 +75,19 @@ export const updateOutboxBodySchema = z
 			message: "data is required when status is completed",
 			path: ["data"],
 		},
+	)
+	.refine(
+		(body) => {
+			// If usage is provided, modelConfig must be present
+			if (body.usage) {
+				return !!body.modelConfig;
+			}
+			return true;
+		},
+		{
+			message: "modelConfig is required when usage is provided",
+			path: ["modelConfig"],
+		},
 	);
 
 /**
@@ -68,7 +99,7 @@ export const updateOutboxBodySchema = z
  */
 export async function updateOutboxStatus(req: Request, res: Response) {
 	const { processId } = req.params;
-	const { status, data, error, usage } = req.body;
+	const { status, data, error, usage, modelConfig } = req.body;
 
 	log.debug({ processId, status }, "Updating outbox status");
 
@@ -118,10 +149,6 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 		? {
 				promptTokens: usage.promptTokens,
 				completionTokens: usage.completionTokens,
-				totalTokens: usage.totalTokens,
-				inputCost: usage.inputCost,
-				outputCost: usage.outputCost,
-				totalCost: usage.totalCost,
 			}
 		: {};
 
@@ -167,11 +194,12 @@ export async function updateOutboxStatus(req: Request, res: Response) {
 			}
 		}
 		// 3. Persist usage to usage collection
-		if (usage) {
+		if (usage && modelConfig) {
 			await persistCvExtractionUsage(
 				latestEntry.userId,
 				latestEntry.uploadId,
 				usage,
+				modelConfig,
 				session,
 			);
 		}

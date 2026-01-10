@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { z } from "zod";
+import { getEnv } from "@/app/env.js";
 import { Unauthorized } from "@/app/errors.js";
 import { createLogger } from "@/app/logger.js";
 import { UsageTracker } from "@/domain/usage/index.js";
@@ -92,9 +93,17 @@ export async function refineController(
 		jdFacts: autofill.jdFacts || [],
 	});
 
-	const usageTracker = new UsageTracker(user.id, {
-		referenceTable: AUTOFILL_REFINE_MODEL_NAME,
-	});
+	const usageTracker = new UsageTracker(
+		user.id,
+		{
+			referenceTable: AUTOFILL_REFINE_MODEL_NAME,
+		},
+		{
+			model: getEnv("OPENAI_MODEL"),
+			inputPricePer1M: Number(getEnv("OPENAI_MODEL_INPUT_PRICE_PER_1M")),
+			outputPricePer1M: Number(getEnv("OPENAI_MODEL_OUTPUT_PRICE_PER_1M")),
+		},
+	);
 	usageTracker.setAutofillId(autofill._id);
 
 	const session = await mongoose.startSession();

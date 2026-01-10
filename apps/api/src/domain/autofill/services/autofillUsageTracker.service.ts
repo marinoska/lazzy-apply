@@ -1,5 +1,6 @@
 import type { TokenUsage } from "@lazyapply/types";
 import type { ClientSession } from "mongoose";
+import { getEnv } from "@/app/env.js";
 import type { AutofillDocument } from "@/domain/autofill/index.js";
 import { UsageTracker } from "@/domain/usage/index.js";
 
@@ -18,7 +19,15 @@ export class AutofillUsageTracker {
 	private readonly tracker: UsageTracker;
 
 	constructor(userId: string) {
-		this.tracker = new UsageTracker(userId, { referenceTable: "autofill" });
+		this.tracker = new UsageTracker(
+			userId,
+			{ referenceTable: "autofill" },
+			{
+				model: getEnv("OPENAI_MODEL"),
+				inputPricePer1M: Number(getEnv("OPENAI_MODEL_INPUT_PRICE_PER_1M")),
+				outputPricePer1M: Number(getEnv("OPENAI_MODEL_OUTPUT_PRICE_PER_1M")),
+			},
+		);
 	}
 
 	setAutofill(autofill: AutofillDocument): void {

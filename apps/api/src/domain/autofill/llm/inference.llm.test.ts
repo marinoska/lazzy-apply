@@ -43,7 +43,8 @@ describe("inference.llm", () => {
 			});
 
 			expect(result.answers).toEqual({});
-			expect(result.usage.totalTokens).toBe(0);
+			expect(result.usage.promptTokens).toBe(0);
+			expect(result.usage.completionTokens).toBe(0);
 			expect(mockedGenerateText).not.toHaveBeenCalled();
 		});
 
@@ -90,7 +91,8 @@ describe("inference.llm", () => {
 			expect(result.answers).toEqual({
 				"hash-1": "I am excited about this role because...",
 			});
-			expect(result.usage.totalTokens).toBe(600);
+			expect(result.usage.promptTokens).toBe(500);
+			expect(result.usage.completionTokens).toBe(100);
 		});
 
 		it("should handle markdown code blocks in response", async () => {

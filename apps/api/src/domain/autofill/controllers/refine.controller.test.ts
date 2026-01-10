@@ -8,8 +8,16 @@ vi.mock("@/app/env.js", () => ({
 	env: {
 		LOG_LEVEL: "silent",
 		NODE_ENV: "test",
+		OPENAI_MODEL: "gpt-4",
+		OPENAI_MODEL_INPUT_PRICE_PER_1M: 0.01,
+		OPENAI_MODEL_OUTPUT_PRICE_PER_1M: 0.03,
 	},
-	getEnv: vi.fn(),
+	getEnv: vi.fn((key: string) => {
+		if (key === "OPENAI_MODEL") return "gpt-4";
+		if (key === "OPENAI_MODEL_INPUT_PRICE_PER_1M") return "0.01";
+		if (key === "OPENAI_MODEL_OUTPUT_PRICE_PER_1M") return "0.03";
+		return undefined;
+	}),
 }));
 
 vi.mock("../llm/index.js", () => ({
@@ -50,12 +58,14 @@ vi.mock("../services/cvContextVO.js", () => ({
 }));
 
 vi.mock("@/domain/usage/index.js", () => ({
-	UsageTracker: vi.fn().mockImplementation(() => ({
-		setReference: vi.fn(),
-		setAutofillId: vi.fn(),
-		setUsage: vi.fn(),
-		persist: vi.fn(),
-	})),
+	UsageTracker: vi
+		.fn()
+		.mockImplementation((_userId, _configg_usageConfigig) => ({
+			setReference: vi.fn(),
+			setAutofillId: vi.fn(),
+			setUsage: vi.fn(),
+			persist: vi.fn(),
+		})),
 }));
 
 import { UsageTracker } from "@/domain/usage/index.js";
@@ -131,10 +141,6 @@ describe("refine.controller", () => {
 			usage: {
 				promptTokens: 500,
 				completionTokens: 100,
-				totalTokens: 600,
-				inputCost: 0.005,
-				outputCost: 0.003,
-				totalCost: 0.008,
 			},
 			routingDecision: {
 				useProfileSignals: false,
@@ -214,6 +220,11 @@ describe("refine.controller", () => {
 				expect.objectContaining({
 					referenceTable: "autofill_refines",
 				}),
+				expect.objectContaining({
+					model: "gpt-4",
+					inputPricePer1M: 0.01,
+					outputPricePer1M: 0.03,
+				}),
 			);
 
 			expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -288,10 +299,6 @@ describe("refine.controller", () => {
 				usage: {
 					promptTokens: 300,
 					completionTokens: 50,
-					totalTokens: 350,
-					inputCost: 0.003,
-					outputCost: 0.0015,
-					totalCost: 0.0045,
 				},
 				routingDecision: {
 					useProfileSignals: true,

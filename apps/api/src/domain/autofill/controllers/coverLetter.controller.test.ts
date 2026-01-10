@@ -5,8 +5,16 @@ vi.mock("@/app/env.js", () => ({
 	env: {
 		LOG_LEVEL: "silent",
 		NODE_ENV: "test",
+		OPENAI_MODEL: "gpt-4",
+		OPENAI_MODEL_INPUT_PRICE_PER_1M: 0.01,
+		OPENAI_MODEL_OUTPUT_PRICE_PER_1M: 0.03,
 	},
-	getEnv: vi.fn(),
+	getEnv: vi.fn((key: string) => {
+		if (key === "OPENAI_MODEL") return "gpt-4";
+		if (key === "OPENAI_MODEL_INPUT_PRICE_PER_1M") return "0.01";
+		if (key === "OPENAI_MODEL_OUTPUT_PRICE_PER_1M") return "0.03";
+		return undefined;
+	}),
 }));
 
 vi.mock("../llm/coverLetter.llm.js", () => ({
@@ -143,10 +151,6 @@ describe("coverLetter.controller", () => {
 			usage: {
 				promptTokens: 1000,
 				completionTokens: 200,
-				totalTokens: 1200,
-				inputCost: 0.01,
-				outputCost: 0.006,
-				totalCost: 0.016,
 			},
 		});
 

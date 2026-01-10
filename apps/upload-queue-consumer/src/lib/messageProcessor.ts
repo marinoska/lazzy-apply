@@ -160,7 +160,6 @@ async function extractCVFromText(
 
 	extractSpan.setAttribute("promptTokens", result.usage.promptTokens);
 	extractSpan.setAttribute("completionTokens", result.usage.completionTokens);
-	extractSpan.setAttribute("totalTokens", result.usage.totalTokens);
 	extractSpan.end();
 	const extractDuration = Date.now() - extractStart;
 
@@ -170,10 +169,6 @@ async function extractCVFromText(
 		duration: extractDuration,
 		promptTokens: result.usage.promptTokens,
 		completionTokens: result.usage.completionTokens,
-		totalTokens: result.usage.totalTokens,
-		inputCost: result.usage.inputCost,
-		outputCost: result.usage.outputCost,
-		totalCost: result.usage.totalCost,
 	});
 
 	return result;
@@ -205,6 +200,7 @@ async function updateOutboxWithResult(
 			null,
 			undefined,
 			result.usage,
+			result.modelConfig,
 		);
 	} else {
 		// Successfully parsed CV
@@ -215,6 +211,7 @@ async function updateOutboxWithResult(
 			result.parsedData,
 			undefined,
 			result.usage,
+			result.modelConfig,
 		);
 	}
 
@@ -264,10 +261,6 @@ async function handleProcessingError(
 			...(tokenUsage && {
 				promptTokens: tokenUsage.promptTokens,
 				completionTokens: tokenUsage.completionTokens,
-				totalTokens: tokenUsage.totalTokens,
-				inputCost: tokenUsage.inputCost,
-				outputCost: tokenUsage.outputCost,
-				totalCost: tokenUsage.totalCost,
 			}),
 		},
 		error instanceof Error ? error : new Error(String(error)),
@@ -281,6 +274,7 @@ async function handleProcessingError(
 		null,
 		errorMessage,
 		tokenUsage,
+		undefined, // No modelConfig on error
 	);
 
 	// Record error in span

@@ -25,10 +25,10 @@ describe("recalculateBalances integration", () => {
 					referenceTable: "forms",
 					reference: referenceId,
 					type: "form_fields_classification",
+					model: "gpt-4o-mini",
 					creditsDelta: -0.01,
 					promptTokens: 100,
 					completionTokens: 50,
-					totalTokens: 150,
 					inputCost: 0.005,
 					outputCost: 0.005,
 					totalCost: 0.01,
@@ -41,10 +41,10 @@ describe("recalculateBalances integration", () => {
 					referenceTable: "forms",
 					reference: "507f1f77bcf86cd799439012" as unknown as Types.ObjectId,
 					type: "form_fields_inference",
+					model: "gpt-4o-mini",
 					creditsDelta: -0.02,
 					promptTokens: 200,
 					completionTokens: 75,
-					totalTokens: 275,
 					inputCost: 0.01,
 					outputCost: 0.01,
 					totalCost: 0.02,
@@ -55,17 +55,13 @@ describe("recalculateBalances integration", () => {
 				{
 					$group: {
 						_id: "$userId",
-						promptTokens: { $sum: "$promptTokens" },
-						completionTokens: { $sum: "$completionTokens" },
-						totalTokens: { $sum: "$totalTokens" },
+						totalCredits: { $sum: "$creditsDelta" },
 					},
 				},
 			]);
 
 			expect(usageAggregation).toHaveLength(1);
-			expect(usageAggregation[0].promptTokens).toBe(300);
-			expect(usageAggregation[0].completionTokens).toBe(125);
-			expect(usageAggregation[0].totalTokens).toBe(425);
+			expect(usageAggregation[0].totalCredits).toBe(-0.03);
 		});
 
 		it("should detect inconsistencies between usage and balance", async () => {
@@ -79,10 +75,10 @@ describe("recalculateBalances integration", () => {
 					referenceTable: "forms",
 					reference: referenceId,
 					type: "form_fields_classification",
+					model: "gpt-4o-mini",
 					creditsDelta: -0.05,
 					promptTokens: 500,
 					completionTokens: 250,
-					totalTokens: 750,
 					inputCost: 0.025,
 					outputCost: 0.025,
 					totalCost: 0.05,
@@ -91,7 +87,7 @@ describe("recalculateBalances integration", () => {
 
 			await UserBalanceModel.findOneAndUpdate(
 				{ userId },
-				{ inputTokens: 100, outputTokens: 50 },
+				{ creditBalance: 0.1 },
 				{ upsert: true, skipOwnershipEnforcement: true },
 			);
 
@@ -104,25 +100,18 @@ describe("recalculateBalances integration", () => {
 				{
 					$group: {
 						_id: "$userId",
-						promptTokens: { $sum: "$promptTokens" },
-						completionTokens: { $sum: "$completionTokens" },
+						totalCredits: { $sum: "$creditsDelta" },
 					},
 				},
 			]);
 
-			expect(currentBalance?.inputTokens).toBe(100);
-			expect(currentBalance?.outputTokens).toBe(50);
-			expect(usageAggregation[0].promptTokens).toBe(500);
-			expect(usageAggregation[0].completionTokens).toBe(250);
+			expect(currentBalance?.creditBalance).toBe(0.1);
+			expect(usageAggregation[0].totalCredits).toBe(-0.05);
 
-			const inputDifference =
-				(currentBalance?.inputTokens ?? 0) - usageAggregation[0].promptTokens;
-			const outputDifference =
-				(currentBalance?.outputTokens ?? 0) -
-				usageAggregation[0].completionTokens;
+			const creditDifference =
+				(currentBalance?.creditBalance ?? 0) + usageAggregation[0].totalCredits;
 
-			expect(inputDifference).toBe(-400);
-			expect(outputDifference).toBe(-200);
+			expect(creditDifference).toBe(0.05);
 		});
 
 		it("should correctly update balances to match usage", async () => {
@@ -136,10 +125,10 @@ describe("recalculateBalances integration", () => {
 					referenceTable: "forms",
 					reference: referenceId,
 					type: "form_fields_classification",
+					model: "gpt-4o-mini",
 					creditsDelta: -0.1,
 					promptTokens: 1000,
 					completionTokens: 500,
-					totalTokens: 1500,
 					inputCost: 0.05,
 					outputCost: 0.05,
 					totalCost: 0.1,
@@ -148,7 +137,7 @@ describe("recalculateBalances integration", () => {
 
 			await UserBalanceModel.findOneAndUpdate(
 				{ userId },
-				{ inputTokens: 0, outputTokens: 0 },
+				{ creditBalance: 0 },
 				{ upsert: true, skipOwnershipEnforcement: true },
 			);
 
@@ -157,8 +146,7 @@ describe("recalculateBalances integration", () => {
 				{
 					$group: {
 						_id: "$userId",
-						promptTokens: { $sum: "$promptTokens" },
-						completionTokens: { $sum: "$completionTokens" },
+						totalCredits: { $sum: "$creditsDelta" },
 					},
 				},
 			]);
@@ -166,8 +154,7 @@ describe("recalculateBalances integration", () => {
 			await UserBalanceModel.findOneAndUpdate(
 				{ userId },
 				{
-					inputTokens: usageAggregation[0].promptTokens,
-					outputTokens: usageAggregation[0].completionTokens,
+					creditBalance: -usageAggregation[0].totalCredits,
 				},
 				{ skipOwnershipEnforcement: true },
 			);
@@ -176,8 +163,7 @@ describe("recalculateBalances integration", () => {
 				.setOptions({ skipOwnershipEnforcement: true })
 				.lean();
 
-			expect(updatedBalance?.inputTokens).toBe(1000);
-			expect(updatedBalance?.outputTokens).toBe(500);
+			expect(updatedBalance?.creditBalance).toBe(0.1);
 		});
 
 		it("should handle multiple users correctly", async () => {
@@ -192,10 +178,10 @@ describe("recalculateBalances integration", () => {
 					referenceTable: "forms",
 					reference: ref1,
 					type: "form_fields_classification",
+					model: "gpt-4o-mini",
 					creditsDelta: -0.03,
 					promptTokens: 300,
 					completionTokens: 100,
-					totalTokens: 400,
 					inputCost: 0.015,
 					outputCost: 0.015,
 					totalCost: 0.03,
@@ -208,10 +194,10 @@ describe("recalculateBalances integration", () => {
 					referenceTable: "forms",
 					reference: ref2,
 					type: "form_fields_inference",
+					model: "gpt-4o-mini",
 					creditsDelta: -0.05,
 					promptTokens: 500,
 					completionTokens: 200,
-					totalTokens: 700,
 					inputCost: 0.025,
 					outputCost: 0.025,
 					totalCost: 0.05,
@@ -222,8 +208,7 @@ describe("recalculateBalances integration", () => {
 				{
 					$group: {
 						_id: "$userId",
-						promptTokens: { $sum: "$promptTokens" },
-						completionTokens: { $sum: "$completionTokens" },
+						totalCredits: { $sum: "$creditsDelta" },
 					},
 				},
 			]);
@@ -233,10 +218,8 @@ describe("recalculateBalances integration", () => {
 			const user1Usage = usageAggregation.find((u) => u._id === user1);
 			const user2Usage = usageAggregation.find((u) => u._id === user2);
 
-			expect(user1Usage?.promptTokens).toBe(300);
-			expect(user1Usage?.completionTokens).toBe(100);
-			expect(user2Usage?.promptTokens).toBe(500);
-			expect(user2Usage?.completionTokens).toBe(200);
+			expect(user1Usage?.totalCredits).toBe(-0.03);
+			expect(user2Usage?.totalCredits).toBe(-0.05);
 		});
 
 		it("should identify users with balance but no usage", async () => {
@@ -244,7 +227,7 @@ describe("recalculateBalances integration", () => {
 
 			await UserBalanceModel.findOneAndUpdate(
 				{ userId },
-				{ inputTokens: 100, outputTokens: 50 },
+				{ creditBalance: 0.15 },
 				{ upsert: true, skipOwnershipEnforcement: true },
 			);
 
@@ -252,23 +235,21 @@ describe("recalculateBalances integration", () => {
 				{
 					$group: {
 						_id: "$userId",
-						promptTokens: { $sum: "$promptTokens" },
-						completionTokens: { $sum: "$completionTokens" },
+						totalCredits: { $sum: "$creditsDelta" },
 					},
 				},
 			]);
 
 			const usersWithBalanceButNoUsage = await UserBalanceModel.find({
 				userId: { $nin: usageAggregation.map((u) => u._id) },
-				$or: [{ inputTokens: { $ne: 0 } }, { outputTokens: { $ne: 0 } }],
+				creditBalance: { $ne: 0 },
 			})
 				.setOptions({ skipOwnershipEnforcement: true })
 				.lean();
 
 			expect(usersWithBalanceButNoUsage).toHaveLength(1);
 			expect(usersWithBalanceButNoUsage[0].userId).toBe(userId);
-			expect(usersWithBalanceButNoUsage[0].inputTokens).toBe(100);
-			expect(usersWithBalanceButNoUsage[0].outputTokens).toBe(50);
+			expect(usersWithBalanceButNoUsage[0].creditBalance).toBe(0.15);
 		});
 
 		it("should handle zero balances correctly", async () => {
@@ -276,7 +257,7 @@ describe("recalculateBalances integration", () => {
 
 			await UserBalanceModel.findOneAndUpdate(
 				{ userId },
-				{ inputTokens: 0, outputTokens: 0 },
+				{ creditBalance: 0 },
 				{ upsert: true, skipOwnershipEnforcement: true },
 			);
 
@@ -284,15 +265,14 @@ describe("recalculateBalances integration", () => {
 				{
 					$group: {
 						_id: "$userId",
-						promptTokens: { $sum: "$promptTokens" },
-						completionTokens: { $sum: "$completionTokens" },
+						totalCredits: { $sum: "$creditsDelta" },
 					},
 				},
 			]);
 
 			const usersWithBalanceButNoUsage = await UserBalanceModel.find({
 				userId: { $nin: usageAggregation.map((u) => u._id) },
-				$or: [{ inputTokens: { $ne: 0 } }, { outputTokens: { $ne: 0 } }],
+				creditBalance: { $ne: 0 },
 			})
 				.setOptions({ skipOwnershipEnforcement: true })
 				.lean();
