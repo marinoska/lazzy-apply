@@ -144,7 +144,7 @@ export async function generateCoverLetterController(
 
 			usageTracker.setReference(coverLetterRecord._id);
 			usageTracker.setUsage("cover_letter", result.usage);
-			await usageTracker.persistAllUsage(session);
+			await usageTracker.persist(session);
 		});
 	} finally {
 		await session.endSession();

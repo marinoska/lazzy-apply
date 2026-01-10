@@ -13,6 +13,7 @@ beforeAll(async () => {
 		instanceOpts: [
 			{
 				storageEngine: "wiredTiger",
+				launchTimeout: 60000,
 			},
 		],
 	});

@@ -18,6 +18,17 @@ export const USAGE_TYPES = [
 export type UsageType = (typeof USAGE_TYPES)[number];
 
 /**
+ * Credits type enum - identifies what operation generated the credit grant
+ */
+export const CREDITS_TYPES = [
+	"signup_bonus",
+	"referral_bonus",
+	"admin_grant",
+	"promotion",
+] as const;
+export type CreditsType = (typeof CREDITS_TYPES)[number];
+
+/**
  * Reference table enum - identifies which table the reference refers to
  */
 export const USAGE_REFERENCE_TABLES = [
@@ -31,31 +42,57 @@ export const USAGE_REFERENCE_TABLES = [
 export type UsageReferenceTable = (typeof USAGE_REFERENCE_TABLES)[number];
 
 /**
- * Stored usage document structure
- * All fields are immutable - usage records are append-only
+ * Base fields shared by all usage records
  */
-export type TUsage = {
+type BaseUsage = {
 	/** Table name the reference refers to */
 	referenceTable: UsageReferenceTable;
 	/** Reference to the entity that generated this usage (dynamic relationship via refPath) */
 	reference: Types.ObjectId;
 	/** User who triggered this usage */
 	userId: string;
+	/** Balance change in credits (negative = spend, positive = grant) */
+	creditsDelta: number;
+	createdAt: Date;
+	updatedAt: Date;
+};
+
+/**
+ * Credits grant record - for credit grants without token consumption
+ */
+export type TCreditsGrant = BaseUsage & {
+	/** Type of credit grant */
+	type: CreditsType;
+	promptTokens: 0;
+	completionTokens: 0;
+	totalTokens: 0;
+	inputCost: 0;
+	outputCost: 0;
+	totalCost: 0;
+};
+
+/**
+ * Token usage record - for AI processing with token consumption
+ */
+export type TTokenUsage = BaseUsage & {
+	/** Type of token usage */
+	type: UsageType;
 	/** Optional autofill ID for autofill-related usage */
 	autofillId?: Types.ObjectId;
-	/** Type of usage - determines what operation generated the usage */
-	type: UsageType;
 	/** Token usage from AI processing */
 	promptTokens: number;
 	completionTokens: number;
 	totalTokens: number;
-	/** Estimated cost breakdown in USD */
-	inputCost?: number;
-	outputCost?: number;
-	totalCost?: number;
-	createdAt: Date;
-	updatedAt: Date;
+	/** Estimated cost breakdown in EUR */
+	inputCost: number;
+	outputCost: number;
+	totalCost: number;
 };
+
+/**
+ * Discriminated union of all usage types
+ */
+export type TUsage = TCreditsGrant | TTokenUsage;
 
 export type CreateUsageParams = Omit<TUsage, "createdAt" | "updatedAt">;
 

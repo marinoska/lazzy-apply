@@ -5,6 +5,7 @@ import { applyOwnershipEnforcement } from "@/app/middleware/mongoOwnershipEnforc
 import { isDuplicateKeyError } from "@/util/mongoErrors.js";
 
 import {
+	CREDITS_TYPES,
 	type TUsage,
 	USAGE_MODEL_NAME,
 	USAGE_REFERENCE_TABLES,
@@ -48,38 +49,49 @@ const usageSchema = new Schema<TUsage, UsageModel, UsageMethods>(
 		type: {
 			type: String,
 			required: true,
-			enum: USAGE_TYPES,
+			enum: [...USAGE_TYPES, ...CREDITS_TYPES],
 			index: true,
+			immutable: true,
+		},
+		creditsDelta: {
+			type: Number,
+			required: true,
 			immutable: true,
 		},
 		promptTokens: {
 			type: Number,
 			required: true,
+			default: 0,
 			immutable: true,
 		},
 		completionTokens: {
 			type: Number,
 			required: true,
+			default: 0,
 			immutable: true,
 		},
 		totalTokens: {
 			type: Number,
 			required: true,
+			default: 0,
 			immutable: true,
 		},
 		inputCost: {
 			type: Number,
-			default: undefined,
+			required: true,
+			default: 0,
 			immutable: true,
 		},
 		outputCost: {
 			type: Number,
-			default: undefined,
+			required: true,
+			default: 0,
 			immutable: true,
 		},
 		totalCost: {
 			type: Number,
-			default: undefined,
+			required: true,
+			default: 0,
 			immutable: true,
 		},
 	},

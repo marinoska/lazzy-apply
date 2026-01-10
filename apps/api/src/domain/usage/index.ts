@@ -1,5 +1,19 @@
 export {
+	type BalanceTrackerConfig,
+	BaseBalanceTracker,
+} from "./abstractBalanceTracker.js";
+export type {
+	BalanceDelta,
+	CreditData,
+	UsageData,
+} from "./balanceData.types.js";
+export { CreditsTracker as BalanceTracker } from "./balanceTracker.js";
+export {
+	CREDITS_TYPES,
 	type CreateUsageParams,
+	type CreditsType,
+	type TCreditsGrant,
+	type TTokenUsage,
 	type TUsage,
 	USAGE_MODEL_NAME,
 	USAGE_REFERENCE_TABLES,
@@ -20,5 +34,4 @@ export {
 	createEmptyUsage,
 	type UsageEntry,
 	UsageTracker,
-	type UsageTrackerConfig,
 } from "./usageTracker.js";

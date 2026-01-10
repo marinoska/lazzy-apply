@@ -21,11 +21,11 @@ OPENAI_API_KEY=your-openai-api-key-here
 
 # AI Model Configuration
 # Model name (e.g., gpt-4.1-mini, gpt-4o-mini, gpt-4o, gpt-4-turbo)
-AI_MODEL_NAME=gpt-4.1-mini
+AI_MODEL_NAME=gpt-4o-mini
 # Pricing per 1M tokens in USD (update when pricing changes)
 # GPT-4.1 mini pricing as of 2024:
-AI_MODEL_INPUT_PRICE_PER_1M=0.80
-AI_MODEL_OUTPUT_PRICE_PER_1M=3.20
+AI_MODEL_INPUT_PRICE_PER_1M=0.15
+AI_MODEL_OUTPUT_PRICE_PER_1M=0.60
 
 # Axiom API Token for OpenTelemetry (get from https://app.axiom.co/settings/tokens)
 AXIOM_API_TOKEN=your-axiom-api-token-here

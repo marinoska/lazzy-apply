@@ -17,7 +17,7 @@ vi.mock("@/domain/usage/index.js", async (importOriginal) => {
 			setReference: vi.fn(),
 			setAutofillId: vi.fn(),
 			setUsage: vi.fn(),
-			persistAllUsage: vi.fn().mockResolvedValue(undefined),
+			persist: vi.fn().mockResolvedValue(undefined),
 		})),
 	};
 });

@@ -325,7 +325,7 @@ export class AutofillManager {
 				autofill = createdAutofill;
 
 				this.autofillUsageTracker.setAutofill(autofill);
-				await this.autofillUsageTracker.persistAllUsage(session);
+				await this.autofillUsageTracker.persist(session);
 			});
 		} finally {
 			await session.endSession();

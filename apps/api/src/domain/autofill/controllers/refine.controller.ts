@@ -122,7 +122,7 @@ export async function refineController(
 
 			usageTracker.setReference(refineRecord._id);
 			usageTracker.setUsage("autofill_refine", result.usage);
-			await usageTracker.persistAllUsage(session);
+			await usageTracker.persist(session);
 		});
 	} finally {
 		await session.endSession();

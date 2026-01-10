@@ -31,18 +31,28 @@ export class AutofillUsageTracker {
 	}
 
 	setJdFormExtractorRouterUsage(usage: TokenUsage | null): void {
-		this.tracker.setUsage("jd_form_extractor:router", usage);
+		if (usage) {
+			this.tracker.setUsage("jd_form_extractor:router", usage);
+		}
 	}
 
 	setJdFormExtractorWriterUsage(usage: TokenUsage | null): void {
-		this.tracker.setUsage("jd_form_extractor:writer", usage);
+		if (usage) {
+			this.tracker.setUsage("jd_form_extractor:writer", usage);
+		}
 	}
 
 	setInferenceUsage(usage: TokenUsage | undefined): void {
-		this.tracker.setUsage("form_fields_inference", usage);
+		if (usage) {
+			this.tracker.setUsage("form_fields_inference", usage);
+		}
 	}
 
-	async persistAllUsage(session: ClientSession): Promise<void> {
-		await this.tracker.persistAllUsage(session);
+	async persist(session: ClientSession): Promise<void> {
+		await this.tracker.persist(session);
+	}
+
+	async persistUsage(session: ClientSession): Promise<void> {
+		await this.tracker.persist(session);
 	}
 }

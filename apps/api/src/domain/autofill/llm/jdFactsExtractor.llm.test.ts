@@ -20,6 +20,7 @@ vi.mock("@/app/env.js", () => ({
 vi.mock("@/app/logger.js", () => ({
 	createLogger: () => ({
 		info: vi.fn(),
+		debug: vi.fn(),
 		error: vi.fn(),
 		warn: vi.fn(),
 	}),

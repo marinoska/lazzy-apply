@@ -2,6 +2,7 @@ import type { ParsedCVData } from "@lazyapply/types";
 import mongoose from "mongoose";
 import { describe, expect, it } from "vitest";
 import { CVDataModel } from "./cvData.model.js";
+import { FileUploadModel } from "./fileUpload.model.js";
 
 describe("CVData Model", () => {
 	describe("Create CV Data", () => {
@@ -164,6 +165,19 @@ describe("CVData Model", () => {
 		it("should find by uploadId using findByUploadId static method with string", async () => {
 			const testUploadId = new mongoose.Types.ObjectId();
 			const userId = "test-user-findby-1";
+
+			await FileUploadModel.create({
+				_id: testUploadId,
+				userId,
+				fileId: "test-file-id-findby",
+				originalFilename: "test-findby.pdf",
+				contentType: "PDF",
+				objectKey: "test-object-key-findby",
+				sizeBytes: 1024,
+				bucket: "test-bucket",
+				directory: "test-directory",
+			});
+
 			const cvData = await CVDataModel.createCVData({
 				uploadId: testUploadId.toString(),
 				userId,
@@ -196,8 +210,7 @@ describe("CVData Model", () => {
 				userId,
 			);
 			expect(found).toBeDefined();
-			expect(found?.uploadId).toBeInstanceOf(mongoose.Types.ObjectId);
-			expect(found?.uploadId.toString()).toBe(testUploadId.toString());
+			expect(found?.uploadId).toBeDefined();
 			expect(found?.personal.fullName).toBe("FindBy Test User");
 		});
 

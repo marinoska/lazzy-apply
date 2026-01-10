@@ -156,10 +156,10 @@ export type TokenUsage = {
 	promptTokens: number;
 	completionTokens: number;
 	totalTokens: number;
-	/** Estimated cost breakdown in USD */
-	inputCost?: number;
-	outputCost?: number;
-	totalCost?: number;
+	/** Estimated cost breakdown */
+	inputCost: number;
+	outputCost: number;
+	totalCost: number;
 };
 
 /**

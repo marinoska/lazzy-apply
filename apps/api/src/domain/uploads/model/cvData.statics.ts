@@ -1,4 +1,4 @@
-import { Types, type Schema } from "mongoose";
+import { type Schema, Types } from "mongoose";
 import { createLogger } from "@/app/logger.js";
 import type { CVDataModel } from "./cvData.model.js";
 import type {
@@ -37,7 +37,7 @@ export function registerCVDataStatics(
 			? new Types.ObjectId(uploadId)
 			: uploadId;
 
-		return this.findOne({ uploadId: uploadObjectId })
+		return this.findOne({ uploadId: uploadObjectId, userId })
 			.populate({
 				path: "uploadId",
 				options: { userId },

@@ -35,7 +35,7 @@ describe("UsageTracker", () => {
 		vi.clearAllMocks();
 	});
 
-	describe("persistAllUsage", () => {
+	describe("persistUsage", () => {
 		it("should persist all usage entries with correct reference table", async () => {
 			const tracker = new UsageTracker(userId, { referenceTable: "autofill" });
 
@@ -49,7 +49,7 @@ describe("UsageTracker", () => {
 				totalCost: 0.03,
 			});
 
-			tracker.setUsage("jd_form_match", {
+			tracker.setUsage("form_fields_inference", {
 				promptTokens: 200,
 				completionTokens: 100,
 				totalTokens: 300,
@@ -58,7 +58,7 @@ describe("UsageTracker", () => {
 				totalCost: 0.06,
 			});
 
-			await tracker.persistAllUsage(mockSession);
+			await tracker.persist(mockSession);
 
 			expect(UsageModel.create).toHaveBeenCalledTimes(2);
 			expect(UsageModel.create).toHaveBeenCalledWith(
@@ -75,7 +75,7 @@ describe("UsageTracker", () => {
 				[
 					expect.objectContaining({
 						referenceTable: "autofill",
-						type: "jd_form_match",
+						type: "form_fields_inference",
 						totalTokens: 300,
 					}),
 				],
@@ -96,7 +96,7 @@ describe("UsageTracker", () => {
 				totalCost: 0.13,
 			});
 
-			await tracker.persistAllUsage(mockSession);
+			await tracker.persist(mockSession);
 
 			expect(UsageModel.create).toHaveBeenCalledTimes(1);
 			expect(UsageModel.create).toHaveBeenCalledWith(
@@ -112,10 +112,11 @@ describe("UsageTracker", () => {
 			);
 		});
 
-		it("should skip persisting usage with zero tokens", async () => {
+		it("should silently skip usage with zero tokens", async () => {
 			const tracker = new UsageTracker(userId, { referenceTable: "autofill" });
 
 			tracker.setReference(mockReferenceId);
+
 			tracker.setUsage("form_fields_classification", {
 				promptTokens: 0,
 				completionTokens: 0,
@@ -125,18 +126,7 @@ describe("UsageTracker", () => {
 				totalCost: 0,
 			});
 
-			await tracker.persistAllUsage(mockSession);
-
-			expect(UsageModel.create).not.toHaveBeenCalled();
-		});
-
-		it("should skip persisting null usage", async () => {
-			const tracker = new UsageTracker(userId, { referenceTable: "autofill" });
-
-			tracker.setReference(mockReferenceId);
-			tracker.setUsage("jd_form_match", null);
-
-			await tracker.persistAllUsage(mockSession);
+			await tracker.persist(mockSession);
 
 			expect(UsageModel.create).not.toHaveBeenCalled();
 		});
@@ -144,16 +134,20 @@ describe("UsageTracker", () => {
 		it("should throw error if reference is not set", async () => {
 			const tracker = new UsageTracker(userId, { referenceTable: "autofill" });
 
-			tracker.setUsage("form_fields_classification", {
-				promptTokens: 100,
-				completionTokens: 50,
-				totalTokens: 150,
-				inputCost: 0.01,
-				outputCost: 0.02,
-				totalCost: 0.03,
-			});
+			tracker.setUsage(
+				"form_fields_classification",
+				{
+					promptTokens: 100,
+					completionTokens: 50,
+					totalTokens: 150,
+					inputCost: 0.01,
+					outputCost: 0.02,
+					totalCost: 0.03,
+				},
+				0.03,
+			);
 
-			await expect(tracker.persistAllUsage(mockSession)).rejects.toThrow(
+			await expect(tracker.persist(mockSession)).rejects.toThrow(
 				"Reference must be set before tracking usage",
 			);
 		});
@@ -162,16 +156,20 @@ describe("UsageTracker", () => {
 			const tracker = new UsageTracker(userId, { referenceTable: "autofill" });
 
 			tracker.setReference(mockReferenceId);
-			tracker.setUsage("form_fields_classification", {
-				promptTokens: 100,
-				completionTokens: 50,
-				totalTokens: 150,
-				inputCost: 0.01,
-				outputCost: 0.02,
-				totalCost: 0.03,
-			});
+			tracker.setUsage(
+				"form_fields_classification",
+				{
+					promptTokens: 100,
+					completionTokens: 50,
+					totalTokens: 150,
+					inputCost: 0.01,
+					outputCost: 0.02,
+					totalCost: 0.03,
+				},
+				0.03,
+			);
 
-			await tracker.persistAllUsage(mockSession);
+			await tracker.persist(mockSession);
 
 			expect(UserBalanceModel.updateBalance).toHaveBeenCalledTimes(1);
 			expect(UserBalanceModel.updateBalance).toHaveBeenCalledWith(
@@ -195,7 +193,7 @@ describe("UsageTracker", () => {
 				totalCost: 0.03,
 			});
 
-			tracker.setUsage("jd_form_match", {
+			tracker.setUsage("form_fields_inference", {
 				promptTokens: 200,
 				completionTokens: 100,
 				totalTokens: 300,
@@ -204,7 +202,7 @@ describe("UsageTracker", () => {
 				totalCost: 0.06,
 			});
 
-			await tracker.persistAllUsage(mockSession);
+			await tracker.persist(mockSession);
 
 			expect(UserBalanceModel.updateBalance).toHaveBeenCalledTimes(2);
 			expect(UserBalanceModel.updateBalance).toHaveBeenCalledWith(
@@ -219,49 +217,6 @@ describe("UsageTracker", () => {
 				100,
 				mockSession,
 			);
-		});
-
-		it("should not update balance when usage has zero tokens", async () => {
-			const tracker = new UsageTracker(userId, { referenceTable: "autofill" });
-
-			tracker.setReference(mockReferenceId);
-			tracker.setUsage("form_fields_classification", {
-				promptTokens: 0,
-				completionTokens: 0,
-				totalTokens: 0,
-				inputCost: 0,
-				outputCost: 0,
-				totalCost: 0,
-			});
-
-			await tracker.persistAllUsage(mockSession);
-
-			expect(UserBalanceModel.updateBalance).not.toHaveBeenCalled();
-		});
-	});
-
-	describe("getUsage", () => {
-		it("should return the usage for a given type", () => {
-			const tracker = new UsageTracker(userId, { referenceTable: "autofill" });
-
-			const usage = {
-				promptTokens: 100,
-				completionTokens: 50,
-				totalTokens: 150,
-				inputCost: 0.01,
-				outputCost: 0.02,
-				totalCost: 0.03,
-			};
-
-			tracker.setUsage("form_fields_classification", usage);
-
-			expect(tracker.getUsage("form_fields_classification")).toEqual(usage);
-		});
-
-		it("should return undefined for unset usage type", () => {
-			const tracker = new UsageTracker(userId, { referenceTable: "autofill" });
-
-			expect(tracker.getUsage("form_fields_classification")).toBeUndefined();
 		});
 	});
 });

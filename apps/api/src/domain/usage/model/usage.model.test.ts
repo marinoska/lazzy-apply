@@ -15,6 +15,7 @@ describe("UsageModel", () => {
 		promptTokens: 100,
 		completionTokens: 50,
 		totalTokens: 150,
+		creditsDelta: -150,
 		...overrides,
 	});
 
@@ -58,7 +59,7 @@ describe("UsageModel", () => {
 				createUsageParams({ reference, type: "form_fields_classification" }),
 			);
 			await UsageModel.createUsage(
-				createUsageParams({ reference, type: "jd_form_match" }),
+				createUsageParams({ reference, type: "form_fields_inference" }),
 			);
 
 			expect(
@@ -117,7 +118,7 @@ describe("UsageModel", () => {
 				createUsageParams({ type: "form_fields_classification" }),
 			);
 			await UsageModel.createUsage(
-				createUsageParams({ type: "jd_form_match" }),
+				createUsageParams({ type: "form_fields_inference" }),
 			);
 
 			const results = await UsageModel.find({

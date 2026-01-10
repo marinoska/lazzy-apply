@@ -6,14 +6,14 @@ import { AutofillUsageTracker } from "./autofillUsageTracker.service.js";
 const mockSetReference = vi.fn();
 const mockSetAutofillId = vi.fn();
 const mockSetUsage = vi.fn();
-const mockPersistAllUsage = vi.fn();
+const mockPersist = vi.fn();
 
 vi.mock("@/domain/usage/index.js", () => ({
 	UsageTracker: vi.fn().mockImplementation(() => ({
 		setReference: mockSetReference,
 		setAutofillId: mockSetAutofillId,
 		setUsage: mockSetUsage,
-		persistAllUsage: mockPersistAllUsage,
+		persist: mockPersist,
 	})),
 }));
 
@@ -94,10 +94,7 @@ describe("AutofillUsageTracker", () => {
 
 			tracker.setJdFormExtractorRouterUsage(null);
 
-			expect(mockSetUsage).toHaveBeenCalledWith(
-				"jd_form_extractor:router",
-				null,
-			);
+			expect(mockSetUsage).not.toHaveBeenCalled();
 		});
 	});
 
@@ -126,10 +123,7 @@ describe("AutofillUsageTracker", () => {
 
 			tracker.setJdFormExtractorWriterUsage(null);
 
-			expect(mockSetUsage).toHaveBeenCalledWith(
-				"jd_form_extractor:writer",
-				null,
-			);
+			expect(mockSetUsage).not.toHaveBeenCalled();
 		});
 	});
 
@@ -151,14 +145,14 @@ describe("AutofillUsageTracker", () => {
 		});
 	});
 
-	describe("persistAllUsage", () => {
+	describe("persistUsage", () => {
 		it("should delegate to underlying tracker", async () => {
 			const tracker = new AutofillUsageTracker(userId);
 			const mockSession = {} as any;
 
-			await tracker.persistAllUsage(mockSession);
+			await tracker.persistUsage(mockSession);
 
-			expect(mockPersistAllUsage).toHaveBeenCalledWith(mockSession);
+			expect(mockPersist).toHaveBeenCalledWith(mockSession);
 		});
 	});
 });

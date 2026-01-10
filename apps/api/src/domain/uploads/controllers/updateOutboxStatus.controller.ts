@@ -22,7 +22,7 @@ async function persistCvExtractionUsage(
 	});
 	tracker.setReference(uploadId);
 	tracker.setUsage("cv_data_extraction", usage);
-	await tracker.persistAllUsage(session);
+	await tracker.persist(session);
 }
 
 export const updateOutboxParamsSchema = z.object({

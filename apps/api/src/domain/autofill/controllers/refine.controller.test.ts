@@ -54,7 +54,7 @@ vi.mock("@/domain/usage/index.js", () => ({
 		setReference: vi.fn(),
 		setAutofillId: vi.fn(),
 		setUsage: vi.fn(),
-		persistAllUsage: vi.fn(),
+		persist: vi.fn(),
 	})),
 }));
 
@@ -323,21 +323,24 @@ describe("refine.controller", () => {
 		});
 
 		it("should return 404 when CV data not found", async () => {
-			const mockLean = vi.fn().mockResolvedValue(null);
-			const mockSetOptions = vi.fn().mockReturnValue({
-				lean: mockLean,
-			});
-
-			mockedCVDataModel.findById.mockReturnValueOnce({
-				setOptions: mockSetOptions,
+			mockedAutofillModel.findByAutofillId.mockResolvedValueOnce({
+				userId: "test-user-id",
+				uploadReference: "test-upload-id",
+				cvDataReference: "test-cv-data-id",
+				autofillId: "test-autofill-id",
+				formReference: "test-form-id",
+				data: [],
+				createdAt: new Date(),
+				updatedAt: new Date(),
 			} as never);
 
-			await refineController(mockReq as never, mockRes as never);
+			mockedCVContextVO.load.mockRejectedValueOnce(
+				new Error("CV data not found"),
+			);
 
-			expect(mockRes.status).toHaveBeenCalledWith(404);
-			expect(mockRes.json).toHaveBeenCalledWith({
-				error: "CV data not found",
-			});
+			await expect(
+				refineController(mockReq as never, mockRes as never),
+			).rejects.toThrow("CV data not found");
 		});
 
 		it("should throw Unauthorized when user does not own autofill session", async () => {

@@ -36,9 +36,9 @@ API_URL = "https://api.yourapp.com"  # Update with your production API URL
 AXIOM_OTEL_DATASET = "otel-upload-queue-consumer"  # OpenTelemetry traces dataset
 AXIOM_LOGS_DATASET = "upload-queue-consumer"  # Regular logs/events dataset
 # AI Model Configuration
-AI_MODEL_NAME = "gpt-4.1-mini"
-AI_MODEL_INPUT_PRICE_PER_1M = "0.80"  # $0.80 per 1M input tokens
-AI_MODEL_OUTPUT_PRICE_PER_1M = "3.20"  # $3.20 per 1M output tokens
+AI_MODEL_NAME = "gpt-4o-mini"
+AI_MODEL_INPUT_PRICE_PER_1M = "0.15"  # $0.15 per 1M input tokens
+AI_MODEL_OUTPUT_PRICE_PER_1M = "0.60"  # $0.60 per 1M output tokens
 
 [observability]
 [observability.logs]
@@ -79,9 +79,9 @@ API_URL = "https://lazzyapply-api-dev.onrender.com"
 AXIOM_OTEL_DATASET = "otel-upload-queue-consumer"  # OpenTelemetry traces dataset
 AXIOM_LOGS_DATASET = "upload-queue-consumer"  # Regular logs/events dataset
 # AI Model Configuration
-AI_MODEL_NAME = "gpt-4.1-mini"
-AI_MODEL_INPUT_PRICE_PER_1M = "0.80"  # $0.80 per 1M input tokens
-AI_MODEL_OUTPUT_PRICE_PER_1M = "3.20"  # $3.20 per 1M output tokens
+AI_MODEL_NAME = "gpt-4o-mini"
+AI_MODEL_INPUT_PRICE_PER_1M = "0.15"  # $0.80 per 1M input tokens
+AI_MODEL_OUTPUT_PRICE_PER_1M = "0.60"  # $3.20 per 1M output tokens
 
 ################
 # LOCAL ENV    #
@@ -115,6 +115,6 @@ API_URL = "http://0.0.0.0:5050"
 AXIOM_OTEL_DATASET = "otel-upload-queue-consumer"  # OpenTelemetry traces dataset
 AXIOM_LOGS_DATASET = "upload-queue-consumer"  # Regular logs/events dataset
 # AI Model Configuration
-AI_MODEL_NAME = "gpt-4.1-mini"
-AI_MODEL_INPUT_PRICE_PER_1M = "0.80"  # $0.80 per 1M input tokens
-AI_MODEL_OUTPUT_PRICE_PER_1M = "3.20"  # $3.20 per 1M output tokens
+AI_MODEL_NAME = "gpt-4o-mini"
+AI_MODEL_INPUT_PRICE_PER_1M = "0.15"  # $0.15 per 1M input tokens
+AI_MODEL_OUTPUT_PRICE_PER_1M = "0.60"  # $0.60 per 1M output tokens

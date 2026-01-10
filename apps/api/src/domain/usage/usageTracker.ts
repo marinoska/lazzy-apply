@@ -1,11 +1,11 @@
 import type { TokenUsage } from "@lazyapply/types";
-import type { ClientSession, Types } from "mongoose";
+import type { Types } from "mongoose";
 import { createLogger } from "@/app/logger.js";
-import { UsageModel } from "./model/usage.model.js";
-import type { UsageReferenceTable, UsageType } from "./model/usage.types.js";
-import { UserBalanceModel } from "./model/userBalance.model.js";
+import { BaseBalanceTracker } from "./abstractBalanceTracker.js";
+import type { UsageData } from "./balanceData.types.js";
+import type { UsageType } from "./model/usage.types.js";
 
-const logger = createLogger("usage.tracker");
+const logger = createLogger("UsageTracker");
 
 export function createEmptyUsage(): TokenUsage {
 	return {
@@ -23,101 +23,47 @@ export interface UsageEntry {
 	type: UsageType;
 }
 
-export interface UsageTrackerConfig {
-	referenceTable: UsageReferenceTable;
-}
-
 /**
  * Universal usage tracker for tracking token usage across different operations.
  * Can be used for autofill, CV data extraction, and other LLM-based operations.
+ * Tracks negative credits (spending) and token consumption.
  */
-export class UsageTracker {
-	private referenceId?: Types.ObjectId;
+export class UsageTracker extends BaseBalanceTracker {
 	private autofillId?: Types.ObjectId;
-	private readonly usageEntries: Map<UsageType, TokenUsage | null | undefined> =
-		new Map();
-
-	constructor(
-		private readonly userId: string,
-		private readonly config: UsageTrackerConfig,
-	) {}
-
-	setReference(referenceId: Types.ObjectId): void {
-		this.referenceId = referenceId;
-	}
+	private readonly usageEntries: UsageData[] = [];
 
 	setAutofillId(autofillId: Types.ObjectId): void {
 		this.autofillId = autofillId;
 	}
 
-	setUsage(type: UsageType, usage: TokenUsage | null | undefined): void {
-		this.usageEntries.set(type, usage);
-	}
-
-	getUsage(type: UsageType): TokenUsage | null | undefined {
-		return this.usageEntries.get(type);
-	}
-
-	async persistAllUsage(session: ClientSession): Promise<void> {
-		if (!this.referenceId) {
-			throw new Error("Reference must be set before tracking usage");
-		}
-
-		const persistPromises: Promise<void>[] = [];
-
-		for (const [type, usage] of this.usageEntries) {
-			persistPromises.push(this.persistUsage(usage, type, session));
-		}
-
-		await Promise.all(persistPromises);
-	}
-
-	private async persistUsage(
-		usage: TokenUsage | null | undefined,
-		type: UsageType,
-		session: ClientSession,
-	): Promise<void> {
-		if (!usage || usage.totalTokens === 0) {
+	setUsage(type: UsageType, usage: TokenUsage): void {
+		if (usage.totalTokens === 0) {
+			logger.info({ type, usage }, "Skipping usage tracking for zero tokens");
 			return;
 		}
 
-		if (!this.referenceId) {
-			throw new Error("Reference must be set before tracking usage");
+		const creditsDelta = this.calculateCreditsFromUsage(usage);
+
+		this.usageEntries.push({
+			type,
+			creditsDelta: -creditsDelta,
+			promptTokens: usage.promptTokens,
+			completionTokens: usage.completionTokens,
+			totalTokens: usage.totalTokens,
+			inputCost: usage.inputCost,
+			outputCost: usage.outputCost,
+			totalCost: usage.totalCost,
+		});
+	}
+
+	protected getCreditsDelta(): UsageData[] {
+		if (!this.autofillId) {
+			return this.usageEntries;
 		}
 
-		await UsageModel.create(
-			[
-				{
-					referenceTable: this.config.referenceTable,
-					reference: this.referenceId,
-					userId: this.userId,
-					...(this.autofillId && { autofillId: this.autofillId }),
-					type,
-					promptTokens: usage.promptTokens,
-					completionTokens: usage.completionTokens,
-					totalTokens: usage.totalTokens,
-					inputCost: usage.inputCost ?? 0,
-					outputCost: usage.outputCost ?? 0,
-					totalCost: usage.totalCost ?? 0,
-				},
-			],
-			session ? { session } : {},
-		);
-
-		await UserBalanceModel.updateBalance(
-			this.userId,
-			usage.promptTokens,
-			usage.completionTokens,
-			session,
-		);
-
-		logger.debug(
-			{
-				type,
-				totalTokens: usage.totalTokens,
-				referenceTable: this.config.referenceTable,
-			},
-			"Usage persisted",
-		);
+		return this.usageEntries.map((entry) => ({
+			...entry,
+			autofillId: this.autofillId,
+		}));
 	}
 }

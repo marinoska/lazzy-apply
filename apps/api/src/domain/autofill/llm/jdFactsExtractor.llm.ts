@@ -246,7 +246,7 @@ export async function extractJdFormFactsWithAI(
 	if (!hasJdText && !hasFormContext) {
 		logger.error("Both JD text and formContext are empty, skipping LLM call");
 		return {
-			isMatch: input.jdUrl === input.formUrl,
+			isMatch: urlsMatch,
 			jdFacts: [],
 			routerUsage: null,
 			writerUsage: null,

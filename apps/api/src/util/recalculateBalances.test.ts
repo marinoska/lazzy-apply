@@ -25,9 +25,13 @@ describe("recalculateBalances integration", () => {
 					referenceTable: "forms",
 					reference: referenceId,
 					type: "form_fields_classification",
+					creditsDelta: -0.01,
 					promptTokens: 100,
 					completionTokens: 50,
 					totalTokens: 150,
+					inputCost: 0.005,
+					outputCost: 0.005,
+					totalCost: 0.01,
 				},
 			]);
 
@@ -37,9 +41,13 @@ describe("recalculateBalances integration", () => {
 					referenceTable: "forms",
 					reference: "507f1f77bcf86cd799439012" as unknown as Types.ObjectId,
 					type: "form_fields_inference",
+					creditsDelta: -0.02,
 					promptTokens: 200,
 					completionTokens: 75,
 					totalTokens: 275,
+					inputCost: 0.01,
+					outputCost: 0.01,
+					totalCost: 0.02,
 				},
 			]);
 
@@ -71,9 +79,13 @@ describe("recalculateBalances integration", () => {
 					referenceTable: "forms",
 					reference: referenceId,
 					type: "form_fields_classification",
+					creditsDelta: -0.05,
 					promptTokens: 500,
 					completionTokens: 250,
 					totalTokens: 750,
+					inputCost: 0.025,
+					outputCost: 0.025,
+					totalCost: 0.05,
 				},
 			]);
 
@@ -124,9 +136,13 @@ describe("recalculateBalances integration", () => {
 					referenceTable: "forms",
 					reference: referenceId,
 					type: "form_fields_classification",
+					creditsDelta: -0.1,
 					promptTokens: 1000,
 					completionTokens: 500,
 					totalTokens: 1500,
+					inputCost: 0.05,
+					outputCost: 0.05,
+					totalCost: 0.1,
 				},
 			]);
 
@@ -176,9 +192,13 @@ describe("recalculateBalances integration", () => {
 					referenceTable: "forms",
 					reference: ref1,
 					type: "form_fields_classification",
+					creditsDelta: -0.03,
 					promptTokens: 300,
 					completionTokens: 100,
 					totalTokens: 400,
+					inputCost: 0.015,
+					outputCost: 0.015,
+					totalCost: 0.03,
 				},
 			]);
 
@@ -188,9 +208,13 @@ describe("recalculateBalances integration", () => {
 					referenceTable: "forms",
 					reference: ref2,
 					type: "form_fields_inference",
+					creditsDelta: -0.05,
 					promptTokens: 500,
 					completionTokens: 200,
 					totalTokens: 700,
+					inputCost: 0.025,
+					outputCost: 0.025,
+					totalCost: 0.05,
 				},
 			]);
 

@@ -37,7 +37,8 @@ vi.mock("../llm/JdFactsExtractor.llm.js", () => ({
 	extractJdFormFactsWithAI: vi.fn().mockResolvedValue({
 		isMatch: true,
 		jdFacts: [],
-		usage: {
+		routerUsage: null,
+		writerUsage: {
 			promptTokens: 50,
 			completionTokens: 25,
 			totalTokens: 75,
@@ -72,10 +73,14 @@ vi.mock("@/app/cloudflare.js", () => ({
 
 import { extractJdFormFactsWithAI } from "../llm/JdFactsExtractor.llm.js";
 
+const mockedExtractJdFormFactsWithAI = vi.mocked(extractJdFormFactsWithAI);
+
 const TEST_UPLOAD_ID = "507f1f77bcf86cd799439011";
 
 describe("classification.manager", () => {
 	beforeEach(async () => {
+		vi.clearAllMocks();
+
 		await FormModel.deleteMany({});
 		await FormFieldModel.deleteMany({});
 		await AutofillModel.deleteMany({}).setOptions({
@@ -352,8 +357,14 @@ describe("classification.manager", () => {
 				formContext: "",
 			});
 
-			// validateJdFormMatch should NOT be called when URLs match
-			expect(extractJdFormFactsWithAI).not.toHaveBeenCalled();
+			// Function is called but detects URL match and skips LLM processing
+			expect(mockedExtractJdFormFactsWithAI).toHaveBeenCalledWith({
+				jdRawText: "Some JD text",
+				formContext: "",
+				formFields: expect.any(Array),
+				jdUrl,
+				formUrl: formInput.pageUrl,
+			});
 		});
 
 		it("should call JD validation when jdUrl differs from formUrl", async () => {
@@ -375,16 +386,16 @@ describe("classification.manager", () => {
 			});
 
 			// validateJdFormMatch should be called when URLs differ
-			expect(extractJdFormFactsWithAI).toHaveBeenCalledWith({
+			expect(mockedExtractJdFormFactsWithAI).toHaveBeenCalledWith({
 				jdRawText: "Some JD text",
 				formContext: "",
-				formFields: fields,
-				jdUrl: jdUrl,
+				formFields: expect.any(Array),
+				jdUrl,
 				formUrl: formInput.pageUrl,
 			});
 		});
 
-		it("should skip JD validation when jdRawText is empty", async () => {
+		it("should skip JD validation when both jdRawText and formContext are empty", async () => {
 			const formInput = createTestFormInput();
 			const fields = [createTestField("hash-1", "email")];
 			const jdUrl = "https://example.com/job-description";
@@ -399,11 +410,17 @@ describe("classification.manager", () => {
 				jdRawText: "", // Empty JD text
 				jdUrl,
 				formUrl: formInput.pageUrl,
-				formContext: "",
+				formContext: "", // Empty form context
 			});
 
-			// validateJdFormMatch should NOT be called when JD text is empty
-			expect(extractJdFormFactsWithAI).not.toHaveBeenCalled();
+			// Function is called but returns early without making LLM call
+			expect(mockedExtractJdFormFactsWithAI).toHaveBeenCalledWith({
+				jdRawText: "",
+				formContext: "",
+				formFields: expect.any(Array),
+				jdUrl,
+				formUrl: formInput.pageUrl,
+			});
 		});
 
 		it("should return isMatch: true when jdUrl matches formUrl (sameUrl fallback)", async () => {

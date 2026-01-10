@@ -21,16 +21,22 @@ vi.mock("@/app/logger.js", () => ({
 		info: vi.fn(),
 		error: vi.fn(),
 		warn: vi.fn(),
+		debug: vi.fn(),
 	}),
 }));
 
 import { generateText } from "ai";
+import { beforeEach } from "vitest";
 import { refineFieldValue } from "./refine.llm.js";
 
 const mockedGenerateText = vi.mocked(generateText);
 
 describe("refine.llm", () => {
 	describe("refineFieldValue", () => {
+		beforeEach(() => {
+			vi.clearAllMocks();
+		});
+
 		it("should call LLM and return refined answer", async () => {
 			mockedGenerateText
 				.mockResolvedValueOnce({
