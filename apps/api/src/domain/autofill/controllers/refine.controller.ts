@@ -1,3 +1,7 @@
+import {
+	MAX_INSTRUCTIONS_LENGTH,
+	MIN_INSTRUCTIONS_LENGTH,
+} from "@lazyapply/types";
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { z } from "zod";
@@ -20,7 +24,10 @@ export const refineBodySchema = z.object({
 	fieldLabel: z.string().min(1),
 	fieldDescription: z.string(),
 	fieldText: z.string().min(1),
-	userInstructions: z.string().min(1),
+	userInstructions: z
+		.string()
+		.min(MIN_INSTRUCTIONS_LENGTH)
+		.max(MAX_INSTRUCTIONS_LENGTH),
 });
 
 export const refineParamsSchema = z.object({

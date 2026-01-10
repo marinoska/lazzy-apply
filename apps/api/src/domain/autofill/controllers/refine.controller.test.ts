@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { refineFieldValue } from "../llm/index.js";
 import { AutofillModel } from "../model/autofill.model.js";
 import { AutofillRefineModel } from "../model/autofillRefine.model.js";
-import { refineController } from "./refine.controller.js";
+import { refineBodySchema, refineController } from "./refine.controller.js";
 
 vi.mock("@/app/env.js", () => ({
 	env: {
@@ -233,6 +233,50 @@ describe("refine.controller", () => {
 				fieldHash: "test-field-hash",
 				refinedText: "John Michael Doe",
 			});
+		});
+
+		it("should reject instructions longer than 400 characters", () => {
+			const result = refineBodySchema.safeParse({
+				fieldLabel: "Full Name",
+				fieldDescription: "Please enter your full name",
+				fieldText: "John Doe",
+				userInstructions: "a".repeat(401),
+			});
+
+			expect(result.success).toBe(false);
+		});
+
+		it("should reject instructions shorter than 5 characters", () => {
+			const result = refineBodySchema.safeParse({
+				fieldLabel: "Full Name",
+				fieldDescription: "Please enter your full name",
+				fieldText: "John Doe",
+				userInstructions: "abcd",
+			});
+
+			expect(result.success).toBe(false);
+		});
+
+		it("should accept instructions with exactly 5 characters", () => {
+			const result = refineBodySchema.safeParse({
+				fieldLabel: "Full Name",
+				fieldDescription: "Please enter your full name",
+				fieldText: "John Doe",
+				userInstructions: "abcde",
+			});
+
+			expect(result.success).toBe(true);
+		});
+
+		it("should accept instructions with exactly 400 characters", () => {
+			const result = refineBodySchema.safeParse({
+				fieldLabel: "Full Name",
+				fieldDescription: "Please enter your full name",
+				fieldText: "John Doe",
+				userInstructions: "a".repeat(400),
+			});
+
+			expect(result.success).toBe(true);
 		});
 
 		it("should throw Unauthorized when user is missing", async () => {

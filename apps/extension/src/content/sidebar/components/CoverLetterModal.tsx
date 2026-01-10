@@ -1,3 +1,4 @@
+import { MAX_INSTRUCTIONS_LENGTH } from "@lazyapply/types";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
@@ -13,20 +14,18 @@ import { Snackbar } from "@/content/components/Snackbar.js";
 import { BodyExtraSmallWarning } from "@/content/components/Typography.js";
 import { useGenerateCoverLetterMutation } from "@/lib/api/query/useGenerateCoverLetterMutation.js";
 import { useAutofill } from "../context/AutofillContext.js";
+import { usePreventBodyScroll } from "../hooks/usePreventBodyScroll.js";
 import { fillCoverLetterFields } from "../services/coverLetterFiller.js";
 import {
 	type CoverLetterSettings,
 	DEFAULT_COVER_LETTER_SETTINGS,
 	QuickSetupRow,
 } from "./QuickSetupRow.js";
-import { usePreventBodyScroll } from "../hooks/usePreventBodyScroll.js";
 
 interface CoverLetterModalProps {
 	open: boolean;
 	onClose: () => void;
 }
-
-const MAX_INSTRUCTIONS_LENGTH = 200;
 
 export function CoverLetterModal({ open, onClose }: CoverLetterModalProps) {
 	const {

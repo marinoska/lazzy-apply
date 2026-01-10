@@ -1,11 +1,13 @@
 import {
 	COVER_LETTER_FORMATS,
 	COVER_LETTER_LENGTHS,
+	MAX_INSTRUCTIONS_LENGTH,
 	type CoverLetterSettings,
 } from "@lazyapply/types";
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { z } from "zod";
+import { getEnv } from "@/app/env.js";
 import { Unauthorized } from "@/app/errors.js";
 import { createLogger } from "@/app/logger.js";
 import { CVDataModel } from "@/domain/uploads/model/cvData.model.js";
@@ -17,13 +19,12 @@ import {
 	type AutofillCoverLetterDocument,
 	AutofillCoverLetterModel,
 } from "../model/autofillCoverLetter.model.js";
-import { getEnv } from "@/app/env.js";
 
 const logger = createLogger("cover-letter");
 
 export const generateCoverLetterBodySchema = z.object({
 	jdRawText: z.string().optional(),
-	instructions: z.string().optional(),
+	instructions: z.string().max(MAX_INSTRUCTIONS_LENGTH).optional(),
 	formContext: z.string().optional(),
 	settings: z
 		.object({

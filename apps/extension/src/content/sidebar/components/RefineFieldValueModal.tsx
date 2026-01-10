@@ -1,3 +1,7 @@
+import {
+	MAX_INSTRUCTIONS_LENGTH,
+	MIN_INSTRUCTIONS_LENGTH,
+} from "@lazyapply/types";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
@@ -23,8 +27,6 @@ interface RefineFieldValueModalProps {
 	onClose: () => void;
 	onSave: (hash: string, newValue: string) => void;
 }
-
-const MAX_INPUT_LENGTH = 800;
 
 export function RefineFieldValueModal({
 	open,
@@ -125,8 +127,8 @@ export function RefineFieldValueModal({
 	const question = fieldData?.label ?? "Unknown question";
 	const currentAnswer = fieldData?.value ?? "";
 
-	const hasValidInput = userInput.trim().length > 5;
-	const isOverLimit = userInput.length > MAX_INPUT_LENGTH;
+	const hasValidInput = userInput.trim().length >= MIN_INSTRUCTIONS_LENGTH;
+	const isOverLimit = userInput.length > MAX_INSTRUCTIONS_LENGTH;
 
 	const getButtonText = () => {
 		if (isFilling) return "Filling...";
@@ -218,7 +220,7 @@ export function RefineFieldValueModal({
 								level="body-xs"
 								color={isOverLimit ? "danger" : "neutral"}
 							>
-								{userInput.length}/{MAX_INPUT_LENGTH}
+								{userInput.length}/{MAX_INSTRUCTIONS_LENGTH}
 							</Typography>
 						</Stack>
 						<Textarea
@@ -231,7 +233,7 @@ export function RefineFieldValueModal({
 						/>
 						{isOverLimit && (
 							<Typography level="body-xs" color="danger">
-								Maximum {MAX_INPUT_LENGTH} characters allowed
+								Maximum {MAX_INSTRUCTIONS_LENGTH} characters allowed
 							</Typography>
 						)}
 					</Stack>

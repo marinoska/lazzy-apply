@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { generateCoverLetterController } from "./coverLetter.controller.js";
+import {
+	generateCoverLetterBodySchema,
+	generateCoverLetterController,
+} from "./coverLetter.controller.js";
 
 vi.mock("@/app/env.js", () => ({
 	env: {
@@ -280,12 +283,28 @@ describe("coverLetter.controller", () => {
 			});
 		});
 
-		it("should handle very long instructions", async () => {
-			mockReq.body.instructions = "a".repeat(500);
+		it("should reject instructions longer than 400 characters", () => {
+			const result = generateCoverLetterBodySchema.safeParse({
+				instructions: "a".repeat(401),
+			});
 
-			await generateCoverLetterController(mockReq as never, mockRes as never);
+			expect(result.success).toBe(false);
+		});
 
-			expect(mockRes.status).toHaveBeenCalledWith(200);
+		it("should accept instructions with exactly 400 characters", () => {
+			const result = generateCoverLetterBodySchema.safeParse({
+				instructions: "a".repeat(400),
+			});
+
+			expect(result.success).toBe(true);
+		});
+
+		it("should accept empty instructions", () => {
+			const result = generateCoverLetterBodySchema.safeParse({
+				instructions: "",
+			});
+
+			expect(result.success).toBe(true);
 		});
 
 		it("should handle special characters in instructions", async () => {

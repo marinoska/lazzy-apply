@@ -20,3 +20,13 @@ export const CV_DIRECTORY = "cv";
  * Cloudflare Queue message ID header for idempotency
  */
 export const CF_QUEUE_MESSAGE_ID_HEADER = "CF-Queue-Message-Id";
+
+/**
+ * Maximum length for user instructions in cover letter generation
+ */
+export const MAX_INSTRUCTIONS_LENGTH = 400;
+
+/**
+ * Minimum length for user instructions in field refinement
+ */
+export const MIN_INSTRUCTIONS_LENGTH = 5;
