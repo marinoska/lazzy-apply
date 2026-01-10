@@ -1,6 +1,7 @@
 import type { ClientSession, Types } from "mongoose";
 import { createLogger } from "@/app/logger.js";
 import type { BalanceDelta } from "./balanceData.types.js";
+import { cvWindowBalanceTracker } from "./cvWindowBalanceTracker.js";
 import { UsageModel } from "./model/usage.model.js";
 import type { UsageReferenceTable } from "./model/usage.types.js";
 import { UserBalanceModel } from "./model/userBalance.model.js";
@@ -54,7 +55,7 @@ export abstract class BaseBalanceTracker {
 						userId: this.userId,
 						...(isUsageData &&
 							delta.autofillId && { autofillId: delta.autofillId }),
-						model: isUsageData && delta.model ? delta.model : null,
+						...(isUsageData && delta.model && { model: delta.model }),
 						type: delta.type,
 						creditsDelta: delta.creditsDelta,
 						promptTokens: isUsageData ? delta.promptTokens : 0,
@@ -72,6 +73,8 @@ export abstract class BaseBalanceTracker {
 				delta.creditsDelta,
 				session,
 			);
+
+			await cvWindowBalanceTracker.trackCvProcessing(this.userId, delta.type);
 
 			logger.debug(
 				{

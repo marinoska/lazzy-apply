@@ -9,6 +9,19 @@ export type {
 } from "./balanceData.types.js";
 export { CreditsTracker as BalanceTracker } from "./balanceTracker.js";
 export {
+	CvWindowBalanceTracker,
+	cvWindowBalanceTracker,
+} from "./cvWindowBalanceTracker.js";
+export {
+	type CvWindowBalanceDocument,
+	CvWindowBalanceModel,
+} from "./model/cvWindowBalance.model.js";
+export {
+	CV_PROCESSING_LIMIT,
+	CV_WINDOW_BALANCE_MODEL_NAME,
+	type TCvWindowBalance,
+} from "./model/cvWindowBalance.types.js";
+export {
 	CREDITS_TYPES,
 	type CreateUsageParams,
 	type CreditsType,

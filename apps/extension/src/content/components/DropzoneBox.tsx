@@ -1,5 +1,6 @@
 import CloseIcon from "@mui/icons-material/Close";
 import CloudUpload from "@mui/icons-material/CloudUpload";
+import { Divider } from "@mui/joy";
 import Alert from "@mui/joy/Alert";
 import Button from "@mui/joy/Button";
 import CircularProgress from "@mui/joy/CircularProgress";
@@ -122,27 +123,30 @@ export const DropzoneBox = ({
 						justifyContent: "center",
 					}}
 				>
-					<HeadingLarge>
-						<BodyExtraSmallWarning sx={{ textAlign: "center" }}>
-							You can process up to 10 CVs per day.
-						</BodyExtraSmallWarning>
+					<BodyExtraSmallWarning sx={{ textAlign: "center" }}>
+						You can process up to <strong>10 CVs</strong> per 24h.
+					</BodyExtraSmallWarning>
 
-						<Stack alignItems="center" gap={0.5}>
-							<Button
-								size="lg"
-								variant="solid"
-								color="primary"
-								disabled
-								sx={{
-									fontSize: "1.5rem",
-									fontWeight: "bold",
-									minWidth: "60px",
-								}}
-							>
-								9
-							</Button>
-							<BodyExtraSmall>left</BodyExtraSmall>
-						</Stack>
+					<Stack alignItems="center" gap={0.5} m={2}>
+						<Button
+							size="lg"
+							variant="solid"
+							color="primary"
+							disabled
+							sx={{
+								fontSize: "1.5rem",
+								fontWeight: "bold",
+								minWidth: "60px",
+							}}
+						>
+							<Stack direction="column">
+								9<BodySmallDarker>left today</BodySmallDarker>
+								<BodyExtraSmall>resets in 3h</BodyExtraSmall>
+							</Stack>
+						</Button>
+					</Stack>
+					<Divider orientation="horizontal" />
+					<HeadingLarge>
 						<CloudUpload color="primary" />
 					</HeadingLarge>
 					{file ? (
