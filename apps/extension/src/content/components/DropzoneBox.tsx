@@ -123,6 +123,26 @@ export const DropzoneBox = ({
 					}}
 				>
 					<HeadingLarge>
+						<BodyExtraSmallWarning sx={{ textAlign: "center" }}>
+							You can process up to 10 CVs per day.
+						</BodyExtraSmallWarning>
+
+						<Stack alignItems="center" gap={0.5}>
+							<Button
+								size="lg"
+								variant="solid"
+								color="primary"
+								disabled
+								sx={{
+									fontSize: "1.5rem",
+									fontWeight: "bold",
+									minWidth: "60px",
+								}}
+							>
+								9
+							</Button>
+							<BodyExtraSmall>left</BodyExtraSmall>
+						</Stack>
 						<CloudUpload color="primary" />
 					</HeadingLarge>
 					{file ? (
@@ -168,9 +188,6 @@ export const DropzoneBox = ({
 						</Stack>
 					) : (
 						<>
-							<BodyExtraSmallWarning sx={{ textAlign: "center" }}>
-								CV parsing uses a small amount of credits
-							</BodyExtraSmallWarning>
 							<BodySmallDarker>Drag & drop a CV or</BodySmallDarker>
 							<input {...getInputProps()} />
 							<Button size="md" sx={{ m: 1 }} color="primary" onClick={open}>
