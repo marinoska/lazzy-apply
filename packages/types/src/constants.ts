@@ -30,3 +30,8 @@ export const MAX_INSTRUCTIONS_LENGTH = 400;
  * Minimum length for user instructions in field refinement
  */
 export const MIN_INSTRUCTIONS_LENGTH = 5;
+
+/**
+ * Default CV processing limit per 24-hour rolling window
+ */
+export const CV_PROCESSING_LIMIT = 10;

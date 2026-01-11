@@ -1,3 +1,4 @@
+import { CV_PROCESSING_LIMIT } from "@lazyapply/types";
 import CloseIcon from "@mui/icons-material/Close";
 import CloudUpload from "@mui/icons-material/CloudUpload";
 import { Divider } from "@mui/joy";
@@ -13,6 +14,7 @@ import {
 	BodySmallDarker,
 	HeadingLarge,
 } from "@/content/components/Typography.js";
+import { useCvWindowBalanceQuery } from "@/lib/api/query/useCvWindowBalanceQuery.js";
 import { useUploadMutation } from "@/lib/api/query/useUploadMutation.js";
 import { MAXIMUM_UPLOAD_SIZE_BYTES } from "@/lib/consts.js";
 import { getUserFriendlyMessage } from "@/lib/errorUtils.js";
@@ -35,6 +37,7 @@ export const DropzoneBox = ({
 	const [error, setError] = useState("");
 	const [uploadSuccess, setUploadSuccess] = useState(false);
 	const uploadMutation = useUploadMutation();
+	const { data: balanceData } = useCvWindowBalanceQuery();
 
 	// Reset uploadSuccess when file is cleared
 	useEffect(() => {
@@ -124,7 +127,8 @@ export const DropzoneBox = ({
 					}}
 				>
 					<BodyExtraSmallWarning sx={{ textAlign: "center" }}>
-						You can process up to <strong>10 CVs</strong> per 24h.
+						You can process up to {CV_PROCESSING_LIMIT}
+						<strong>{balanceData?.limit ?? 10} CVs</strong> per 24h.
 					</BodyExtraSmallWarning>
 
 					<Stack alignItems="center" gap={0.5} m={2}>
@@ -140,8 +144,14 @@ export const DropzoneBox = ({
 							}}
 						>
 							<Stack direction="column">
-								9<BodySmallDarker>left today</BodySmallDarker>
-								<BodyExtraSmall>resets in 3h</BodyExtraSmall>
+								{CV_PROCESSING_LIMIT}
+								{balanceData?.remaining ?? 10}
+								<BodySmallDarker>left today</BodySmallDarker>
+								{!!balanceData?.resetsIn && !!balanceData?.resetsIn && (
+									<BodyExtraSmall>
+										resets in {balanceData.resetsIn}h
+									</BodyExtraSmall>
+								)}
 							</Stack>
 						</Button>
 					</Stack>
@@ -178,7 +188,11 @@ export const DropzoneBox = ({
 								size="md"
 								color="primary"
 								onClick={handleUpload}
-								disabled={uploadMutation.isPending}
+								disabled={
+									uploadMutation.isPending ||
+									balanceData?.remaining === 0 ||
+									balanceData?.allowed === false
+								}
 								startDecorator={
 									uploadMutation.isPending ? (
 										<CircularProgress size="sm" />
@@ -194,7 +208,15 @@ export const DropzoneBox = ({
 						<>
 							<BodySmallDarker>Drag & drop a CV or</BodySmallDarker>
 							<input {...getInputProps()} />
-							<Button size="md" sx={{ m: 1 }} color="primary" onClick={open}>
+							<Button
+								size="md"
+								sx={{ m: 1 }}
+								color="primary"
+								onClick={open}
+								disabled={
+									balanceData?.remaining === 0 || balanceData?.allowed === false
+								}
+							>
 								Browse Files
 							</Button>
 							<BodyExtraSmall sx={{ textAlign: "center" }}>

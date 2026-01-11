@@ -75,3 +75,5 @@ userRouter.post(
 	validateRequest({ body: generateCoverLetterBodySchema }),
 	generateCoverLetterController,
 );
+
+userRouter.get("/usage/cv-window-balance", getCvWindowBalanceController);

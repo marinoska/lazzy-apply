@@ -1,8 +1,9 @@
+import { CV_PROCESSING_LIMIT } from "@lazyapply/types";
 import type { Document, Model } from "mongoose";
 
 export const CV_WINDOW_BALANCE_MODEL_NAME = "cv_window_balance" as const;
 
-export const CV_PROCESSING_LIMIT = 10 as const;
+export { CV_PROCESSING_LIMIT };
 
 export type TCvWindowBalance = {
 	userId: string;

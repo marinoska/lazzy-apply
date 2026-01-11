@@ -4,3 +4,7 @@ export const uploadsKeys = {
 	list: (params: { limit?: number; offset?: number }) =>
 		[...uploadsKeys.lists(), params] as const,
 };
+
+export const cvWindowBalanceKeys = {
+	all: ["cvWindowBalance"] as const,
+};

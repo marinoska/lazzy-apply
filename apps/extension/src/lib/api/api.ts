@@ -193,3 +193,22 @@ export async function generateCoverLetter(
 		body,
 	);
 }
+
+export interface CvWindowBalanceResponse {
+	allowed: boolean;
+	remaining: number;
+	used: number;
+	limit: number;
+	windowStartAt: string | null;
+	resetsIn: number | null;
+}
+
+/**
+ * Get CV window balance (rolling 24h limit)
+ */
+export async function getCvWindowBalance(): Promise<CvWindowBalanceResponse> {
+	return sendApiRequest<CvWindowBalanceResponse>(
+		"GET",
+		"/usage/cv-window-balance",
+	);
+}
